@@ -28,6 +28,7 @@
     <string name="theme_name_dark">Dark</string>
     <string name="theme_name_marine">Marine</string>
     <string name="theme_name_old_computer">Old Computer</string>
+    <string name="theme_name_transparent" translatable="false">Transparent</string>
 
     <!-- Widgets -->
     <string name="widget_launcher_label">Blue Line Console shortcut</string>

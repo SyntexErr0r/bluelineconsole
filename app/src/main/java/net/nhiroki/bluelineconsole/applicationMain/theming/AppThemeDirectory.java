@@ -8,6 +8,7 @@ import net.nhiroki.bluelineconsole.applicationMain.theming.eachTheme.BlueLineCon
 import net.nhiroki.bluelineconsole.applicationMain.theming.eachTheme.BlueLineConsoleLightTheme;
 import net.nhiroki.bluelineconsole.applicationMain.theming.eachTheme.MarineTheme;
 import net.nhiroki.bluelineconsole.applicationMain.theming.eachTheme.OldComputerTheme;
+import net.nhiroki.bluelineconsole.applicationMain.theming.eachTheme.TransparentTheme;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,7 @@ public class AppThemeDirectory {
             new BlueLineConsoleDarkTheme(),
             new MarineTheme(),
             new OldComputerTheme(),
+            new TransparentTheme(),
     };
 
     private static Map<String, AppTheme> themeMap;

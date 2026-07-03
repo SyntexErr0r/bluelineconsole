@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Transparent Theme Colors -->
+    <color name="transparentBackgroundColor">#00000000</color>
+
+    <style name="BaseAppThemeTransparentLight" parent="BaseAppThemeLight">
+        <item name="android:colorBackground">@color/transparentBackgroundColor</item>
+        <item name="bluelineconsoleBackgroundColorOfCommand">@color/transparentBackgroundColor</item>
+    </style>
+
+    <style name="BaseAppThemeTransparentDark" parent="BaseAppThemeDark">
+        <item name="android:colorBackground">@color/transparentBackgroundColor</item>
+        <item name="bluelineconsoleBackgroundColorOfCommand">@color/transparentBackgroundColor</item>
+    </style>
+
+    <style name="AppThemeTransparentLight" parent="BaseAppThemeTransparentLight">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
+    <style name="AppThemeTransparentLightHome" parent="BaseAppThemeTransparentLight">
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowShowWallpaper">true</item>
+    </style>
+
+    <style name="AppThemeTransparentDark" parent="BaseAppThemeTransparentDark">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
+    <style name="AppThemeTransparentDarkHome" parent="BaseAppThemeTransparentDark">
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowShowWallpaper">true</item>
+    </style>
+</resources>
