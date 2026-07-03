@@ -52,7 +52,7 @@
             >
             <intent
                 android:targetClass="net.nhiroki.bluelineconsole.applicationMain.PreferencesAccentColorActivity"
-                android:targetPackage="net.nhiroki.bluelineconsole"
+                android:targetPackage="net.nhiroki.bluelineconsole.beta"
                 />
         </Preference>
         <SwitchPreference
@@ -90,7 +90,7 @@
             >
             <intent
                 android:targetClass="net.nhiroki.bluelineconsole.applicationMain.PreferencesCustomWebActivity"
-                android:targetPackage="net.nhiroki.bluelineconsole"
+                android:targetPackage="net.nhiroki.bluelineconsole.beta"
                 />
         </Preference>
         <ListPreference
@@ -111,7 +111,7 @@
             >
             <intent
                 android:targetClass="net.nhiroki.bluelineconsole.applicationMain.PreferencesWidgetCommandsActivity"
-                android:targetPackage="net.nhiroki.bluelineconsole"
+                android:targetPackage="net.nhiroki.bluelineconsole.beta"
                 />
         </Preference>
     </PreferenceCategory>
@@ -126,7 +126,7 @@
             >
             <intent
                 android:targetClass="net.nhiroki.bluelineconsole.applicationMain.PreferencesHomeScreenItemsActivity"
-                android:targetPackage="net.nhiroki.bluelineconsole"
+                android:targetPackage="net.nhiroki.bluelineconsole.beta"
                 />
         </Preference>
     </PreferenceCategory>
@@ -194,7 +194,7 @@
             >
             <intent
                 android:targetClass="net.nhiroki.bluelineconsole.applicationMain.LicensingInformationActivity"
-                android:targetPackage="net.nhiroki.bluelineconsole"
+                android:targetPackage="net.nhiroki.bluelineconsole.beta"
                 />
         </Preference>
     </PreferenceCategory>
