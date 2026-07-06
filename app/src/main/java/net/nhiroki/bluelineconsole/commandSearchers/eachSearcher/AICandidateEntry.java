@@ -20,21 +20,25 @@ import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.interfaces.EventLauncher;
 
 public class AICandidateEntry implements CandidateEntry {
+    private static final int STATE_INACTIVE = -1;
     private static final int STATE_LOADING = 0;
     private static final int STATE_SUCCESS = 1;
     private static final int STATE_ERROR = 2;
 
     private final String mQuestion;
     private String mAnswerText = "";
-    private int mState = STATE_LOADING;
-    private boolean mRequestStarted = false;
+    private int mState = STATE_INACTIVE;
 
     private LinearLayout mView;
     private TextView mContentTextView;
     private ProgressBar mProgressBar;
 
     public AICandidateEntry(String question) {
-        this.mQuestion = question;
+        this.mQuestion = question.trim();
+        if (this.mQuestion.isEmpty()) {
+            this.mState = STATE_SUCCESS;
+            this.mAnswerText = "Type '? your question' or 'ai your question' to ask Gemini.";
+        }
     }
 
     @Override
@@ -72,32 +76,15 @@ public class AICandidateEntry implements CandidateEntry {
             mView.addView(mProgressBar);
         }
 
-        if (mState == STATE_LOADING) {
+        if (mState == STATE_INACTIVE) {
+            mContentTextView.setText("Press Enter or tap to ask Gemini: \"" + mQuestion + "\"");
+            mProgressBar.setVisibility(View.GONE);
+        } else if (mState == STATE_LOADING) {
             mContentTextView.setText("Thinking...");
             mProgressBar.setVisibility(View.VISIBLE);
         } else {
             mContentTextView.setText(mAnswerText);
             mProgressBar.setVisibility(View.GONE);
-        }
-
-        if (!mRequestStarted && !mQuestion.isEmpty()) {
-            mRequestStarted = true;
-            String apiKey = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_api_key", "").trim();
-            String model = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_model", "gemini-2.5-flash").trim();
-            if (model.isEmpty()) {
-                model = "gemini-2.5-flash";
-            }
-            if (apiKey.isEmpty()) {
-                mState = STATE_ERROR;
-                mAnswerText = "Error: Please set your Gemini API key in Settings.";
-                updateUI();
-            } else {
-                fetchAIAnswer(apiKey, model, mainActivity);
-            }
-        } else if (mQuestion.isEmpty()) {
-            mState = STATE_SUCCESS;
-            mAnswerText = "Type '? your question' or 'ai your question' to ask Gemini.";
-            updateUI();
         }
 
         return mView;
@@ -192,10 +179,35 @@ public class AICandidateEntry implements CandidateEntry {
 
     @Override
     public EventLauncher getEventLauncher(Context context) {
-        if (mState == STATE_SUCCESS && !mAnswerText.isEmpty()) {
-            return new EventLauncher() {
-                @Override
-                public void launch(MainActivity activity) {
+        if (mQuestion.isEmpty()) {
+            return null;
+        }
+
+        return new EventLauncher() {
+            @Override
+            public void launch(MainActivity activity) {
+                if (mState == STATE_INACTIVE) {
+                    mState = STATE_LOADING;
+                    if (mContentTextView != null) {
+                        mContentTextView.setText("Thinking...");
+                    }
+                    if (mProgressBar != null) {
+                        mProgressBar.setVisibility(View.VISIBLE);
+                    }
+
+                    String apiKey = PreferenceManager.getDefaultSharedPreferences(activity).getString("pref_ai_api_key", "").trim();
+                    String model = PreferenceManager.getDefaultSharedPreferences(activity).getString("pref_ai_model", "gemini-2.5-flash").trim();
+                    if (model.isEmpty()) {
+                        model = "gemini-2.5-flash";
+                    }
+                    if (apiKey.isEmpty()) {
+                        mState = STATE_ERROR;
+                        mAnswerText = "Error: Please set your Gemini API key in Settings.";
+                        updateUI();
+                    } else {
+                        fetchAIAnswer(apiKey, model, activity);
+                    }
+                } else if (mState == STATE_SUCCESS && !mAnswerText.isEmpty()) {
                     ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
                     ClipData clip = ClipData.newPlainText("Gemini Answer", mAnswerText);
                     if (clipboard != null) {
@@ -203,9 +215,8 @@ public class AICandidateEntry implements CandidateEntry {
                         Toast.makeText(activity, "Answer copied to clipboard!", Toast.LENGTH_SHORT).show();
                     }
                 }
-            };
-        }
-        return null;
+            }
+        };
     }
 
     @Override
@@ -215,7 +226,7 @@ public class AICandidateEntry implements CandidateEntry {
 
     @Override
     public boolean hasEvent() {
-        return mState == STATE_SUCCESS && !mAnswerText.isEmpty();
+        return !mQuestion.isEmpty() && (mState == STATE_INACTIVE || (mState == STATE_SUCCESS && !mAnswerText.isEmpty()));
     }
 
     @Override
