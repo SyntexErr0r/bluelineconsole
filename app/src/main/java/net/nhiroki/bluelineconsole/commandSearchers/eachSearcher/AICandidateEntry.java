@@ -82,13 +82,17 @@ public class AICandidateEntry implements CandidateEntry {
 
         if (!mRequestStarted && !mQuestion.isEmpty()) {
             mRequestStarted = true;
-            String apiKey = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_api_key", "");
+            String apiKey = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_api_key", "").trim();
+            String model = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_model", "gemini-1.5-flash").trim();
+            if (model.isEmpty()) {
+                model = "gemini-1.5-flash";
+            }
             if (apiKey.isEmpty()) {
                 mState = STATE_ERROR;
                 mAnswerText = "Error: Please set your Gemini API key in Settings.";
                 updateUI();
             } else {
-                fetchAIAnswer(apiKey, mainActivity);
+                fetchAIAnswer(apiKey, model, mainActivity);
             }
         } else if (mQuestion.isEmpty()) {
             mState = STATE_SUCCESS;
@@ -108,7 +112,7 @@ public class AICandidateEntry implements CandidateEntry {
         }
     }
 
-    private void fetchAIAnswer(final String apiKey, final MainActivity activity) {
+    private void fetchAIAnswer(final String apiKey, final String model, final MainActivity activity) {
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -117,7 +121,7 @@ public class AICandidateEntry implements CandidateEntry {
                 java.io.BufferedReader reader = null;
                 java.net.HttpURLConnection conn = null;
                 try {
-                    java.net.URL url = new java.net.URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey);
+                    java.net.URL url = new java.net.URL("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + apiKey);
                     conn = (java.net.HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setRequestProperty("Content-Type", "application/json; utf-8");

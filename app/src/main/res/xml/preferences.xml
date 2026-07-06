@@ -205,6 +205,15 @@
             app:dependency="pref_ai_enabled"
             app:iconSpaceReserved="false"
             />
+        <EditTextPreference
+            android:key="pref_ai_model"
+            android:title="@string/preferences_item_ai_model_title"
+            android:summary="@string/preferences_item_ai_model_summary"
+            android:defaultValue="gemini-1.5-flash"
+            android:dialogTitle="@string/preferences_item_ai_model_dialog_title"
+            app:dependency="pref_ai_enabled"
+            app:iconSpaceReserved="false"
+            />
     </PreferenceCategory>
     <PreferenceCategory
         android:title="@string/preferences_category_about_this_app"

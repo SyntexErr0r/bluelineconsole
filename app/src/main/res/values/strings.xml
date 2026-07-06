@@ -259,4 +259,7 @@
     <string name="preferences_item_ai_api_key_title" translatable="false">Gemini API Key</string>
     <string name="preferences_item_ai_api_key_summary" translatable="false">Required for AI quick answers. Get your key from Google AI Studio.</string>
     <string name="preferences_item_ai_api_key_dialog_title" translatable="false">Enter Gemini API Key</string>
+    <string name="preferences_item_ai_model_title" translatable="false">AI Model Name</string>
+    <string name="preferences_item_ai_model_summary" translatable="false">The Gemini model to query. Default is gemini-1.5-flash.</string>
+    <string name="preferences_item_ai_model_dialog_title" translatable="false">Enter AI Model Name</string>
 </resources>
