@@ -3,7 +3,9 @@ package net.nhiroki.bluelineconsole.applicationMain;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 
+import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.PreferenceFragmentCompat;
 
@@ -98,6 +100,13 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
 
         if (Build.VERSION.SDK_INT < 24) {
             findPreference(EditTextConfigurations.PREF_KEY_MAIN_EDITTEXT_HINT_LOCALE_ENGLISH).setVisible(false);
+        }
+
+        EditTextPreference pinPref = findPreference("pref_app_lock_pin");
+        if (pinPref != null) {
+            pinPref.setOnBindEditTextListener(editText -> {
+                editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+            });
         }
     }
 }

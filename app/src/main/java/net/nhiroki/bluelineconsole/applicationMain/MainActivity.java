@@ -30,6 +30,7 @@ public class MainActivity extends BaseWindowActivity {
     private ExecutorService threadPool = null;
 
     public static final int REQUEST_CODE_FOR_COMING_BACK = 1;
+    public static final int REQUEST_CODE_PIN_LOCK = 2;
 
     private boolean cameBackFlag = false;
     private boolean comingBackFlag = false;
@@ -144,6 +145,11 @@ public class MainActivity extends BaseWindowActivity {
     protected void onResume() {
         super.onResume();
 
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+            this.startActivityForResult(new Intent(this, PINLockActivity.class), REQUEST_CODE_PIN_LOCK);
+            return;
+        }
+
         resultCandidateListAdapter.setShowIcons(PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_appearance_show_icons", true));
 
         ++this.resumeId;
@@ -211,6 +217,12 @@ public class MainActivity extends BaseWindowActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_PIN_LOCK) {
+            if (resultCode != RESULT_OK) {
+                this.finish();
+            }
+            return;
+        }
         this.cameBackFlag = (requestCode == REQUEST_CODE_FOR_COMING_BACK) && (resultCode == RESULT_OK);
     }
 
@@ -233,6 +245,9 @@ public class MainActivity extends BaseWindowActivity {
     protected void onStop() {
         // This app should be as stateless as possible. When app disappears most activities should finish.
         super.onStop();
+        if (!comingBackFlag) {
+            net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(true);
+        }
         if (!this.iAmHomeActivity && !this.comingBackFlag) {
             this.finish();
         }

@@ -169,6 +169,25 @@
             />
     </PreferenceCategory>
     <PreferenceCategory
+        android:title="@string/preferences_category_security"
+        app:iconSpaceReserved="false"
+        >
+        <SwitchPreference
+            android:key="pref_app_lock_enabled"
+            android:title="@string/preferences_item_app_lock_enabled_title"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            />
+        <EditTextPreference
+            android:key="pref_app_lock_pin"
+            android:title="@string/preferences_item_app_lock_pin_title"
+            android:summary="@string/preferences_item_app_lock_pin_summary"
+            android:dialogTitle="@string/preferences_item_app_lock_pin_dialog_title"
+            app:dependency="pref_app_lock_enabled"
+            app:iconSpaceReserved="false"
+            />
+    </PreferenceCategory>
+    <PreferenceCategory
         android:title="@string/preferences_category_about_this_app"
         app:iconSpaceReserved="false"
         >

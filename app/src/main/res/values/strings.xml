@@ -247,4 +247,10 @@
 
     <!-- Legal English texts -->
     <string name="license_apache_license_v2.0_name" translatable="false">Apache License, Version 2.0</string>
+
+    <string name="preferences_category_security" translatable="false">PIN Security</string>
+    <string name="preferences_item_app_lock_enabled_title" translatable="false">Enable App Lock</string>
+    <string name="preferences_item_app_lock_pin_title" translatable="false">Set numeric PIN</string>
+    <string name="preferences_item_app_lock_pin_summary" translatable="false">Require PIN to open launcher</string>
+    <string name="preferences_item_app_lock_pin_dialog_title" translatable="false">Enter Numeric PIN</string>
 </resources>

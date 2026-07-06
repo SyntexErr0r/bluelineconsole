@@ -76,6 +76,12 @@
             android:exported="false"
             />
         <activity
+            android:name=".applicationMain.PINLockActivity"
+            android:theme="@style/AppThemeBlueLineConsole"
+            android:exported="false"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            />
+        <activity
             android:name=".applicationMain.PreferencesActivity"
             android:exported="false"
             android:theme="@style/AppThemeBlueLineConsole"
