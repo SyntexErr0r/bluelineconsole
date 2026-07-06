@@ -188,6 +188,25 @@
             />
     </PreferenceCategory>
     <PreferenceCategory
+        android:title="@string/preferences_category_ai"
+        app:iconSpaceReserved="false"
+        >
+        <SwitchPreference
+            android:key="pref_ai_enabled"
+            android:title="@string/preferences_item_ai_enabled_title"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            />
+        <EditTextPreference
+            android:key="pref_ai_api_key"
+            android:title="@string/preferences_item_ai_api_key_title"
+            android:summary="@string/preferences_item_ai_api_key_summary"
+            android:dialogTitle="@string/preferences_item_ai_api_key_dialog_title"
+            app:dependency="pref_ai_enabled"
+            app:iconSpaceReserved="false"
+            />
+    </PreferenceCategory>
+    <PreferenceCategory
         android:title="@string/preferences_category_about_this_app"
         app:iconSpaceReserved="false"
         >
