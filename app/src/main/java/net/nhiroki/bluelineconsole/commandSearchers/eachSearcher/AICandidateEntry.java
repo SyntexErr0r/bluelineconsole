@@ -83,9 +83,9 @@ public class AICandidateEntry implements CandidateEntry {
         if (!mRequestStarted && !mQuestion.isEmpty()) {
             mRequestStarted = true;
             String apiKey = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_api_key", "").trim();
-            String model = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_model", "gemini-1.5-flash").trim();
+            String model = PreferenceManager.getDefaultSharedPreferences(mainActivity).getString("pref_ai_model", "gemini-2.5-flash").trim();
             if (model.isEmpty()) {
-                model = "gemini-1.5-flash";
+                model = "gemini-2.5-flash";
             }
             if (apiKey.isEmpty()) {
                 mState = STATE_ERROR;
