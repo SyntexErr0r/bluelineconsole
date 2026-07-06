@@ -227,6 +227,7 @@ public class MainActivity extends BaseWindowActivity {
             mainInputText.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
             mainInputText.setHint(null);
             findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.VISIBLE);
+            mainInputText.setText("");
         }
     }
 
