@@ -6,6 +6,8 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.annotation.SuppressLint;
+
 import net.nhiroki.bluelineconsole.R;
 import net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState;
 
@@ -99,6 +101,7 @@ public class PINLockActivity extends BaseWindowActivity implements View.OnClickL
         }
     }
 
+    @SuppressLint("GestureBackNavigation")
     @Override
     public void onBackPressed() {
         setResult(RESULT_CANCELED);
