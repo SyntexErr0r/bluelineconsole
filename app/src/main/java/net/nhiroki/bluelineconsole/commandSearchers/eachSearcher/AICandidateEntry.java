@@ -83,7 +83,7 @@ public class AICandidateEntry implements CandidateEntry {
             mContentTextView.setText("Thinking...");
             mProgressBar.setVisibility(View.VISIBLE);
         } else {
-            mContentTextView.setText(mAnswerText);
+            mContentTextView.setText(renderMarkdown(mAnswerText));
             mProgressBar.setVisibility(View.GONE);
         }
 
@@ -95,7 +95,7 @@ public class AICandidateEntry implements CandidateEntry {
             mProgressBar.setVisibility(View.GONE);
         }
         if (mContentTextView != null) {
-            mContentTextView.setText(mAnswerText);
+            mContentTextView.setText(renderMarkdown(mAnswerText));
         }
     }
 
@@ -237,5 +237,39 @@ public class AICandidateEntry implements CandidateEntry {
     @Override
     public boolean viewIsRecyclable() {
         return false;
+    }
+
+    private android.text.Spanned renderMarkdown(String markdown) {
+        if (markdown == null) {
+            return new android.text.SpannableString("");
+        }
+
+        // 1. Escape HTML special characters to prevent rendering problems
+        String html = markdown.replace("&", "&amp;")
+                              .replace("<", "&lt;")
+                              .replace(">", "&gt;");
+
+        // 2. Replace '**text**' with '<b>text</b>'
+        html = html.replaceAll("\\*\\*(.*?)\\*\\*", "<b>$1</b>");
+
+        // 3. Replace '*text*' with '<i>text</i>'
+        html = html.replaceAll("\\*(.*?)\\*", "<i>$1</i>");
+
+        // 4. Replace bullet points: '* item' or '- item' at the start of a line
+        html = html.replaceAll("(?m)^[\\*\\-]\\s+(.*?)$", "&#8226; $1");
+
+        // 5. Replace headers: '### Header'
+        html = html.replaceAll("(?m)^###\\s+(.*?)$", "<b>$1</b>");
+        html = html.replaceAll("(?m)^##\\s+(.*?)$", "<b><big>$1</big></b>");
+        html = html.replaceAll("(?m)^#\\s+(.*?)$", "<b><big><big>$1</big></big></b>");
+
+        // 6. Replace newlines with <br/>
+        html = html.replaceAll("\n", "<br/>");
+
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            return android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            return android.text.Html.fromHtml(html);
+        }
     }
 }
