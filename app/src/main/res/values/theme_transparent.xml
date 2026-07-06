@@ -6,11 +6,15 @@
     <style name="BaseAppThemeTransparentLight" parent="BaseAppThemeLight">
         <item name="android:colorBackground">@color/transparentBackgroundColor</item>
         <item name="bluelineconsoleBackgroundColorOfCommand">@color/transparentBackgroundColor</item>
+        <item name="bluelineconsoleFrameColor">@color/transparentBackgroundColor</item>
+        <item name="bluelineconsoleFrameTextColor">@color/baseText</item>
     </style>
 
     <style name="BaseAppThemeTransparentDark" parent="BaseAppThemeDark">
         <item name="android:colorBackground">@color/transparentBackgroundColor</item>
         <item name="bluelineconsoleBackgroundColorOfCommand">@color/transparentBackgroundColor</item>
+        <item name="bluelineconsoleFrameColor">@color/transparentBackgroundColor</item>
+        <item name="bluelineconsoleFrameTextColor">@color/baseTextDark</item>
     </style>
 
     <style name="AppThemeTransparentLight" parent="BaseAppThemeTransparentLight">
