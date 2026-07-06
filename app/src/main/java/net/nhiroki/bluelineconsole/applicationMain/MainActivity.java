@@ -30,7 +30,6 @@ public class MainActivity extends BaseWindowActivity {
     private ExecutorService threadPool = null;
 
     public static final int REQUEST_CODE_FOR_COMING_BACK = 1;
-    public static final int REQUEST_CODE_PIN_LOCK = 2;
 
     private boolean cameBackFlag = false;
     private boolean comingBackFlag = false;
@@ -145,11 +144,22 @@ public class MainActivity extends BaseWindowActivity {
     protected void onResume() {
         super.onResume();
 
+        if (commandSearchAggregator == null) {
+            commandSearchAggregator = new CommandSearchAggregator(this);
+            mainInputText.addTextChangedListener(new MainInputTextListener(mainInputText.getText()));
+        }
+
+        this.updateAppLockUI();
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
-            this.startActivityForResult(new Intent(this, PINLockActivity.class), REQUEST_CODE_PIN_LOCK);
+            ++this.resumeId;
+            this.comingBackFlag = false;
             return;
         }
 
+        this.completeResumeSetup();
+    }
+
+    private void completeResumeSetup() {
         resultCandidateListAdapter.setShowIcons(PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_appearance_show_icons", true));
 
         ++this.resumeId;
@@ -165,30 +175,23 @@ public class MainActivity extends BaseWindowActivity {
 
         threadPool = Executors.newSingleThreadExecutor();
 
-        if (commandSearchAggregator == null) {
-            // first time after onCreate()
-            commandSearchAggregator = new CommandSearchAggregator(this);
-            mainInputText.addTextChangedListener(new MainInputTextListener(mainInputText.getText()));
+        if (!cameBackFlag) {
+            if (this.iAmHomeActivity) {
+                if (! mainInputText.getText().toString().isEmpty()) {
+                    this.changeInputText("");
+                }
 
-        } else {
-            if (!cameBackFlag) {
-                if (this.iAmHomeActivity) {
-                    if (! mainInputText.getText().toString().isEmpty()) {
-                        this.changeInputText("");
-                    }
+            } else {
+                mainInputText.setText("");
 
-                } else {
-                    mainInputText.setText("");
-
-                    if (!this.iAmHomeActivity) {
-                        resultCandidateListAdapter.clear();
-                        resultCandidateListAdapter.notifyDataSetChanged();
-                    }
+                if (!this.iAmHomeActivity) {
+                    resultCandidateListAdapter.clear();
+                    resultCandidateListAdapter.notifyDataSetChanged();
                 }
             }
-            // Refresh after searching temporary list
-            commandSearchAggregator.refresh(this);
         }
+        // Refresh after searching temporary list
+        commandSearchAggregator.refresh(this);
 
         if (this.showStartUpHelp) {
             this.showStartUpHelp = false;
@@ -214,15 +217,22 @@ public class MainActivity extends BaseWindowActivity {
         MainActivity.this.enableBaseWindowAnimation();
     }
 
+    private void updateAppLockUI() {
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+            mainInputText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+            mainInputText.setHint("Enter PIN...");
+            findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.GONE);
+            mainInputText.setText("");
+        } else {
+            mainInputText.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+            mainInputText.setHint(null);
+            findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.VISIBLE);
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_PIN_LOCK) {
-            if (resultCode != RESULT_OK) {
-                this.finish();
-            }
-            return;
-        }
         this.cameBackFlag = (requestCode == REQUEST_CODE_FOR_COMING_BACK) && (resultCode == RESULT_OK);
     }
 
@@ -332,6 +342,21 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     private void onCommandInput(final CharSequence query) {
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+            String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "");
+            if (!storedPin.isEmpty()) {
+                if (query.toString().equals(storedPin)) {
+                    net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
+                    this.updateAppLockUI();
+                    this.completeResumeSetup();
+                } else if (query.length() >= storedPin.length()) {
+                    android.widget.Toast.makeText(this, "Incorrect PIN", android.widget.Toast.LENGTH_SHORT).show();
+                    mainInputText.setText("");
+                }
+            }
+            return;
+        }
+
         if (commandSearchAggregator.isPrepared() || (query.toString().isEmpty() && !this.iAmHomeActivity)) {
             findViewById(R.id.commandSearchWaitingNotification).setVisibility(View.GONE);
             executeSearch(query.toString());
