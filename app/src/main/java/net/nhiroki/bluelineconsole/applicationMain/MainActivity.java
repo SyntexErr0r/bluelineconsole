@@ -149,14 +149,15 @@ public class MainActivity extends BaseWindowActivity {
             mainInputText.addTextChangedListener(new MainInputTextListener(mainInputText.getText()));
         }
 
-        this.updateAppLockUI();
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+            this.updateAppLockUI();
             ++this.resumeId;
             this.comingBackFlag = false;
             return;
         }
 
         this.completeResumeSetup();
+        this.updateAppLockUI();
     }
 
     private void completeResumeSetup() {
@@ -257,7 +258,7 @@ public class MainActivity extends BaseWindowActivity {
         // This app should be as stateless as possible. When app disappears most activities should finish.
         super.onStop();
         if (!comingBackFlag) {
-            net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(true);
+            net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLastExitTime(System.currentTimeMillis());
         }
         if (!this.iAmHomeActivity && !this.comingBackFlag) {
             this.finish();
@@ -348,8 +349,8 @@ public class MainActivity extends BaseWindowActivity {
             if (!storedPin.isEmpty()) {
                 if (query.toString().equals(storedPin)) {
                     net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
-                    this.updateAppLockUI();
                     this.completeResumeSetup();
+                    this.updateAppLockUI();
                 } else if (query.length() >= storedPin.length()) {
                     android.widget.Toast.makeText(this, "Incorrect PIN", android.widget.Toast.LENGTH_SHORT).show();
                     mainInputText.setText("");

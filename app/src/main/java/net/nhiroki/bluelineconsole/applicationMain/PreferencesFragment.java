@@ -9,6 +9,9 @@ import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.PreferenceFragmentCompat;
 
+import androidx.preference.Preference;
+import androidx.preference.PreferenceManager;
+
 import net.nhiroki.bluelineconsole.BuildConfig;
 import net.nhiroki.bluelineconsole.R;
 import net.nhiroki.bluelineconsole.applicationMain.lib.EditTextConfigurations;
@@ -106,6 +109,22 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
         if (pinPref != null) {
             pinPref.setOnBindEditTextListener(editText -> {
                 editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+            });
+        }
+
+        Preference screenOffOnlyPref = findPreference("pref_app_lock_screen_off_only");
+        EditTextPreference delayPref = findPreference("pref_app_lock_delay");
+        if (screenOffOnlyPref != null && delayPref != null) {
+            delayPref.setOnBindEditTextListener(editText -> {
+                editText.setInputType(InputType.TYPE_CLASS_NUMBER);
+            });
+
+            boolean screenOffEnabled = PreferenceManager.getDefaultSharedPreferences(getContext()).getBoolean("pref_app_lock_screen_off_only", false);
+            delayPref.setEnabled(!screenOffEnabled);
+
+            screenOffOnlyPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                delayPref.setEnabled(!(Boolean) newValue);
+                return true;
             });
         }
     }

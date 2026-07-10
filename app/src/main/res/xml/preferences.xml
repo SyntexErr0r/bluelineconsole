@@ -186,6 +186,22 @@
             app:dependency="pref_app_lock_enabled"
             app:iconSpaceReserved="false"
             />
+        <SwitchPreference
+            android:key="pref_app_lock_screen_off_only"
+            android:title="@string/preferences_item_app_lock_screen_off_only_title"
+            android:defaultValue="false"
+            app:dependency="pref_app_lock_enabled"
+            app:iconSpaceReserved="false"
+            />
+        <EditTextPreference
+            android:key="pref_app_lock_delay"
+            android:title="@string/preferences_item_app_lock_delay_title"
+            android:summary="@string/preferences_item_app_lock_delay_summary"
+            android:defaultValue="0"
+            android:dialogTitle="@string/preferences_item_app_lock_delay_dialog_title"
+            app:dependency="pref_app_lock_enabled"
+            app:iconSpaceReserved="false"
+            />
     </PreferenceCategory>
     <PreferenceCategory
         android:title="@string/preferences_category_ai"

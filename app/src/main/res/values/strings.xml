@@ -253,6 +253,10 @@
     <string name="preferences_item_app_lock_pin_title" translatable="false">Set numeric PIN</string>
     <string name="preferences_item_app_lock_pin_summary" translatable="false">Require PIN to open launcher</string>
     <string name="preferences_item_app_lock_pin_dialog_title" translatable="false">Enter Numeric PIN</string>
+    <string name="preferences_item_app_lock_screen_off_only_title" translatable="false">Lock only when screen off</string>
+    <string name="preferences_item_app_lock_delay_title" translatable="false">Relock grace period (seconds)</string>
+    <string name="preferences_item_app_lock_delay_summary" translatable="false">Delay before locking after app goes to background. Default is 0.</string>
+    <string name="preferences_item_app_lock_delay_dialog_title" translatable="false">Enter Grace Period (seconds)</string>
 
     <string name="preferences_category_ai" translatable="false">AI Assistant</string>
     <string name="preferences_item_ai_enabled_title" translatable="false">Enable Gemini AI</string>
