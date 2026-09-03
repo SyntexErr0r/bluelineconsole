@@ -117,7 +117,7 @@ public abstract class BaseTheme implements AppTheme {
             centerLL.setLayoutParams(centerLP);
 
         } else {
-            mainLP.width = (int) (200 * activity.getResources().getDisplayMetrics().density + 0.5);
+            mainLP.width = LinearLayout.LayoutParams.MATCH_PARENT;
             mainLP.height = 0;
             mainLL.setLayoutParams(mainLP);
 
