@@ -149,11 +149,28 @@ public class AICandidateEntry implements CandidateEntry {
                         mAnswerText = answer.trim();
                         mState = STATE_SUCCESS;
                     } else {
-                        mAnswerText = "Error: API returned HTTP code " + code;
+                        String detail = "";
+                        try {
+                            java.io.InputStream es = conn.getErrorStream();
+                            if (es != null) {
+                                java.io.BufferedReader errReader = new java.io.BufferedReader(new java.io.InputStreamReader(es, "utf-8"));
+                                StringBuilder errSb = new StringBuilder();
+                                String l;
+                                while ((l = errReader.readLine()) != null) {
+                                    errSb.append(l);
+                                }
+                                errReader.close();
+                                org.json.JSONObject errJson = new org.json.JSONObject(errSb.toString());
+                                if (errJson.has("error") && errJson.getJSONObject("error").has("message")) {
+                                    detail = ": " + errJson.getJSONObject("error").getString("message");
+                                }
+                            }
+                        } catch (Exception ignored) {}
+                        mAnswerText = "Error: API returned HTTP code " + code + detail + "\n(Tap to retry)";
                         mState = STATE_ERROR;
                     }
                 } catch (Exception e) {
-                    mAnswerText = "Error: " + e.getMessage();
+                    mAnswerText = "Error: " + e.getMessage() + "\n(Tap to retry)";
                     mState = STATE_ERROR;
                 } finally {
                     try { if (os != null) os.close(); } catch (Exception ignored) {}
@@ -186,7 +203,7 @@ public class AICandidateEntry implements CandidateEntry {
         return new EventLauncher() {
             @Override
             public void launch(MainActivity activity) {
-                if (mState == STATE_INACTIVE) {
+                if (mState == STATE_INACTIVE || mState == STATE_ERROR) {
                     mState = STATE_LOADING;
                     if (mContentTextView != null) {
                         mContentTextView.setText("Thinking...");
@@ -202,7 +219,7 @@ public class AICandidateEntry implements CandidateEntry {
                     }
                     if (apiKey.isEmpty()) {
                         mState = STATE_ERROR;
-                        mAnswerText = "Error: Please set your Gemini API key in Settings.";
+                        mAnswerText = "Error: Please set your Gemini API key in Settings.\n(Tap to retry)";
                         updateUI();
                     } else {
                         fetchAIAnswer(apiKey, model, activity);
@@ -226,7 +243,7 @@ public class AICandidateEntry implements CandidateEntry {
 
     @Override
     public boolean hasEvent() {
-        return !mQuestion.isEmpty() && (mState == STATE_INACTIVE || (mState == STATE_SUCCESS && !mAnswerText.isEmpty()));
+        return !mQuestion.isEmpty() && (mState == STATE_INACTIVE || mState == STATE_ERROR || (mState == STATE_SUCCESS && !mAnswerText.isEmpty()));
     }
 
     @Override
@@ -249,21 +266,24 @@ public class AICandidateEntry implements CandidateEntry {
                               .replace("<", "&lt;")
                               .replace(">", "&gt;");
 
-        // 2. Replace '**text**' with '<b>text</b>'
-        html = html.replaceAll("\\*\\*(.*?)\\*\\*", "<b>$1</b>");
-
-        // 3. Replace '*text*' with '<i>text</i>'
-        html = html.replaceAll("\\*(.*?)\\*", "<i>$1</i>");
-
-        // 4. Replace bullet points: '* item' or '- item' at the start of a line
+        // 2. Replace bullet points: '* item' or '- item' at the start of a line BEFORE italics!
         html = html.replaceAll("(?m)^[\\*\\-]\\s+(.*?)$", "&#8226; $1");
 
-        // 5. Replace headers: '### Header'
+        // 3. Replace headers: '### Header'
         html = html.replaceAll("(?m)^###\\s+(.*?)$", "<b>$1</b>");
         html = html.replaceAll("(?m)^##\\s+(.*?)$", "<b><big>$1</big></b>");
         html = html.replaceAll("(?m)^#\\s+(.*?)$", "<b><big><big>$1</big></big></b>");
 
-        // 6. Replace newlines with <br/>
+        // 4. Replace '**text**' with '<b>text</b>'
+        html = html.replaceAll("\\*\\*(.+?)\\*\\*", "<b>$1</b>");
+
+        // 5. Replace '*text*' with '<i>text</i>'
+        html = html.replaceAll("(?<!\\w)\\*(?!\\s)(.+?)(?<!\\s)\\*(?!\\w)", "<i>$1</i>");
+
+        // 6. Replace inline code '`code`' with styled monospace font
+        html = html.replaceAll("`(.+?)`", "<tt>$1</tt>");
+
+        // 7. Replace newlines with <br/>
         html = html.replaceAll("\n", "<br/>");
 
         if (android.os.Build.VERSION.SDK_INT >= 24) {

@@ -110,6 +110,13 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
             pinPref.setOnBindEditTextListener(editText -> {
                 editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
             });
+            pinPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                if (newValue instanceof String) {
+                    pinPref.setText(((String) newValue).trim());
+                    return false;
+                }
+                return true;
+            });
         }
 
         Preference screenOffOnlyPref = findPreference("pref_app_lock_screen_off_only");
@@ -117,6 +124,18 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
         if (screenOffOnlyPref != null && delayPref != null) {
             delayPref.setOnBindEditTextListener(editText -> {
                 editText.setInputType(InputType.TYPE_CLASS_NUMBER);
+            });
+            delayPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                if (newValue instanceof String) {
+                    try {
+                        long val = Math.max(0, Long.parseLong(((String) newValue).trim()));
+                        delayPref.setText(String.valueOf(val));
+                    } catch (NumberFormatException e) {
+                        delayPref.setText("0");
+                    }
+                    return false;
+                }
+                return true;
             });
 
             boolean screenOffEnabled = PreferenceManager.getDefaultSharedPreferences(getContext()).getBoolean("pref_app_lock_screen_off_only", false);

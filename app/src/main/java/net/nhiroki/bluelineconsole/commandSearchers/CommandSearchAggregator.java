@@ -65,12 +65,18 @@ public class CommandSearchAggregator {
         for (CommandSearcher cs : commandSearcherList) {
             cs.close();
         }
+        for (CommandSearcher cs : commandSearcherListAlwaysLast) {
+            cs.close();
+        }
     }
 
     // May just start thread. In sequential execution it may be better to call this earlier.
     // Returns so early that users can wait.
     public void refresh(Context context) {
         for (CommandSearcher cs : commandSearcherList) {
+            cs.refresh(context);
+        }
+        for (CommandSearcher cs : commandSearcherListAlwaysLast) {
             cs.refresh(context);
         }
         this.appWidgetsHostManager = new AppWidgetsHostManager(context);

@@ -149,6 +149,8 @@ public class MainActivity extends BaseWindowActivity {
             mainInputText.addTextChangedListener(new MainInputTextListener(mainInputText.getText()));
         }
 
+        net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.onAppResume(this);
+
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
             this.updateAppLockUI();
             ++this.resumeId;
@@ -197,6 +199,7 @@ public class MainActivity extends BaseWindowActivity {
         if (this.showStartUpHelp) {
             this.showStartUpHelp = false;
             this.cameBackFlag = true;
+            this.comingBackFlag = true;
             startActivityForResult(new Intent(MainActivity.this, StartUpHelpActivity.class), MainActivity.REQUEST_CODE_FOR_COMING_BACK);
             return;
         }
@@ -204,6 +207,7 @@ public class MainActivity extends BaseWindowActivity {
         if (this.migrationLostHappened) {
             this.migrationLostHappened = false;
             this.cameBackFlag = true;
+            this.comingBackFlag = true;
             startActivityForResult(new Intent(MainActivity.this, NotificationMigrationLostActivity.class), MainActivity.REQUEST_CODE_FOR_COMING_BACK);
             return;
         }
@@ -228,7 +232,6 @@ public class MainActivity extends BaseWindowActivity {
             mainInputText.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
             mainInputText.setHint(null);
             findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.VISIBLE);
-            mainInputText.setText("");
         }
     }
 
@@ -243,6 +246,7 @@ public class MainActivity extends BaseWindowActivity {
         ++this.resumeId;
         if (threadPool != null) {
             threadPool.shutdownNow();
+            threadPool = null;
         }
         super.onPause();
     }
@@ -258,7 +262,7 @@ public class MainActivity extends BaseWindowActivity {
         // This app should be as stateless as possible. When app disappears most activities should finish.
         super.onStop();
         if (!comingBackFlag) {
-            net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLastExitTime(System.currentTimeMillis());
+            net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.onAppExit(this);
         }
         if (!this.iAmHomeActivity && !this.comingBackFlag) {
             this.finish();
@@ -345,12 +349,13 @@ public class MainActivity extends BaseWindowActivity {
 
     private void onCommandInput(final CharSequence query) {
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
-            String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "");
+            String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "").trim();
             if (!storedPin.isEmpty()) {
                 if (query.toString().equals(storedPin)) {
+                    mainInputText.setText("");
                     net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
-                    this.completeResumeSetup();
                     this.updateAppLockUI();
+                    this.completeResumeSetup();
                 } else if (query.length() >= storedPin.length()) {
                     android.widget.Toast.makeText(this, "Incorrect PIN", android.widget.Toast.LENGTH_SHORT).show();
                     mainInputText.setText("");
@@ -370,6 +375,10 @@ public class MainActivity extends BaseWindowActivity {
                 findViewById(R.id.commandSearchWaitingNotification).setVisibility(View.VISIBLE);
                 resultCandidateListAdapter.clear();
                 resultCandidateListAdapter.notifyDataSetChanged();
+            }
+
+            if (threadPool == null || threadPool.isShutdown()) {
+                threadPool = Executors.newSingleThreadExecutor();
             }
 
             threadPool.execute(() -> {
