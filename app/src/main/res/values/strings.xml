@@ -29,6 +29,7 @@
     <string name="theme_name_marine">Marine</string>
     <string name="theme_name_old_computer">Old Computer</string>
     <string name="theme_name_transparent" translatable="false">Transparent</string>
+    <string name="theme_name_cyber_glass" translatable="false">Cyber Glass (Sci-Fi HUD)</string>
 
     <!-- Widgets -->
     <string name="widget_launcher_label">Blue Line Console shortcut</string>

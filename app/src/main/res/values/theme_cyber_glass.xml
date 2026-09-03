@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cyber Glass (Sci-Fi HUD) Theme Colors -->
+    <color name="cyberGlassAccentColor">#00f0ff</color>
+    <color name="cyberGlassFrameColor">#3305101a</color>
+    <color name="cyberGlassBackgroundColor">#3d030910</color>
+    <color name="cyberGlassCommandBackgroundColor">#4d061420</color>
+    <color name="cyberGlassTextColor">#e6f9ff</color>
+    <color name="cyberGlassFrameTextColor">#00f0ff</color>
+    <color name="cyberGlassSelectedItemBackground">#4000f0ff</color>
+    <color name="cyberGlassDisabledTextColor">#4d7a94</color>
+
+    <style name="BaseAppThemeCyberGlass" parent="BaseAppThemeDark">
+        <item name="android:colorBackground">@color/cyberGlassBackgroundColor</item>
+        <item name="bluelineconsoleBackgroundColorOfCommand">@color/cyberGlassCommandBackgroundColor</item>
+        <item name="bluelineconsoleFrameColor">@color/cyberGlassFrameColor</item>
+        <item name="bluelineconsoleFrameTextColor">@color/cyberGlassFrameTextColor</item>
+        <item name="bluelineconsoleAccentColor">@color/cyberGlassAccentColor</item>
+        <item name="bluelineconsoleBaseTextColor">@color/cyberGlassTextColor</item>
+        <item name="bluelineconsoleSelectedItemBackgroundColor">@color/cyberGlassSelectedItemBackground</item>
+        <item name="bluelineconsoleDisabledTextColor">@color/cyberGlassDisabledTextColor</item>
+        <item name="android:textColor">@color/cyberGlassTextColor</item>
+        <item name="android:textColorPrimary">@color/cyberGlassTextColor</item>
+        <item name="android:textColorSecondary">@color/cyberGlassDisabledTextColor</item>
+        <item name="android:colorAccent">@color/cyberGlassAccentColor</item>
+        <item name="android:colorControlActivated">@color/cyberGlassAccentColor</item>
+        <item name="android:colorControlHighlight">@color/cyberGlassSelectedItemBackground</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <style name="AppThemeCyberGlass" parent="BaseAppThemeCyberGlass">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
+    <style name="AppThemeCyberGlassHome" parent="BaseAppThemeCyberGlass">
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowShowWallpaper">true</item>
+    </style>
+</resources>

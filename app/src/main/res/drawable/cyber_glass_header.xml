@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24sp"
+    android:width="160sp"
+    android:viewportHeight="24"
+    android:viewportWidth="160"
+    android:autoMirrored="true">
+    <!-- Dark frosted glass fill -->
+    <path
+        android:pathData="M0,24 L0,0 L144,0 L160,24 Z"
+        android:fillColor="#4d051522" />
+    <!-- Glowing cyan top, diagonal, and left border -->
+    <path
+        android:pathData="M1,24 L1,1 L143.5,1 L159,24"
+        android:strokeColor="#00f0ff"
+        android:strokeWidth="2" />
+</vector>
