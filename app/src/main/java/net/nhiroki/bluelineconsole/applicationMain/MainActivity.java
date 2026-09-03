@@ -153,6 +153,7 @@ public class MainActivity extends BaseWindowActivity {
 
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
             this.updateAppLockUI();
+            this.enableBaseWindowAnimation();
             ++this.resumeId;
             this.comingBackFlag = false;
             return;
@@ -354,11 +355,21 @@ public class MainActivity extends BaseWindowActivity {
                 if (query.toString().equals(storedPin)) {
                     mainInputText.setText("");
                     net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
+                    this.enableBaseWindowAnimation();
                     this.updateAppLockUI();
                     this.completeResumeSetup();
                 } else if (query.length() >= storedPin.length()) {
                     android.widget.Toast.makeText(this, "Incorrect PIN", android.widget.Toast.LENGTH_SHORT).show();
                     mainInputText.setText("");
+                    mainInputText.animate().translationX(20).setDuration(40).withEndAction(() ->
+                        mainInputText.animate().translationX(-20).setDuration(40).withEndAction(() ->
+                            mainInputText.animate().translationX(10).setDuration(40).withEndAction(() ->
+                                mainInputText.animate().translationX(-10).setDuration(40).withEndAction(() ->
+                                    mainInputText.animate().translationX(0).setDuration(40)
+                                )
+                            )
+                        )
+                    ).start();
                 }
             }
             return;
