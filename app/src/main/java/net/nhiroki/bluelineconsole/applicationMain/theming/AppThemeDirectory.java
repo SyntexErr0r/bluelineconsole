@@ -19,13 +19,13 @@ public class AppThemeDirectory {
     public static final String PREF_NAME_THEME = "pref_appearance_theme";
 
     private static final AppTheme[] THEMES = {
+            new CyberGlassTheme(),
             new BlueLineConsoleDefaultTheme(),
             new BlueLineConsoleLightTheme(),
             new BlueLineConsoleDarkTheme(),
             new MarineTheme(),
             new OldComputerTheme(),
             new TransparentTheme(),
-            new CyberGlassTheme(),
     };
 
     private static Map<String, AppTheme> themeMap;
