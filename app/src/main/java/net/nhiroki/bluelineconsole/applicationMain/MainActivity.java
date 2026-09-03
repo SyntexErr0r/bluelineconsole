@@ -361,15 +361,6 @@ public class MainActivity extends BaseWindowActivity {
                 } else if (query.length() >= storedPin.length()) {
                     android.widget.Toast.makeText(this, "Incorrect PIN", android.widget.Toast.LENGTH_SHORT).show();
                     mainInputText.setText("");
-                    mainInputText.animate().translationX(20).setDuration(40).withEndAction(() ->
-                        mainInputText.animate().translationX(-20).setDuration(40).withEndAction(() ->
-                            mainInputText.animate().translationX(10).setDuration(40).withEndAction(() ->
-                                mainInputText.animate().translationX(-10).setDuration(40).withEndAction(() ->
-                                    mainInputText.animate().translationX(0).setDuration(40)
-                                )
-                            )
-                        )
-                    ).start();
                 }
             }
             return;
