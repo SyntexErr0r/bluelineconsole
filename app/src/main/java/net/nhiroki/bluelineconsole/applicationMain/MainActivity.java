@@ -32,6 +32,7 @@ import net.nhiroki.bluelineconsole.BuildConfig;
 import net.nhiroki.bluelineconsole.R;
 import net.nhiroki.bluelineconsole.applicationMain.lib.EditTextConfigurations;
 import net.nhiroki.bluelineconsole.commandSearchers.CommandSearchAggregator;
+import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
 import net.nhiroki.bluelineconsole.dataStore.deviceLocal.WidgetsSetting;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 
@@ -193,6 +194,7 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     private void completeResumeSetup() {
+        AppLogger.d("LIFECYCLE", "MainActivity resumed (home=" + this.iAmHomeActivity + ", cameBack=" + cameBackFlag + ")");
         resultCandidateListAdapter.setShowIcons(PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_appearance_show_icons", true));
 
         ++this.resumeId;

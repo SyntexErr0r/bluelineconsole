@@ -23,6 +23,7 @@ import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.applicationMain.lib.ScreenCaptureHelper;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
+import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
 import net.nhiroki.bluelineconsole.interfaces.EventLauncher;
 
 import org.json.JSONArray;
@@ -335,6 +336,7 @@ public class AICandidateEntry implements CandidateEntry {
                 JSONArray currentParts = new JSONArray();
 
                 String prompt = mQuestion.isEmpty() ? "Analyze this screen and explain or summarize what is displayed." : mQuestion;
+                AppLogger.i("AI", "Sending request to Gemini (model=" + model + ", prompt='" + prompt + "', hasImage=" + (imageBase64 != null) + ")");
                 currentParts.put(new JSONObject().put("text", prompt));
 
                 if (imageBase64 != null) {
@@ -367,6 +369,7 @@ public class AICandidateEntry implements CandidateEntry {
                 os.write(input, 0, input.length);
 
                 int code = conn.getResponseCode();
+                AppLogger.i("AI", "Gemini HTTP response code: " + code);
                 if (code == 200) {
                     is = conn.getInputStream();
                     reader = new BufferedReader(new InputStreamReader(is, "utf-8"));
@@ -405,7 +408,14 @@ public class AICandidateEntry implements CandidateEntry {
                     }
 
                     mAnswerText = fullAnswer.toString().trim();
+                    AppLogger.i("AI", "Gemini response completed (length=" + mAnswerText.length() + ")");
+                    AppLogger.d("AI", "Gemini text: " + mAnswerText);
                     mExtractedAction = parseActionFromResponse(mAnswerText);
+                    if (mExtractedAction != null) {
+                        AppLogger.i("AGENT", "Parsed action from AI: " + mExtractedAction.type + " (app=" + mExtractedAction.appName + ", target=" + mExtractedAction.target + ", query=" + mExtractedAction.query + ")");
+                    } else {
+                        AppLogger.d("AGENT", "No action tag found in Gemini response.");
+                    }
                     mState = STATE_SUCCESS;
 
                     // Record both user question and model answer into AIChatSession
@@ -430,10 +440,12 @@ public class AICandidateEntry implements CandidateEntry {
                             }
                         }
                     } catch (Exception ignored) {}
+                    AppLogger.e("AI", "Gemini API error HTTP " + code + detail);
                     mAnswerText = "Error: API returned HTTP " + code + detail + "\n(Tap to retry)";
                     mState = STATE_ERROR;
                 }
             } catch (Exception e) {
+                AppLogger.e("AI", "Gemini request exception: " + e.getMessage(), e);
                 mAnswerText = "Error: " + e.getMessage() + "\n(Tap to retry)";
                 mState = STATE_ERROR;
             } finally {
@@ -540,6 +552,13 @@ public class AICandidateEntry implements CandidateEntry {
             String type = m.group(1).trim().toUpperCase();
             String p1 = m.group(2) != null ? m.group(2).trim() : null;
             String p2 = m.group(3) != null ? m.group(3).trim() : null;
+
+            if (p1 != null) {
+                p1 = p1.replaceAll("^[\"']+|[\"']+$", "").trim();
+            }
+            if (p2 != null) {
+                p2 = p2.replaceAll("^[\"']+|[\"']+$", "").trim();
+            }
 
             if ("SEARCH_APP".equals(type) || "SEARCH".equals(type)) {
                 return new AgentActionEngine.Action("SEARCH_APP", p1, p2 != null ? p2 : "");

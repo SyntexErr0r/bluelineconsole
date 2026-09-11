@@ -155,6 +155,11 @@
             android:exported="false"
             android:theme="@style/AppThemeCyberGlass"
             />
+        <activity
+            android:name=".commands.logs.LogViewerActivity"
+            android:exported="false"
+            android:theme="@style/AppThemeCyberGlass"
+            />
 
         <receiver android:name=".widget.LauncherWidgetProvider"
             android:label="@string/widget_launcher_label"

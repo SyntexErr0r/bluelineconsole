@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:colorBackground"
+    android:orientation="vertical"
+    android:padding="6dp">
+
+    <!-- Title and Subtitle -->
+    <TextView
+        android:id="@+id/log_viewer_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="[CONSOLE &amp; AGENT LOGS]"
+        android:textColor="?bluelineconsoleFrameColor"
+        android:fontFamily="monospace"
+        android:textStyle="bold"
+        android:textSize="13sp"
+        android:paddingBottom="2dp" />
+
+    <TextView
+        android:id="@+id/log_viewer_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Loading..."
+        android:textColor="#aaaaaa"
+        android:fontFamily="monospace"
+        android:textSize="10sp"
+        android:paddingBottom="6dp" />
+
+    <!-- Button Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:id="@+id/btn_copy_logs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[COPY]"
+            android:textColor="#00f0ff"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:paddingEnd="12dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_refresh_logs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[REFRESH]"
+            android:textColor="#00ffaa"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:paddingEnd="12dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_toggle_mode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[VIEW: LOGCAT]"
+            android:textColor="#ffaa00"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:paddingEnd="12dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/btn_clear_logs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[CLEAR]"
+            android:textColor="#ff5577"
+            android:fontFamily="monospace"
+            android:textSize="11sp"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?bluelineconsoleFrameColor"
+        android:layout_marginBottom="6dp" />
+
+    <!-- Log Content Area -->
+    <ScrollView
+        android:id="@+id/log_viewer_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <TextView
+            android:id="@+id/log_viewer_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?bluelineconsoleBaseTextColor"
+            android:fontFamily="monospace"
+            android:textSize="10.5sp"
+            android:textIsSelectable="true"
+            android:lineSpacingMultiplier="1.15" />
+    </ScrollView>
+</LinearLayout>

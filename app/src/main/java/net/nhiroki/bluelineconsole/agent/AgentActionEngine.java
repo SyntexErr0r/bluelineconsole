@@ -15,6 +15,8 @@ import android.provider.MediaStore;
 import android.provider.Settings;
 import android.widget.Toast;
 
+import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +74,7 @@ public class AgentActionEngine {
 
     public static void executeAction(final Context context, final Action action) {
         if (action == null || context == null) return;
+        AppLogger.i("ACTION", "executeAction called: type=" + action.type + ", app=" + action.appName + ", query=" + action.query + ", target=" + action.target);
         final Handler mainHandler = new Handler(Looper.getMainLooper());
 
         if ("OPEN_APP".equalsIgnoreCase(action.type)) {
@@ -82,19 +85,28 @@ public class AgentActionEngine {
 
         } else if ("CLICK".equalsIgnoreCase(action.type)) {
             if (BlueLineAgentService.isServiceConnected()) {
+                AppLogger.i("ACTION", "Performing CLICK on: " + action.target);
                 boolean done = BlueLineAgentService.getInstance().clickByText(action.target, false);
                 if (!done) done = BlueLineAgentService.getInstance().clickById(action.target);
                 if (!done) {
+                    AppLogger.w("ACTION", "CLICK failed: element not found: " + action.target);
                     Toast.makeText(context, "Could not find element: " + action.target, Toast.LENGTH_SHORT).show();
+                } else {
+                    AppLogger.i("ACTION", "CLICK successful on: " + action.target);
                 }
             } else {
+                AppLogger.w("ACTION", "CLICK skipped: Accessibility Service not connected");
                 Toast.makeText(context, "Accessibility Service is required for clicks. Enable it in Settings.", Toast.LENGTH_LONG).show();
             }
 
         } else if ("TYPE".equalsIgnoreCase(action.type)) {
             if (BlueLineAgentService.isServiceConnected()) {
-                BlueLineAgentService.getInstance().typeText(action.query != null ? action.query : action.target);
+                String text = action.query != null ? action.query : action.target;
+                AppLogger.i("ACTION", "Performing TYPE: '" + text + "'");
+                boolean done = BlueLineAgentService.getInstance().typeText(text);
+                AppLogger.i("ACTION", "TYPE result: " + (done ? "SUCCESS" : "FAILED"));
             } else {
+                AppLogger.w("ACTION", "TYPE skipped: Accessibility Service not connected");
                 Toast.makeText(context, "Accessibility Service is required for typing.", Toast.LENGTH_SHORT).show();
             }
 
@@ -104,15 +116,19 @@ public class AgentActionEngine {
                 if (!url.startsWith("http://") && !url.startsWith("https://")) {
                     url = "https://" + url;
                 }
+                AppLogger.i("ACTION", "Opening URL: " + url);
                 try {
                     Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     context.startActivity(intent);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    AppLogger.e("ACTION", "Failed to open URL: " + url, e);
+                }
             }
 
         } else if ("PRESS".equalsIgnoreCase(action.type)) {
             if (BlueLineAgentService.isServiceConnected()) {
+                AppLogger.i("ACTION", "Performing PRESS: " + action.target);
                 if ("BACK".equalsIgnoreCase(action.target)) {
                     BlueLineAgentService.getInstance().pressBack();
                 } else if ("HOME".equalsIgnoreCase(action.target)) {
@@ -342,11 +358,24 @@ public class AgentActionEngine {
             }
         } catch (Exception ignored) {}
 
+        // Pass 4: If compound string (e.g. "whatsapp find NAME"), try first word
+        if (query.contains(" ")) {
+            String firstWord = query.split("\\s+")[0];
+            if (!firstWord.isEmpty() && !firstWord.equals(query)) {
+                String fallbackPkg = findPackageByName(context, firstWord);
+                if (fallbackPkg != null) {
+                    AppLogger.i("ACTION", "findPackageByName: compound query '" + name + "' matched first token '" + firstWord + "' -> " + fallbackPkg);
+                    return fallbackPkg;
+                }
+            }
+        }
+
         return null;
     }
 
     public static void launchAppByName(Context context, String name) {
         if (name == null || name.trim().isEmpty()) return;
+        AppLogger.i("ACTION", "launchAppByName: '" + name + "'");
         String query = name.trim().toLowerCase();
 
         // Special system intents
@@ -403,6 +432,7 @@ public class AgentActionEngine {
 
         String pkg = findPackageByName(context, name);
         if (pkg != null) {
+            AppLogger.i("ACTION", "launchAppByName: launching package '" + pkg + "'");
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
             if (launch != null) {
                 if (!(context instanceof android.app.Activity)) {
@@ -412,6 +442,7 @@ public class AgentActionEngine {
                 return;
             }
         }
+        AppLogger.w("ACTION", "launchAppByName: Could NOT find app for '" + name + "'");
         Toast.makeText(context, "Could not find app: " + name, Toast.LENGTH_SHORT).show();
     }
 }

@@ -10,8 +10,8 @@ android {
     namespace 'net.nhiroki.bluelineconsole'
     defaultConfig {
         applicationId "net.nhiroki.bluelineconsole.beta"
-        versionCode 54
-        versionName "1.2.26-beta12"
+        versionCode 55
+        versionName "1.2.26-beta13"
 
         minSdkVersion 23
         targetSdkVersion 36

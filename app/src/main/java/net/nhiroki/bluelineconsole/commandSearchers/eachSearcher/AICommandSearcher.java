@@ -15,6 +15,7 @@ import android.graphics.Typeface;
 
 import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
 import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
+import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.interfaces.CommandSearcher;
 import net.nhiroki.bluelineconsole.interfaces.EventLauncher;
@@ -48,6 +49,7 @@ public class AICommandSearcher implements CommandSearcher {
         // 1. Check for direct agent action (e.g. "open youtube and search lofi", "search lofi on youtube", "ai open camera")
         AgentActionEngine.Action directAction = parseDirectAction(targetQuery);
         if (directAction != null) {
+            AppLogger.i("AGENT", "Direct action candidate created: " + directAction.type + " " + (directAction.appName != null ? directAction.appName : directAction.target));
             candidates.add(new AgentActionCandidateEntry(directAction));
         }
 
@@ -207,9 +209,33 @@ public class AICommandSearcher implements CommandSearcher {
         // 9. "open <app>" or "launch <app>"
         if (low.startsWith("open ") || low.startsWith("launch ")) {
             int spaceIdx = q.indexOf(' ');
-            String app = q.substring(spaceIdx + 1).trim();
-            if (!app.isEmpty() && !app.contains(" and ") && !app.contains(" for ")) {
-                return new AgentActionEngine.Action("OPEN_APP", app, null);
+            String rest = q.substring(spaceIdx + 1).trim();
+            String restLow = rest.toLowerCase();
+
+            // Check if it's "open <app> find <query>"
+            if (restLow.contains(" find ")) {
+                int findIdx = restLow.indexOf(" find ");
+                String app = rest.substring(0, findIdx).trim();
+                String searchQ = rest.substring(findIdx + 6).trim();
+                if (!app.isEmpty() && !searchQ.isEmpty()) {
+                    return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
+                }
+            }
+            // Check if it's "open <app> search <query>"
+            if (restLow.contains(" search ")) {
+                int searchIdx = restLow.indexOf(" search ");
+                String app = rest.substring(0, searchIdx).trim();
+                String searchQ = rest.substring(searchIdx + 8).trim();
+                if (!app.isEmpty() && !searchQ.isEmpty()) {
+                    return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
+                }
+            }
+
+            // Simple "open <app>" without secondary command keywords
+            if (!rest.isEmpty() && !restLow.contains(" and ") && !restLow.contains(" for ")
+                    && !restLow.contains(" send ") && !restLow.contains(" msg ") && !restLow.contains(" message ")
+                    && !restLow.contains(" tell ") && !restLow.contains(" call ") && !restLow.contains(" to ")) {
+                return new AgentActionEngine.Action("OPEN_APP", rest, null);
             }
         }
 
@@ -278,6 +304,7 @@ public class AICommandSearcher implements CommandSearcher {
         @Override
         public EventLauncher getEventLauncher(Context context) {
             return activity -> {
+                AppLogger.i("AGENT", "Launching agent action: " + action.type + " (app=" + action.appName + ", target=" + action.target + ", query=" + action.query + ")");
                 AgentActionEngine.executeAction(activity, action);
                 activity.finishIfNotHome();
             };

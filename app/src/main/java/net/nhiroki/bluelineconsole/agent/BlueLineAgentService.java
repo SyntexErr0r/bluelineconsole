@@ -14,6 +14,8 @@ import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
+import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
+
 import java.util.List;
 
 public class BlueLineAgentService extends AccessibilityService {
@@ -59,6 +61,7 @@ public class BlueLineAgentService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         sInstance = this;
+        AppLogger.i("A11Y", "Accessibility service connected");
     }
 
     @Override
@@ -66,6 +69,7 @@ public class BlueLineAgentService extends AccessibilityService {
         if (sInstance == this) {
             sInstance = null;
         }
+        AppLogger.i("A11Y", "Accessibility service disconnected/destroyed");
         super.onDestroy();
     }
 
@@ -91,6 +95,7 @@ public class BlueLineAgentService extends AccessibilityService {
             p.contains("systemui") ||
             p.equals("net.nhiroki.bluelineconsole") ||
             p.equals("net.nhiroki.bluelineconsole.beta")) {
+            AppLogger.w("A11Y", "Blocked interaction with unsafe system/launcher window: " + p);
             return false;
         }
         return true;
@@ -99,6 +104,7 @@ public class BlueLineAgentService extends AccessibilityService {
     public boolean clickByText(String targetText, boolean exact) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (!isSafeWindow(root)) return false;
+        AppLogger.i("A11Y", "clickByText: looking for '" + targetText + "' (exact=" + exact + ")");
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(targetText);
         if (nodes != null) {
             for (AccessibilityNodeInfo node : nodes) {
@@ -140,19 +146,25 @@ public class BlueLineAgentService extends AccessibilityService {
     public boolean typeText(String textToType) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (!isSafeWindow(root)) return false;
+        AppLogger.i("A11Y", "typeText: typing '" + textToType + "'");
         AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
         if (focused != null && focused.isEditable()) {
             Bundle args = new Bundle();
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, textToType);
-            return focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            boolean done = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            AppLogger.i("A11Y", "typeText on focused view: " + (done ? "SUCCESS" : "FAILED"));
+            return done;
         }
 
         AccessibilityNodeInfo editable = findFirstEditableNode(root);
         if (editable != null) {
             Bundle args = new Bundle();
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, textToType);
-            return editable.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            boolean done = editable.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            AppLogger.i("A11Y", "typeText on first editable node: " + (done ? "SUCCESS" : "FAILED"));
+            return done;
         }
+        AppLogger.w("A11Y", "typeText: no editable node found on screen");
         return false;
     }
 
