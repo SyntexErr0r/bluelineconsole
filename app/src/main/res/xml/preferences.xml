@@ -257,6 +257,13 @@
             android:summary="@string/preferences_item_agent_accessibility_summary_inactive"
             app:iconSpaceReserved="false"
             />
+        <SwitchPreference
+            android:key="pref_whatsapp_auto_send"
+            android:title="WhatsApp Auto-Send"
+            android:summary="Automatically tap Send when messaging via console (requires Accessibility)"
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            />
     </PreferenceCategory>
     <PreferenceCategory
         android:title="@string/preferences_category_about_this_app"

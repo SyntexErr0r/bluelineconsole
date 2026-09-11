@@ -271,6 +271,10 @@ public class AICandidateEntry implements CandidateEntry {
                     } else if ("SEND_MESSAGE".equalsIgnoreCase(mExtractedAction.type)) {
                         String recip = mExtractedAction.target != null && !mExtractedAction.target.isEmpty() ? mExtractedAction.target : mExtractedAction.appName;
                         actLabel = "[▶ Run: Message " + recip + "]";
+                    } else if ("CALL_APP".equalsIgnoreCase(mExtractedAction.type)) {
+                        String mode = "video".equalsIgnoreCase(mExtractedAction.query) ? "Video Call" : "Call";
+                        String recip = mExtractedAction.target != null && !mExtractedAction.target.isEmpty() ? mExtractedAction.target : mExtractedAction.appName;
+                        actLabel = "[▶ Run: " + mode + " " + recip + "]";
                     } else if ("CLICK".equalsIgnoreCase(mExtractedAction.type)) {
                         actLabel = "[▶ Run: Click \"" + mExtractedAction.target + "\"]";
                     } else if ("TYPE".equalsIgnoreCase(mExtractedAction.type)) {
@@ -357,10 +361,11 @@ public class AICandidateEntry implements CandidateEntry {
                 JSONObject systemInstruction = new JSONObject();
                 JSONArray sysParts = new JSONArray();
                 sysParts.put(new JSONObject().put("text",
-                        "You are BlueLine Agent, an intelligent Android device assistant. When the user asks you to perform an action on their device (open an app, search inside an app, send a message, click a button, open a URL, type text), answer briefly and append an action tag at the end in one of these formats:\n" +
+                        "You are BlueLine Agent, an intelligent Android device assistant. When the user asks you to perform an action on their device (open an app, search inside an app, send a message, make a call, click a button, open a URL, type text), answer briefly and append an action tag at the end in one of these formats:\n" +
                         "[ACTION: OPEN_APP, <appName>]\n" +
                         "[ACTION: SEARCH_APP, <appName>, <searchQuery>]\n" +
                         "[ACTION: SEND_MESSAGE, <appName>, <recipient>, <message>]\n" +
+                        "[ACTION: CALL_APP, <appName>, <recipient>, <voiceOrVideo>]\n" +
                         "[ACTION: OPEN_URL, <url>]\n" +
                         "[ACTION: CLICK, <buttonOrText>]\n" +
                         "[ACTION: TYPE, <text>]\n" +
@@ -577,6 +582,8 @@ public class AICandidateEntry implements CandidateEntry {
                 } else {
                     return new AgentActionEngine.Action("OPEN_APP", p1, null);
                 }
+            } else if ("CALL_APP".equals(type)) {
+                return new AgentActionEngine.Action("CALL_APP", p1, p2, p3 != null ? p3 : "voice");
             } else if ("SEARCH_APP".equals(type) || "SEARCH".equals(type)) {
                 return new AgentActionEngine.Action("SEARCH_APP", p1, p2 != null ? p2 : "");
             } else if ("OPEN_APP".equals(type)) {

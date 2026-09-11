@@ -64,6 +64,13 @@ public class BlueLineAgentService extends AccessibilityService {
         AppLogger.i("A11Y", "Accessibility service connected");
     }
 
+    private volatile boolean mPendingWhatsAppAutoSend = false;
+    private volatile long mAutoSendDeadline = 0;
+    private volatile boolean mPendingWhatsAppCall = false;
+    private volatile boolean mPendingWhatsAppCallIsVideo = false;
+    private volatile long mCallDeadline = 0;
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+
     @Override
     public void onDestroy() {
         if (sInstance == this) {
@@ -75,7 +82,12 @@ public class BlueLineAgentService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Active event listening
+        if (mPendingWhatsAppAutoSend) {
+            performWhatsAppAutoSend();
+        }
+        if (mPendingWhatsAppCall) {
+            performWhatsAppCallClick();
+        }
     }
 
     @Override
@@ -302,5 +314,220 @@ public class BlueLineAgentService extends AccessibilityService {
 
     public boolean pressRecents() {
         return performGlobalAction(GLOBAL_ACTION_RECENTS);
+    }
+
+    public void scheduleWhatsAppAutoSend() {
+        mPendingWhatsAppAutoSend = true;
+        mAutoSendDeadline = System.currentTimeMillis() + 8000;
+        AppLogger.i("A11Y", "Scheduled WhatsApp auto-send (8s deadline)");
+        schedulePollingChecks();
+    }
+
+    public void scheduleWhatsAppCallClick(boolean isVideo) {
+        mPendingWhatsAppCall = true;
+        mPendingWhatsAppCallIsVideo = isVideo;
+        mCallDeadline = System.currentTimeMillis() + 8000;
+        AppLogger.i("A11Y", "Scheduled WhatsApp " + (isVideo ? "video" : "voice") + " call click (8s deadline)");
+        schedulePollingChecks();
+    }
+
+    private void schedulePollingChecks() {
+        int[] delays = {350, 700, 1100, 1600, 2300, 3200, 4500};
+        for (int delay : delays) {
+            mMainHandler.postDelayed(() -> {
+                if (mPendingWhatsAppAutoSend) {
+                    performWhatsAppAutoSend();
+                }
+                if (mPendingWhatsAppCall) {
+                    performWhatsAppCallClick();
+                }
+            }, delay);
+        }
+    }
+
+    public synchronized boolean performWhatsAppAutoSend() {
+        if (!mPendingWhatsAppAutoSend) return false;
+        if (System.currentTimeMillis() > mAutoSendDeadline) {
+            AppLogger.w("A11Y", "WhatsApp auto-send timed out");
+            mPendingWhatsAppAutoSend = false;
+            return false;
+        }
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+        CharSequence pkg = root.getPackageName();
+        if (pkg == null) return false;
+        String pkgStr = pkg.toString().toLowerCase();
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+            return false;
+        }
+
+        // 1. Search for send button by ID
+        String[] sendIds = {
+                "com.whatsapp:id/send",
+                "com.whatsapp.w4b:id/send"
+        };
+        for (String id : sendIds) {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByViewId(id);
+            if (nodes != null && !nodes.isEmpty()) {
+                for (AccessibilityNodeInfo node : nodes) {
+                    if (node != null && node.isVisibleToUser()) {
+                        if (performClickOnNode(node)) {
+                            AppLogger.i("A11Y", "WhatsApp auto-send: clicked send button by id '" + id + "'");
+                            mPendingWhatsAppAutoSend = false;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Search for send button by content description "Send"
+        List<AccessibilityNodeInfo> descNodes = root.findAccessibilityNodeInfosByText("Send");
+        if (descNodes != null && !descNodes.isEmpty()) {
+            for (AccessibilityNodeInfo node : descNodes) {
+                if (node != null && node.isVisibleToUser()) {
+                    CharSequence cd = node.getContentDescription();
+                    if (cd != null && cd.toString().equalsIgnoreCase("Send")) {
+                        if (performClickOnNode(node)) {
+                            AppLogger.i("A11Y", "WhatsApp auto-send: clicked send button by contentDescription 'Send'");
+                            mPendingWhatsAppAutoSend = false;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Search any node ending with ":id/send"
+        AccessibilityNodeInfo sendNode = findNodeEndingWithId(root, ":id/send");
+        if (sendNode != null && sendNode.isVisibleToUser()) {
+            if (performClickOnNode(sendNode)) {
+                AppLogger.i("A11Y", "WhatsApp auto-send: clicked send button by suffix ':id/send'");
+                mPendingWhatsAppAutoSend = false;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public synchronized boolean performWhatsAppCallClick() {
+        if (!mPendingWhatsAppCall) return false;
+        if (System.currentTimeMillis() > mCallDeadline) {
+            AppLogger.w("A11Y", "WhatsApp call click timed out");
+            mPendingWhatsAppCall = false;
+            return false;
+        }
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+        CharSequence pkg = root.getPackageName();
+        if (pkg == null) return false;
+        String pkgStr = pkg.toString().toLowerCase();
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+            return false;
+        }
+
+        boolean isVideo = mPendingWhatsAppCallIsVideo;
+        String targetViewId = isVideo ? ":id/video_call" : ":id/voice_call";
+        String targetDesc = isVideo ? "video call" : "voice call";
+
+        // Check if a confirmation dialog is already shown (e.g. "Start voice call? [Cancel] [CALL]")
+        List<AccessibilityNodeInfo> callButtons = root.findAccessibilityNodeInfosByText("CALL");
+        if (callButtons != null && !callButtons.isEmpty()) {
+            for (AccessibilityNodeInfo btn : callButtons) {
+                if (btn != null && btn.isVisibleToUser() && performClickOnNode(btn)) {
+                    AppLogger.i("A11Y", "WhatsApp call: confirmed dialog CALL button");
+                    mPendingWhatsAppCall = false;
+                    return true;
+                }
+            }
+        }
+        List<AccessibilityNodeInfo> callButtonsLower = root.findAccessibilityNodeInfosByText("Call");
+        if (callButtonsLower != null && !callButtonsLower.isEmpty()) {
+            for (AccessibilityNodeInfo btn : callButtonsLower) {
+                if (btn != null && btn.isVisibleToUser() && performClickOnNode(btn)) {
+                    AppLogger.i("A11Y", "WhatsApp call: confirmed dialog Call button");
+                    mPendingWhatsAppCall = false;
+                    return true;
+                }
+            }
+        }
+
+        // Look for call icon in action bar
+        AccessibilityNodeInfo callNode = findNodeEndingWithId(root, targetViewId);
+        if (callNode != null && callNode.isVisibleToUser()) {
+            if (performClickOnNode(callNode)) {
+                AppLogger.i("A11Y", "WhatsApp call: clicked " + targetViewId + " icon");
+                mMainHandler.postDelayed(this::dismissCallConfirmationDialogIfAny, 350);
+                mPendingWhatsAppCall = false;
+                return true;
+            }
+        }
+
+        // Check by content description
+        AccessibilityNodeInfo descNode = findNodeWithDescriptionContains(root, targetDesc);
+        if (descNode != null && descNode.isVisibleToUser()) {
+            if (performClickOnNode(descNode)) {
+                AppLogger.i("A11Y", "WhatsApp call: clicked node with desc '" + targetDesc + "'");
+                mMainHandler.postDelayed(this::dismissCallConfirmationDialogIfAny, 350);
+                mPendingWhatsAppCall = false;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void dismissCallConfirmationDialogIfAny() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText("CALL");
+        if (nodes != null) {
+            for (AccessibilityNodeInfo n : nodes) {
+                if (n != null && performClickOnNode(n)) {
+                    AppLogger.i("A11Y", "WhatsApp call dialog auto-confirmed");
+                    return;
+                }
+            }
+        }
+        List<AccessibilityNodeInfo> nodes2 = root.findAccessibilityNodeInfosByText("Call");
+        if (nodes2 != null) {
+            for (AccessibilityNodeInfo n : nodes2) {
+                if (n != null && performClickOnNode(n)) {
+                    AppLogger.i("A11Y", "WhatsApp call dialog auto-confirmed (Call)");
+                    return;
+                }
+            }
+        }
+    }
+
+    private AccessibilityNodeInfo findNodeEndingWithId(AccessibilityNodeInfo node, String idSuffix) {
+        if (node == null) return null;
+        String resId = node.getViewIdResourceName();
+        if (resId != null && resId.endsWith(idSuffix)) {
+            return node;
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            AccessibilityNodeInfo found = findNodeEndingWithId(child, idSuffix);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findNodeWithDescriptionContains(AccessibilityNodeInfo node, String descSub) {
+        if (node == null) return null;
+        CharSequence desc = node.getContentDescription();
+        if (desc != null && desc.toString().toLowerCase().contains(descSub.toLowerCase())) {
+            return node;
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            AccessibilityNodeInfo found = findNodeWithDescriptionContains(child, descSub);
+            if (found != null) return found;
+        }
+        return null;
     }
 }

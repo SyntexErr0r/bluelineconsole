@@ -88,6 +88,40 @@ public class AgentActionTests {
         assertNotNull(a7);
         assertEquals("OPEN_APP", a7.type);
         assertEquals("settings", a7.appName);
+
+        // WhatsApp call shortcuts
+        AgentActionEngine.Action a8 = AICommandSearcher.parseDirectAction("whatsapp call faridul");
+        assertNotNull(a8);
+        assertEquals("CALL_APP", a8.type);
+        assertEquals("whatsapp", a8.appName.toLowerCase());
+        assertEquals("faridul", a8.target);
+        assertEquals("voice", a8.query);
+
+        AgentActionEngine.Action a9 = AICommandSearcher.parseDirectAction("call faridul on whatsapp");
+        assertNotNull(a9);
+        assertEquals("CALL_APP", a9.type);
+        assertEquals("whatsapp", a9.appName.toLowerCase());
+        assertEquals("faridul", a9.target);
+        assertEquals("voice", a9.query);
+
+        AgentActionEngine.Action a10 = AICommandSearcher.parseDirectAction("wa video call faridul");
+        assertNotNull(a10);
+        assertEquals("CALL_APP", a10.type);
+        assertEquals("whatsapp", a10.appName.toLowerCase());
+        assertEquals("faridul", a10.target);
+        assertEquals("video", a10.query);
+
+        AgentActionEngine.Action a11 = AICommandSearcher.parseDirectAction("open whatsapp call faridul");
+        assertNotNull(a11);
+        assertEquals("CALL_APP", a11.type);
+        assertEquals("whatsapp", a11.appName.toLowerCase());
+        assertEquals("faridul", a11.target);
+
+        AgentActionEngine.Action a12 = AICommandSearcher.parseDirectAction("call faridul");
+        assertNotNull(a12);
+        assertEquals("CALL_APP", a12.type);
+        assertEquals("whatsapp", a12.appName.toLowerCase());
+        assertEquals("faridul", a12.target);
     }
 
     @Test
@@ -104,5 +138,19 @@ public class AgentActionTests {
         assertEquals("SEARCH_APP", a2.type);
         assertEquals("YouTube", a2.appName);
         assertEquals("chill hop", a2.query);
+
+        AgentActionEngine.Action a3 = AICandidateEntry.parseActionFromResponse("Calling Faridul\n[ACTION: CALL_APP, whatsapp, faridul, voice]");
+        assertNotNull(a3);
+        assertEquals("CALL_APP", a3.type);
+        assertEquals("whatsapp", a3.appName);
+        assertEquals("faridul", a3.target);
+        assertEquals("voice", a3.query);
+
+        AgentActionEngine.Action a4 = AICandidateEntry.parseActionFromResponse("Video calling Faridul\n[ACTION: CALL_APP, whatsapp, faridul, video]");
+        assertNotNull(a4);
+        assertEquals("CALL_APP", a4.type);
+        assertEquals("whatsapp", a4.appName);
+        assertEquals("faridul", a4.target);
+        assertEquals("video", a4.query);
     }
 }
