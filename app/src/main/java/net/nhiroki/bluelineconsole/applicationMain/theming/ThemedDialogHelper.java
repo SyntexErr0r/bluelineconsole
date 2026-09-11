@@ -1,5 +1,6 @@
 package net.nhiroki.bluelineconsole.applicationMain.theming;
 
+import android.animation.LayoutTransition;
 import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.res.ColorStateList;
@@ -126,6 +127,37 @@ public class ThemedDialogHelper {
                     contentHolder.addView(parentPanel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
                     windowRoot.addView(hudRoot, index, origLp);
+
+                    // Classic vertical roll-down / unfold animation for dialog HUD
+                    boolean animationEnabled = PreferenceManager.getDefaultSharedPreferences(activity)
+                            .getBoolean(BaseWindowActivity.PREF_NAME_ANIMATION, true);
+
+                    final View dialogMain = hudRoot.findViewById(R.id.cyberGlassDialogMainContainer);
+                    final ViewGroup dialogRoot = hudRoot.findViewById(R.id.cyberGlassDialogRoot);
+
+                    if (dialogRoot != null) {
+                        LayoutTransition lt = dialogRoot.getLayoutTransition();
+                        if (lt == null) {
+                            lt = new LayoutTransition();
+                        }
+                        lt.enableTransitionType(LayoutTransition.CHANGING);
+                        dialogRoot.setLayoutTransition(lt);
+                    }
+
+                    if (dialogMain != null && animationEnabled) {
+                        ViewGroup.LayoutParams lp = dialogMain.getLayoutParams();
+                        lp.height = 0;
+                        dialogMain.setLayoutParams(lp);
+
+                        dialogMain.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                ViewGroup.LayoutParams lp = dialogMain.getLayoutParams();
+                                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                                dialogMain.setLayoutParams(lp);
+                            }
+                        });
+                    }
                 }
             }
         }

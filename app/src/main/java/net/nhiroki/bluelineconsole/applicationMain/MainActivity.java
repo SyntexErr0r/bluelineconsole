@@ -140,6 +140,17 @@ public class MainActivity extends BaseWindowActivity {
             }
             return false;
         });
+
+        this.changeBaseWindowElementSizeForAnimation(false);
+        this.enableBaseWindowAnimation();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            this.changeBaseWindowElementSizeForAnimation(true);
+        }
     }
 
     @Override

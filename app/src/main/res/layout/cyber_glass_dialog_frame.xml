@@ -6,6 +6,9 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:layout_gravity="center"
+    android:clipChildren="true"
+    android:clipToPadding="true"
+    android:animateLayoutChanges="true"
     android:paddingLeft="12dp"
     android:paddingRight="12dp"
     android:paddingTop="8dp"
@@ -22,6 +25,7 @@
         android:background="@drawable/cyber_glass_header"
         android:orientation="horizontal"
         android:gravity="center_vertical|start"
+        android:animateLayoutChanges="true"
         android:paddingStart="12sp"
         android:paddingEnd="20sp">
 
@@ -44,13 +48,19 @@
         android:layout_height="wrap_content"
         android:paddingVertical="10dp"
         android:paddingHorizontal="12dp"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:animateLayoutChanges="true"
         android:orientation="vertical">
 
         <!-- Frame where the dialog content/parentPanel will be housed -->
         <FrameLayout
             android:id="@+id/cyberGlassDialogContentHolder"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:clipChildren="true"
+            android:clipToPadding="true"
+            android:animateLayoutChanges="true" />
     </LinearLayout>
 
     <!-- Bottom-Right Angled Footer Tab with glowing cyan diagonal border -->
@@ -64,6 +74,7 @@
         android:background="@drawable/cyber_glass_footer"
         android:orientation="horizontal"
         android:gravity="center_vertical|end"
+        android:animateLayoutChanges="true"
         android:paddingStart="20sp"
         android:paddingEnd="12sp">
 
