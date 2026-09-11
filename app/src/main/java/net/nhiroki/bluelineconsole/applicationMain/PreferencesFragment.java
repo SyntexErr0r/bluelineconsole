@@ -185,6 +185,22 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 customModelPref.setSummaryProvider(EditTextPreference.SimpleSummaryProvider.getInstance());
             }
         }
+
+        Preference agentAccessibilityPref = findPreference("pref_agent_accessibility_settings");
+        if (agentAccessibilityPref != null) {
+            boolean isEnabled = net.nhiroki.bluelineconsole.agent.BlueLineAgentService.isAccessibilityEnabled(getContext());
+            agentAccessibilityPref.setSummary(isEnabled ?
+                    R.string.preferences_item_agent_accessibility_summary_active :
+                    R.string.preferences_item_agent_accessibility_summary_inactive);
+            agentAccessibilityPref.setOnPreferenceClickListener(preference -> {
+                if (getActivity() instanceof PreferencesActivity) {
+                    ((PreferencesActivity) getActivity()).setComingBackFlag();
+                }
+                Intent intent = new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS);
+                PreferencesFragment.this.startActivity(intent);
+                return true;
+            });
+        }
     }
 
     @Override

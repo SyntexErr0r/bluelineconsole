@@ -9,6 +9,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.preference.PreferenceManager;
 
+import androidx.core.content.ContextCompat;
+import android.util.TypedValue;
+import android.graphics.Typeface;
+
+import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
 import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.interfaces.CommandSearcher;
@@ -37,15 +42,21 @@ public class AICommandSearcher implements CommandSearcher {
     public List<CandidateEntry> searchCandidateEntries(String query, Context context) {
         List<CandidateEntry> candidates = new ArrayList<>();
 
+        String targetQuery = query.trim();
+        String lower = targetQuery.toLowerCase();
+
+        // 1. Check for direct agent action (e.g. "open youtube and search lofi", "search lofi on youtube", "ai open camera")
+        AgentActionEngine.Action directAction = parseDirectAction(targetQuery);
+        if (directAction != null) {
+            candidates.add(new AgentActionCandidateEntry(directAction));
+        }
+
         boolean enabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_ai_enabled", false);
         if (!enabled) {
             return candidates;
         }
 
-        String targetQuery = query.trim();
-        String lower = targetQuery.toLowerCase();
-
-        // 1. Screen capture queries: "?screen <question>" or "ai screen <question>"
+        // 2. Screen capture queries: "?screen <question>" or "ai screen <question>"
         if (lower.startsWith("?screen") || lower.startsWith("ai screen")) {
             String question = "";
             if (lower.startsWith("?screen")) {
@@ -57,13 +68,13 @@ public class AICommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 2. Clear chat memory: "?clear" or "ai clear"
+        // 3. Clear chat memory: "?clear" or "ai clear"
         if (lower.equals("?clear") || lower.equals("ai clear")) {
             candidates.add(new AIClearHistoryCandidateEntry());
             return candidates;
         }
 
-        // 3. Standard queries: "ai <question>", "? <question>"
+        // 4. Standard queries: "ai <question>", "? <question>"
         String question = null;
         if (lower.startsWith("ai ")) {
             question = targetQuery.substring(3).trim();
@@ -86,6 +97,151 @@ public class AICommandSearcher implements CommandSearcher {
         }
 
         return candidates;
+    }
+
+    public static AgentActionEngine.Action parseDirectAction(String rawQuery) {
+        if (rawQuery == null) return null;
+        String q = rawQuery.trim();
+        String low = q.toLowerCase();
+
+        if (low.startsWith("ai ")) {
+            q = q.substring(3).trim();
+            low = q.toLowerCase();
+        } else if (low.startsWith("? ")) {
+            q = q.substring(2).trim();
+            low = q.toLowerCase();
+        }
+
+        if (q.isEmpty()) return null;
+
+        // 1. "open <app> and search <query>"
+        if (low.startsWith("open ") && low.contains(" and search ")) {
+            int andIdx = low.indexOf(" and search ");
+            String app = q.substring(5, andIdx).trim();
+            String searchQ = q.substring(andIdx + " and search ".length()).trim();
+            if (!app.isEmpty() && !searchQ.isEmpty()) {
+                return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
+            }
+        }
+
+        // 2. "search <query> on/in <app>" or "search <app> for <query>"
+        if (low.startsWith("search ")) {
+            int forIdx = low.indexOf(" for ");
+            if (forIdx > 7) {
+                String app = q.substring(7, forIdx).trim();
+                String searchQ = q.substring(forIdx + " for ".length()).trim();
+                if (!app.isEmpty() && !searchQ.isEmpty()) {
+                    return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
+                }
+            }
+
+            int onIdx = low.lastIndexOf(" on ");
+            int inIdx = low.lastIndexOf(" in ");
+            int splitIdx = Math.max(onIdx, inIdx);
+            if (splitIdx > 7) {
+                String searchQ = q.substring(7, splitIdx).trim();
+                String app = q.substring(splitIdx + 4).trim();
+                if (!searchQ.isEmpty() && !app.isEmpty()) {
+                    return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
+                }
+            }
+        }
+
+        // 3. "click <target>" or "tap <target>"
+        if (low.startsWith("click ") || low.startsWith("tap ")) {
+            int spaceIdx = q.indexOf(' ');
+            String target = q.substring(spaceIdx + 1).trim();
+            if (!target.isEmpty()) {
+                return new AgentActionEngine.Action("CLICK", target);
+            }
+        }
+
+        // 4. "type <text>"
+        if (low.startsWith("type ")) {
+            String txt = q.substring(5).trim();
+            if (!txt.isEmpty()) {
+                return new AgentActionEngine.Action("TYPE", null, txt);
+            }
+        }
+
+        // 5. "open <app>" or "launch <app>"
+        if (low.startsWith("open ") || low.startsWith("launch ")) {
+            int spaceIdx = q.indexOf(' ');
+            String app = q.substring(spaceIdx + 1).trim();
+            if (!app.isEmpty() && !app.contains(" and ") && !app.contains(" for ")) {
+                return new AgentActionEngine.Action("OPEN_APP", app, null);
+            }
+        }
+
+        return null;
+    }
+
+    public static class AgentActionCandidateEntry implements CandidateEntry {
+        private final AgentActionEngine.Action action;
+
+        public AgentActionCandidateEntry(AgentActionEngine.Action action) {
+            this.action = action;
+        }
+
+        public AgentActionEngine.Action getAction() {
+            return action;
+        }
+
+        private static String capitalize(String str) {
+            if (str == null || str.isEmpty()) return "";
+            return Character.toUpperCase(str.charAt(0)) + str.substring(1);
+        }
+
+        @Override
+        public String getTitle() {
+            if ("SEARCH_APP".equalsIgnoreCase(action.type)) {
+                return "⚡ Agent: Search " + capitalize(action.appName) + " for \"" + action.query + "\"";
+            } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
+                return "⚡ Agent: Open " + capitalize(action.appName);
+            } else if ("CLICK".equalsIgnoreCase(action.type)) {
+                return "⚡ Agent: Click \"" + action.target + "\"";
+            } else if ("TYPE".equalsIgnoreCase(action.type)) {
+                return "⚡ Agent: Type \"" + action.query + "\"";
+            } else if ("OPEN_URL".equalsIgnoreCase(action.type)) {
+                return "⚡ Agent: Open URL " + action.query;
+            }
+            return "⚡ Agent: Run Action";
+        }
+
+        @Override
+        public View getView(MainActivity mainActivity) {
+            TextView tv = new TextView(mainActivity);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            tv.setTextColor(mainActivity.getAccentColor());
+            tv.setTypeface(Typeface.MONOSPACE);
+            tv.setPadding(0, 4, 0, 8);
+            if ("SEARCH_APP".equalsIgnoreCase(action.type)) {
+                tv.setText("▶ Tap or Enter to launch " + capitalize(action.appName) + " & search");
+            } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
+                tv.setText("▶ Tap or Enter to launch " + capitalize(action.appName));
+            } else if ("CLICK".equalsIgnoreCase(action.type)) {
+                tv.setText("▶ Tap or Enter to click via Accessibility Service");
+            } else {
+                tv.setText("▶ Tap or Enter to execute action");
+            }
+            return tv;
+        }
+
+        @Override
+        public EventLauncher getEventLauncher(Context context) {
+            return activity -> {
+                AgentActionEngine.executeAction(activity, action);
+                activity.finish();
+            };
+        }
+
+        @Override public boolean hasLongView() { return false; }
+        @Override public Drawable getIcon(Context context) {
+            return ContextCompat.getDrawable(context, net.nhiroki.bluelineconsole.R.drawable.ic_mic_cyber);
+        }
+        @Override public boolean hasEvent() { return true; }
+        @Override public boolean isSubItem() { return false; }
+        @Override public boolean viewIsRecyclable() { return true; }
     }
 
     public static class AIClearHistoryCandidateEntry implements CandidateEntry {

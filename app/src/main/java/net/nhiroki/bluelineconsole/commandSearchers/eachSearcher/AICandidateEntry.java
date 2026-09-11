@@ -22,6 +22,8 @@ import android.widget.Toast;
 import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.applicationMain.lib.ScreenCaptureHelper;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
+import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
+import net.nhiroki.bluelineconsole.agent.AgentTTS;
 import net.nhiroki.bluelineconsole.interfaces.EventLauncher;
 
 import org.json.JSONArray;
@@ -34,6 +36,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AICandidateEntry implements CandidateEntry {
     private static final int STATE_INACTIVE = -1;
@@ -48,6 +52,7 @@ public class AICandidateEntry implements CandidateEntry {
     private String mAnswerText = "";
     private int mState = STATE_INACTIVE;
     private Bitmap mCapturedScreenBitmap = null;
+    private AgentActionEngine.Action mExtractedAction = null;
 
     private LinearLayout mView;
     private LinearLayout mHistoryLayout;
@@ -55,6 +60,7 @@ public class AICandidateEntry implements CandidateEntry {
     private TextView mContentTextView;
     private ProgressBar mProgressBar;
     private LinearLayout mButtonLayout;
+    private TextView mActionButton;
 
     public AICandidateEntry(String question) {
         this(question, false);
@@ -125,11 +131,24 @@ public class AICandidateEntry implements CandidateEntry {
             }
             mView.addView(mProgressBar);
 
-            // Action Buttons (Copy, Clear Chat)
+            // Action Buttons (Run Action, Copy, Clear Chat)
             mButtonLayout = new LinearLayout(mainActivity);
             mButtonLayout.setOrientation(LinearLayout.HORIZONTAL);
             mButtonLayout.setPadding(0, (int) (8 * pixelsPerSp), 0, 0);
             mButtonLayout.setVisibility(View.GONE);
+
+            mActionButton = new TextView(mainActivity);
+            mActionButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            mActionButton.setTextColor(Color.parseColor("#00f0ff"));
+            mActionButton.setTypeface(android.graphics.Typeface.MONOSPACE);
+            mActionButton.setPadding(0, (int) (4 * pixelsPerSp), (int) (16 * pixelsPerSp), (int) (4 * pixelsPerSp));
+            mActionButton.setVisibility(View.GONE);
+            mActionButton.setOnClickListener(v -> {
+                if (mExtractedAction != null) {
+                    AgentActionEngine.executeAction(mainActivity, mExtractedAction);
+                    mainActivity.finish();
+                }
+            });
 
             TextView copyButton = new TextView(mainActivity);
             copyButton.setText("[Copy Answer]");
@@ -159,6 +178,7 @@ public class AICandidateEntry implements CandidateEntry {
                 updateUIState();
             });
 
+            mButtonLayout.addView(mActionButton);
             mButtonLayout.addView(copyButton);
             mButtonLayout.addView(clearButton);
             mView.addView(mButtonLayout);
@@ -231,14 +251,38 @@ public class AICandidateEntry implements CandidateEntry {
             if (mButtonLayout != null) mButtonLayout.setVisibility(View.GONE);
 
         } else if (mState == STATE_STREAMING) {
-            mContentTextView.setText(renderMarkdown(mAnswerText));
+            String cleanText = mAnswerText.replaceAll("(?i)\\[ACTION:[^\\]]+\\]", "").trim();
+            mContentTextView.setText(renderMarkdown(cleanText.isEmpty() ? mAnswerText : cleanText));
             if (mProgressBar != null) mProgressBar.setVisibility(View.VISIBLE);
             if (mButtonLayout != null) mButtonLayout.setVisibility(View.GONE);
 
         } else if (mState == STATE_SUCCESS) {
-            mContentTextView.setText(renderMarkdown(mAnswerText));
+            String cleanText = mAnswerText.replaceAll("(?i)\\[ACTION:[^\\]]+\\]", "").trim();
+            mContentTextView.setText(renderMarkdown(cleanText.isEmpty() ? mAnswerText : cleanText));
             if (mProgressBar != null) mProgressBar.setVisibility(View.GONE);
             if (mButtonLayout != null) mButtonLayout.setVisibility(mAnswerText.isEmpty() ? View.GONE : View.VISIBLE);
+            if (mActionButton != null) {
+                if (mExtractedAction != null) {
+                    String actLabel;
+                    if ("SEARCH_APP".equalsIgnoreCase(mExtractedAction.type)) {
+                        actLabel = "[▶ Run: Search " + mExtractedAction.appName + " for \"" + mExtractedAction.query + "\"]";
+                    } else if ("OPEN_APP".equalsIgnoreCase(mExtractedAction.type)) {
+                        actLabel = "[▶ Run: Open " + mExtractedAction.appName + "]";
+                    } else if ("CLICK".equalsIgnoreCase(mExtractedAction.type)) {
+                        actLabel = "[▶ Run: Click \"" + mExtractedAction.target + "\"]";
+                    } else if ("TYPE".equalsIgnoreCase(mExtractedAction.type)) {
+                        actLabel = "[▶ Run: Type \"" + mExtractedAction.query + "\"]";
+                    } else if ("OPEN_URL".equalsIgnoreCase(mExtractedAction.type)) {
+                        actLabel = "[▶ Run: Open URL]";
+                    } else {
+                        actLabel = "[▶ Run Action]";
+                    }
+                    mActionButton.setText(actLabel);
+                    mActionButton.setVisibility(View.VISIBLE);
+                } else {
+                    mActionButton.setVisibility(View.GONE);
+                }
+            }
 
         } else if (mState == STATE_ERROR) {
             mContentTextView.setText(renderMarkdown(mAnswerText));
@@ -306,6 +350,19 @@ public class AICandidateEntry implements CandidateEntry {
                 JSONObject payload = new JSONObject();
                 payload.put("contents", contentsArray);
 
+                JSONObject systemInstruction = new JSONObject();
+                JSONArray sysParts = new JSONArray();
+                sysParts.put(new JSONObject().put("text",
+                        "You are BlueLine Agent, an intelligent Android device assistant. When the user asks you to perform an action on their device (open an app, search inside an app, click a button, open a URL, type text), answer briefly and append an action tag at the end in one of these formats:\n" +
+                        "[ACTION: OPEN_APP, <appName>]\n" +
+                        "[ACTION: SEARCH_APP, <appName>, <searchQuery>]\n" +
+                        "[ACTION: OPEN_URL, <url>]\n" +
+                        "[ACTION: CLICK, <buttonOrText>]\n" +
+                        "[ACTION: TYPE, <text>]\n" +
+                        "If the user is asking a standard informational question, answer normally without any [ACTION: ...] tag."));
+                systemInstruction.put("parts", sysParts);
+                payload.put("system_instruction", systemInstruction);
+
                 byte[] input = payload.toString().getBytes("utf-8");
                 os = conn.getOutputStream();
                 os.write(input, 0, input.length);
@@ -349,11 +406,26 @@ public class AICandidateEntry implements CandidateEntry {
                     }
 
                     mAnswerText = fullAnswer.toString().trim();
+                    mExtractedAction = parseActionFromResponse(mAnswerText);
                     mState = STATE_SUCCESS;
 
                     // Record both user question and model answer into AIChatSession
                     AIChatSession.getInstance().addMessage(new AIChatSession.ChatMessage("user", prompt, imageBase64));
                     AIChatSession.getInstance().addMessage(new AIChatSession.ChatMessage("model", mAnswerText));
+
+                    // Voice TTS confirmation if enabled
+                    String speech = mAnswerText.replaceAll("(?i)\\[ACTION:[^\\]]+\\]", "").trim();
+                    if (!speech.isEmpty()) {
+                        if (speech.length() > 250) {
+                            int dot = speech.indexOf('.', 100);
+                            if (dot != -1 && dot < 250) {
+                                speech = speech.substring(0, dot + 1);
+                            } else {
+                                speech = speech.substring(0, 250) + "...";
+                            }
+                        }
+                        AgentTTS.speak(activity, speech);
+                    }
 
                 } else {
                     String detail = "";
@@ -458,16 +530,45 @@ public class AICandidateEntry implements CandidateEntry {
             public void launch(MainActivity activity) {
                 if (mState == STATE_INACTIVE || mState == STATE_ERROR) {
                     proceedWithAIRequest(activity);
-                } else if (mState == STATE_SUCCESS && !mAnswerText.isEmpty()) {
-                    ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-                    ClipData clip = ClipData.newPlainText("Gemini Answer", mAnswerText);
-                    if (clipboard != null) {
-                        clipboard.setPrimaryClip(clip);
-                        Toast.makeText(activity, "Answer copied to clipboard!", Toast.LENGTH_SHORT).show();
+                } else if (mState == STATE_SUCCESS) {
+                    if (mExtractedAction != null) {
+                        AgentActionEngine.executeAction(activity, mExtractedAction);
+                        activity.finish();
+                    } else if (!mAnswerText.isEmpty()) {
+                        ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                        ClipData clip = ClipData.newPlainText("Gemini Answer", mAnswerText);
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(clip);
+                            Toast.makeText(activity, "Answer copied to clipboard!", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
             }
         };
+    }
+
+    public static AgentActionEngine.Action parseActionFromResponse(String text) {
+        if (text == null) return null;
+        Pattern p = Pattern.compile("\\[ACTION:\\s*([A-Z_]+)(?:,\\s*([^,\\]]+))?(?:,\\s*([^\\]]+))?\\]", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(text);
+        if (m.find()) {
+            String type = m.group(1).trim().toUpperCase();
+            String p1 = m.group(2) != null ? m.group(2).trim() : null;
+            String p2 = m.group(3) != null ? m.group(3).trim() : null;
+
+            if ("SEARCH_APP".equals(type) || "SEARCH".equals(type)) {
+                return new AgentActionEngine.Action("SEARCH_APP", p1, p2 != null ? p2 : "");
+            } else if ("OPEN_APP".equals(type)) {
+                return new AgentActionEngine.Action("OPEN_APP", p1, null);
+            } else if ("CLICK".equals(type)) {
+                return new AgentActionEngine.Action("CLICK", p1);
+            } else if ("TYPE".equals(type)) {
+                return new AgentActionEngine.Action("TYPE", null, p1);
+            } else if ("OPEN_URL".equals(type)) {
+                return new AgentActionEngine.Action("OPEN_URL", p1);
+            }
+        }
+        return null;
     }
 
     @Override

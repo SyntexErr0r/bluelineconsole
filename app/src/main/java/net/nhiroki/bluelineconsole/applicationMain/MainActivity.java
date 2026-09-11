@@ -18,8 +18,13 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.CycleInterpolator;
 import android.view.animation.TranslateAnimation;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.Toast;
+import net.nhiroki.bluelineconsole.agent.VoiceInputManager;
 
 import androidx.annotation.NonNull;
 import androidx.biometric.BiometricPrompt;
@@ -51,6 +56,8 @@ public class MainActivity extends BaseWindowActivity {
     private boolean homeItemExists = false;
 
     private EditText mainInputText;
+    private ImageButton mainVoiceInputButton;
+    private VoiceInputManager voiceInputManager;
     private ListView candidateListView;
 
     private int resumeId = 0;
@@ -82,6 +89,15 @@ public class MainActivity extends BaseWindowActivity {
         }
 
         this.mainInputText = findViewById(R.id.mainInputText);
+        this.mainVoiceInputButton = findViewById(R.id.mainVoiceInputButton);
+        this.voiceInputManager = new VoiceInputManager(this);
+        net.nhiroki.bluelineconsole.agent.AgentTTS.init(this);
+        if (this.mainVoiceInputButton != null) {
+            boolean voiceEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_agent_voice_enabled", true);
+            this.mainVoiceInputButton.setVisibility(voiceEnabled ? View.VISIBLE : View.GONE);
+            this.mainVoiceInputButton.setColorFilter(this.getAccentColor());
+            this.mainVoiceInputButton.setOnClickListener(v -> toggleVoiceInput());
+        }
 
         this.migrationLostHappened = WidgetsSetting.migrationLostHappened(this);
         this.showStartUpHelp = PreferenceManager.getDefaultSharedPreferences(this).getBoolean(StartUpHelpActivity.PREF_KEY_SHOW_STARTUP_HELP, true);
@@ -155,6 +171,10 @@ public class MainActivity extends BaseWindowActivity {
 
     @Override
     protected void onDestroy() {
+        if (this.voiceInputManager != null) {
+            this.voiceInputManager.stopListening();
+        }
+        net.nhiroki.bluelineconsole.agent.AgentTTS.shutdown();
         if (this.commandSearchAggregator != null) {
             this.commandSearchAggregator.close();
         }
@@ -168,6 +188,14 @@ public class MainActivity extends BaseWindowActivity {
     @Override
     protected void onResume() {
         super.onResume();
+
+        if (this.mainVoiceInputButton != null) {
+            boolean voiceEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_agent_voice_enabled", true);
+            this.mainVoiceInputButton.setVisibility(voiceEnabled ? View.VISIBLE : View.GONE);
+            if (this.voiceInputManager == null || !this.voiceInputManager.isListening()) {
+                this.mainVoiceInputButton.setColorFilter(this.getAccentColor());
+            }
+        }
 
         if (commandSearchAggregator == null) {
             commandSearchAggregator = new CommandSearchAggregator(this);
@@ -579,5 +607,90 @@ public class MainActivity extends BaseWindowActivity {
 
         @Override
         public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+    }
+
+    private void toggleVoiceInput() {
+        if (voiceInputManager == null) return;
+        if (voiceInputManager.isListening()) {
+            voiceInputManager.stopListening();
+            updateVoiceButtonState(false);
+            mainInputText.setHint("");
+            return;
+        }
+
+        voiceInputManager.startListening(new VoiceInputManager.VoiceCallback() {
+            @Override
+            public void onReady() {
+                runOnUiThread(() -> {
+                    updateVoiceButtonState(true);
+                    mainInputText.setHint("Listening...");
+                });
+            }
+
+            @Override
+            public void onResult(String text) {
+                runOnUiThread(() -> {
+                    updateVoiceButtonState(false);
+                    mainInputText.setHint("");
+                    if (text == null || text.trim().isEmpty()) return;
+                    String clean = text.trim();
+                    String lower = clean.toLowerCase();
+
+                    // If it's a screen query:
+                    if (lower.contains("this screen") || lower.contains("on screen") || lower.contains("my screen")) {
+                        changeInputText("?screen " + clean);
+                    } else if (lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("search ") || lower.startsWith("what ") || lower.startsWith("how ") || lower.startsWith("who ") || lower.startsWith("find ")) {
+                        changeInputText("ai " + clean);
+                    } else {
+                        changeInputText(clean);
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String errorMsg) {
+                runOnUiThread(() -> {
+                    updateVoiceButtonState(false);
+                    mainInputText.setHint("");
+                });
+            }
+
+            @Override
+            public void onEnd() {
+                runOnUiThread(() -> {
+                    updateVoiceButtonState(false);
+                    mainInputText.setHint("");
+                });
+            }
+        });
+    }
+
+    private void updateVoiceButtonState(boolean listening) {
+        if (mainVoiceInputButton == null) return;
+        if (listening) {
+            mainVoiceInputButton.setColorFilter(Color.parseColor("#ff0055"));
+        } else {
+            mainVoiceInputButton.setColorFilter(getAccentColor());
+        }
+    }
+
+    @Override
+    protected void applyAccentColor(int color) {
+        super.applyAccentColor(color);
+        if (mainVoiceInputButton != null && (voiceInputManager == null || !voiceInputManager.isListening())) {
+            mainVoiceInputButton.setColorFilter(color);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == VoiceInputManager.PERMISSION_REQUEST_RECORD_AUDIO) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                toggleVoiceInput();
+            } else {
+                Toast.makeText(this, "Microphone permission is required for voice input", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 }
