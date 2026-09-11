@@ -186,7 +186,7 @@ public class BaseWindowActivity extends AppCompatActivity {
         return this.currentTheme.supportsAccentColor();
     }
 
-    protected int getAccentColor() {
+    public int getAccentColor() {
         String accentColorPreference = PreferenceManager.getDefaultSharedPreferences(this).getString(PREF_NAME_ACCENT_COLOR, PREF_VALUE_ACCENT_COLOR_THEME_DEFAULT);
 
         if (accentColorPreference.equals(PREF_VALUE_ACCENT_COLOR_THEME_DEFAULT)) {

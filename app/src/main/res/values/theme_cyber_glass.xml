@@ -23,8 +23,65 @@
         <item name="android:textColorPrimary">@color/cyberGlassTextColor</item>
         <item name="android:textColorSecondary">@color/cyberGlassDisabledTextColor</item>
         <item name="android:colorAccent">@color/cyberGlassAccentColor</item>
+        <item name="colorAccent">@color/cyberGlassAccentColor</item>
         <item name="android:colorControlActivated">@color/cyberGlassAccentColor</item>
+        <item name="colorControlActivated">@color/cyberGlassAccentColor</item>
         <item name="android:colorControlHighlight">@color/cyberGlassSelectedItemBackground</item>
+        <item name="colorControlHighlight">@color/cyberGlassSelectedItemBackground</item>
+        <item name="android:fontFamily">monospace</item>
+
+        <!-- Preference Theme -->
+        <item name="preferenceTheme">@style/CyberGlassPreferenceTheme</item>
+
+        <!-- Dialogs, Alerts and Popups -->
+        <item name="alertDialogTheme">@style/CyberGlassAlertDialogTheme</item>
+        <item name="android:alertDialogTheme">@style/CyberGlassAlertDialogTheme</item>
+        <item name="dialogTheme">@style/CyberGlassAlertDialogTheme</item>
+        <item name="android:dialogTheme">@style/CyberGlassAlertDialogTheme</item>
+        <item name="popupMenuStyle">@style/CyberGlassPopupMenu</item>
+        <item name="android:popupMenuStyle">@style/CyberGlassPopupMenu</item>
+    </style>
+
+    <style name="CyberGlassPreferenceTheme" parent="@style/PreferenceThemeOverlay">
+        <item name="alertDialogTheme">@style/CyberGlassAlertDialogTheme</item>
+        <item name="android:alertDialogTheme">@style/CyberGlassAlertDialogTheme</item>
+    </style>
+
+    <style name="CyberGlassAlertDialogTheme" parent="Theme.AppCompat.DayNight.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/cyber_glass_dialog_background</item>
+        <item name="android:colorBackground">#f2030914</item>
+        <item name="colorBackgroundFloating">#f2030914</item>
+        <item name="android:textColor">@color/cyberGlassTextColor</item>
+        <item name="android:textColorPrimary">@color/cyberGlassTextColor</item>
+        <item name="android:textColorSecondary">@color/cyberGlassDisabledTextColor</item>
+        <item name="android:textColorAlertDialogListItem">@color/cyberGlassTextColor</item>
+        <item name="textColorAlertDialogListItem">@color/cyberGlassTextColor</item>
+        <item name="android:colorAccent">@color/cyberGlassAccentColor</item>
+        <item name="colorAccent">@color/cyberGlassAccentColor</item>
+        <item name="android:colorControlActivated">@color/cyberGlassAccentColor</item>
+        <item name="colorControlActivated">@color/cyberGlassAccentColor</item>
+        <item name="android:colorControlHighlight">@color/cyberGlassSelectedItemBackground</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:windowTitleStyle">@style/CyberGlassDialogTitle</item>
+        <item name="buttonBarPositiveButtonStyle">@style/CyberGlassDialogButtonStyle</item>
+        <item name="buttonBarNegativeButtonStyle">@style/CyberGlassDialogButtonStyle</item>
+        <item name="buttonBarNeutralButtonStyle">@style/CyberGlassDialogButtonStyle</item>
+    </style>
+
+    <style name="CyberGlassDialogTitle" parent="TextAppearance.AppCompat.Title">
+        <item name="android:textColor">@color/cyberGlassAccentColor</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="CyberGlassDialogButtonStyle" parent="Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">@color/cyberGlassAccentColor</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="CyberGlassPopupMenu" parent="Widget.AppCompat.PopupMenu">
+        <item name="android:popupBackground">@drawable/cyber_glass_dialog_background</item>
         <item name="android:fontFamily">monospace</item>
     </style>
 

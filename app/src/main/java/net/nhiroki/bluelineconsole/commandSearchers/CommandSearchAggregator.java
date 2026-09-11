@@ -31,6 +31,14 @@ public class CommandSearchAggregator {
 
     private AppWidgetsHostManager appWidgetsHostManager = null;
 
+    private static final int MAX_CACHE_SIZE = 50;
+    private final java.util.Map<String, List<CandidateEntry>> queryCache = new java.util.LinkedHashMap<String, List<CandidateEntry>>(MAX_CACHE_SIZE, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, List<CandidateEntry>> eldest) {
+            return size() > MAX_CACHE_SIZE;
+        }
+    };
+
 
     public CommandSearchAggregator(Context context) {
         // Starting with specific string
@@ -80,6 +88,9 @@ public class CommandSearchAggregator {
             cs.refresh(context);
         }
         this.appWidgetsHostManager = new AppWidgetsHostManager(context);
+        synchronized (queryCache) {
+            queryCache.clear();
+        }
     }
 
     public boolean isPrepared() {
@@ -103,8 +114,25 @@ public class CommandSearchAggregator {
             return candidates;
         }
 
+        boolean cacheable = !s.startsWith("?") && !s.toLowerCase().startsWith("ai");
+
+        if (cacheable) {
+            synchronized (queryCache) {
+                List<CandidateEntry> cached = queryCache.get(s);
+                if (cached != null) {
+                    return new ArrayList<>(cached);
+                }
+            }
+        }
+
         for (CommandSearcher cs : commandSearcherList) {
             candidates.addAll(cs.searchCandidateEntries(s, context));
+        }
+
+        if (cacheable) {
+            synchronized (queryCache) {
+                queryCache.put(s, new ArrayList<>(candidates));
+            }
         }
 
         return candidates;

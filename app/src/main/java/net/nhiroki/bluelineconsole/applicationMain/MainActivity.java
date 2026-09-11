@@ -7,14 +7,23 @@ import java.util.concurrent.Executors;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.CycleInterpolator;
+import android.view.animation.TranslateAnimation;
 import android.widget.EditText;
 import android.widget.ListView;
+
+import androidx.annotation.NonNull;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
 
 import net.nhiroki.bluelineconsole.BuildConfig;
 import net.nhiroki.bluelineconsole.R;
@@ -30,6 +39,8 @@ public class MainActivity extends BaseWindowActivity {
     private ExecutorService threadPool = null;
 
     public static final int REQUEST_CODE_FOR_COMING_BACK = 1;
+    public static final int REQUEST_CODE_FOR_SCREEN_CAPTURE = 99;
+    private Runnable pendingScreenCaptureCallback = null;
 
     private boolean cameBackFlag = false;
     private boolean comingBackFlag = false;
@@ -47,6 +58,9 @@ public class MainActivity extends BaseWindowActivity {
     private boolean temporaryContentShown = false;
 
     private static MainActivity myActiveInstance = null;
+    private final Handler lockoutHandler = new Handler(Looper.getMainLooper());
+    private Runnable lockoutRunnable = null;
+    private boolean biometricPromptShowing = false;
 
 
     public MainActivity() {
@@ -156,6 +170,7 @@ public class MainActivity extends BaseWindowActivity {
             this.enableBaseWindowAnimation();
             ++this.resumeId;
             this.comingBackFlag = false;
+            this.tryTriggerBiometricUnlock();
             return;
         }
 
@@ -224,27 +239,91 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     private void updateAppLockUI() {
+        if (lockoutRunnable != null) {
+            lockoutHandler.removeCallbacks(lockoutRunnable);
+            lockoutRunnable = null;
+        }
+
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
-            mainInputText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-            mainInputText.setHint("Enter PIN...");
             findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.GONE);
-            mainInputText.setText("");
+            mainInputText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+
+            if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
+                mainInputText.setEnabled(false);
+                long remaining = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getRemainingLockoutSeconds();
+                mainInputText.setHint(String.format(getString(R.string.app_lock_locked_out), remaining));
+                mainInputText.setText("");
+
+                lockoutRunnable = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (MainActivity.this.isFinishing()) return;
+                        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
+                            long rem = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getRemainingLockoutSeconds();
+                            mainInputText.setHint(String.format(getString(R.string.app_lock_locked_out), rem));
+                            lockoutHandler.postDelayed(this, 1000);
+                        } else {
+                            mainInputText.setEnabled(true);
+                            updateAppLockUI();
+                            tryTriggerBiometricUnlock();
+                        }
+                    }
+                };
+                lockoutHandler.postDelayed(lockoutRunnable, 1000);
+            } else {
+                mainInputText.setEnabled(true);
+                int failed = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getFailedAttempts();
+                if (failed > 0) {
+                    mainInputText.setHint(String.format(getString(R.string.app_lock_incorrect_pin), failed, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getMaxFailedAttempts()));
+                } else {
+                    mainInputText.setHint("Enter PIN...");
+                }
+                mainInputText.setText("");
+            }
         } else {
+            mainInputText.setEnabled(true);
             mainInputText.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
             mainInputText.setHint(null);
             findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.VISIBLE);
         }
     }
 
+    public void requestScreenCapture(Runnable onGranted) {
+        this.pendingScreenCaptureCallback = onGranted;
+        android.media.projection.MediaProjectionManager mgr =
+                (android.media.projection.MediaProjectionManager) getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE);
+        if (mgr != null) {
+            startActivityForResult(mgr.createScreenCaptureIntent(), REQUEST_CODE_FOR_SCREEN_CAPTURE);
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_FOR_SCREEN_CAPTURE) {
+            if (resultCode == RESULT_OK && data != null) {
+                net.nhiroki.bluelineconsole.applicationMain.lib.ScreenCaptureHelper.setProjectionResult(resultCode, data);
+                if (this.pendingScreenCaptureCallback != null) {
+                    Runnable cb = this.pendingScreenCaptureCallback;
+                    this.pendingScreenCaptureCallback = null;
+                    cb.run();
+                }
+            } else {
+                android.widget.Toast.makeText(this, "Screen capture permission was declined.", android.widget.Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
         this.cameBackFlag = (requestCode == REQUEST_CODE_FOR_COMING_BACK) && (resultCode == RESULT_OK);
     }
 
     @Override
     protected void onPause() {
         ++this.resumeId;
+        if (lockoutRunnable != null) {
+            lockoutHandler.removeCallbacks(lockoutRunnable);
+            lockoutRunnable = null;
+        }
+        biometricPromptShowing = false;
         if (threadPool != null) {
             threadPool.shutdownNow();
             threadPool = null;
@@ -348,8 +427,80 @@ public class MainActivity extends BaseWindowActivity {
         this.temporaryContentShown = true;
     }
 
+    private void triggerShakeAnimation() {
+        View target = findViewById(R.id.baseWindowMainLinearLayout);
+        if (target == null) {
+            target = mainInputText;
+        }
+        if (target != null) {
+            Animation shake = new TranslateAnimation(0, 16, 0, 0);
+            shake.setDuration(400);
+            shake.setInterpolator(new CycleInterpolator(4));
+            target.startAnimation(shake);
+        }
+    }
+
+    private void tryTriggerBiometricUnlock() {
+        if (!net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+            return;
+        }
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
+            return;
+        }
+        boolean bioEnabled = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_app_lock_biometric", true);
+        if (!bioEnabled || !net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) {
+            return;
+        }
+        if (this.biometricPromptShowing) {
+            return;
+        }
+
+        try {
+            BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(getString(R.string.app_name))
+                    .setSubtitle(getString(R.string.preferences_item_app_lock_pin_summary))
+                    .setNegativeButtonText(getString(android.R.string.cancel))
+                    .build();
+
+            this.biometricPromptShowing = true;
+            BiometricPrompt prompt = new BiometricPrompt(this, ContextCompat.getMainExecutor(this), new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    biometricPromptShowing = false;
+                    net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
+                    enableBaseWindowAnimation();
+                    updateAppLockUI();
+                    completeResumeSetup();
+                }
+
+                @Override
+                public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                    super.onAuthenticationError(errorCode, errString);
+                    biometricPromptShowing = false;
+                }
+
+                @Override
+                public void onAuthenticationFailed() {
+                    super.onAuthenticationFailed();
+                    triggerShakeAnimation();
+                    net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
+                    updateAppLockUI();
+                }
+            });
+
+            prompt.authenticate(promptInfo);
+        } catch (Exception ignored) {
+            this.biometricPromptShowing = false;
+        }
+    }
+
     private void onCommandInput(final CharSequence query) {
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+            if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
+                mainInputText.setText("");
+                return;
+            }
             String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "").trim();
             if (!storedPin.isEmpty()) {
                 if (query.toString().equals(storedPin)) {
@@ -359,8 +510,10 @@ public class MainActivity extends BaseWindowActivity {
                     this.updateAppLockUI();
                     this.completeResumeSetup();
                 } else if (query.length() >= storedPin.length()) {
-                    android.widget.Toast.makeText(this, "Incorrect PIN", android.widget.Toast.LENGTH_SHORT).show();
+                    triggerShakeAnimation();
+                    net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
                     mainInputText.setText("");
+                    this.updateAppLockUI();
                 }
             }
             return;

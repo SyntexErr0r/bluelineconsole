@@ -8,9 +8,15 @@ import android.text.InputType;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
 import androidx.preference.PreferenceFragmentCompat;
-
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.DialogFragment;
+import androidx.preference.EditTextPreferenceDialogFragmentCompat;
+import androidx.preference.ListPreferenceDialogFragmentCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceManager;
+
+import net.nhiroki.bluelineconsole.applicationMain.theming.ThemedDialogHelper;
 
 import net.nhiroki.bluelineconsole.BuildConfig;
 import net.nhiroki.bluelineconsole.R;
@@ -145,6 +151,94 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 delayPref.setEnabled(!(Boolean) newValue);
                 return true;
             });
+        }
+
+        ListPreference modelPref = findPreference("pref_ai_model");
+        EditTextPreference customModelPref = findPreference("pref_ai_custom_model");
+        if (modelPref != null) {
+            CharSequence[] modelTitles = new CharSequence[]{
+                    "Gemini 2.5 Flash (Fast & Balanced - Recommended)",
+                    "Gemini 2.5 Pro (Advanced Reasoning)",
+                    "Gemini 2.0 Flash Lite (Ultra-Low Latency)",
+                    "Gemini 1.5 Flash (Standard)",
+                    "Custom Model..."
+            };
+            CharSequence[] modelValues = new CharSequence[]{
+                    "gemini-2.5-flash",
+                    "gemini-2.5-pro",
+                    "gemini-2.0-flash-lite",
+                    "gemini-1.5-flash",
+                    "custom"
+            };
+            modelPref.setEntries(modelTitles);
+            modelPref.setEntryValues(modelValues);
+            modelPref.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
+
+            if (customModelPref != null) {
+                String current = modelPref.getValue();
+                customModelPref.setEnabled("custom".equals(current));
+
+                modelPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    customModelPref.setEnabled("custom".equals(newValue));
+                    return true;
+                });
+                customModelPref.setSummaryProvider(EditTextPreference.SimpleSummaryProvider.getInstance());
+            }
+        }
+    }
+
+    @Override
+    public void onDisplayPreferenceDialog(@NonNull Preference preference) {
+        if (getParentFragmentManager().findFragmentByTag("androidx.preference.PreferenceFragment.DIALOG") != null) {
+            return;
+        }
+
+        final DialogFragment f;
+        if (preference instanceof EditTextPreference) {
+            f = ThemedEditTextPreferenceDialogFragment.newInstance(preference.getKey());
+        } else if (preference instanceof ListPreference) {
+            f = ThemedListPreferenceDialogFragment.newInstance(preference.getKey());
+        } else {
+            super.onDisplayPreferenceDialog(preference);
+            return;
+        }
+        f.setTargetFragment(this, 0);
+        f.show(getParentFragmentManager(), "androidx.preference.PreferenceFragment.DIALOG");
+    }
+
+    public static class ThemedListPreferenceDialogFragment extends ListPreferenceDialogFragmentCompat {
+        public static ThemedListPreferenceDialogFragment newInstance(String key) {
+            ThemedListPreferenceDialogFragment fragment = new ThemedListPreferenceDialogFragment();
+            Bundle b = new Bundle(1);
+            b.putString(ARG_KEY, key);
+            fragment.setArguments(b);
+            return fragment;
+        }
+
+        @Override
+        public void onStart() {
+            super.onStart();
+            if (getDialog() instanceof AlertDialog) {
+                ThemedDialogHelper.styleDialog((AlertDialog) getDialog(), getActivity());
+            }
+        }
+    }
+
+    public static class ThemedEditTextPreferenceDialogFragment extends EditTextPreferenceDialogFragmentCompat {
+        public static ThemedEditTextPreferenceDialogFragment newInstance(String key) {
+            ThemedEditTextPreferenceDialogFragment fragment = new ThemedEditTextPreferenceDialogFragment();
+            Bundle b = new Bundle(1);
+            b.putString(ARG_KEY, key);
+            fragment.setArguments(b);
+            return fragment;
+        }
+
+        @Override
+        public void onStart() {
+            super.onStart();
+            if (getDialog() instanceof AlertDialog) {
+                ThemedDialogHelper.styleDialog((AlertDialog) getDialog(), getActivity());
+            }
         }
     }
 }

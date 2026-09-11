@@ -31,6 +31,12 @@ public class CyberGlassTheme extends BaseTheme {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
     }
 
+    @Override
+    public void beforeCreateActivity(BaseWindowActivity activity) {
+        super.beforeCreateActivity(activity);
+        activity.setTheme(activity.isHomeActivity() ? R.style.AppThemeCyberGlassHome : R.style.AppThemeCyberGlass);
+    }
+
     @SuppressLint("MissingSuperCall")
     @Override
     public void apply(BaseWindowActivity activity) {
@@ -77,18 +83,29 @@ public class CyberGlassTheme extends BaseTheme {
             }
         }
 
+        View window = activity.findViewById(R.id.baseWindowMainLinearLayout);
+        if (window != null) {
+            UnderwaterCausticDrawable causticDrawable = new UnderwaterCausticDrawable(this.getDefaultAccentColor(activity));
+            causticDrawable.setDensity(activity.getResources().getDisplayMetrics().density);
+            window.setBackground(causticDrawable);
+            causticDrawable.start();
+        }
+
         ListView candidateListView = activity.findViewById(R.id.candidateListView);
         if (candidateListView != null) {
             candidateListView.setDivider(new ColorDrawable(Color.parseColor("#2600f0ff")));
             candidateListView.setDividerHeight((int) (1 * activity.getResources().getDisplayMetrics().density));
             candidateListView.setSelector(new ColorDrawable(Color.parseColor("#3300f0ff")));
+            candidateListView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         }
     }
 
     @Override
     public void applyAccentColor(BaseWindowActivity activity, @ColorInt int color) {
         View window = activity.findViewById(R.id.baseWindowMainLinearLayout);
-        if (window != null && window.getBackground() != null) {
+        if (window != null && window.getBackground() instanceof UnderwaterCausticDrawable) {
+            ((UnderwaterCausticDrawable) window.getBackground()).setAccentColor(color);
+        } else if (window != null && window.getBackground() != null) {
             DrawableCompat.setTint(window.getBackground().mutate(), color);
         }
         View header = activity.findViewById(R.id.baseWindowHeaderWrapper);

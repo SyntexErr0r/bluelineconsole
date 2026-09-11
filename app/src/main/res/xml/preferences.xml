@@ -202,6 +202,14 @@
             app:dependency="pref_app_lock_enabled"
             app:iconSpaceReserved="false"
             />
+        <SwitchPreference
+            android:key="pref_app_lock_biometric"
+            android:title="@string/preferences_item_app_lock_biometric_title"
+            android:summary="@string/preferences_item_app_lock_biometric_summary"
+            android:defaultValue="true"
+            app:dependency="pref_app_lock_enabled"
+            app:iconSpaceReserved="false"
+            />
     </PreferenceCategory>
     <PreferenceCategory
         android:title="@string/preferences_category_ai"
@@ -221,12 +229,20 @@
             app:dependency="pref_ai_enabled"
             app:iconSpaceReserved="false"
             />
-        <EditTextPreference
+        <ListPreference
             android:key="pref_ai_model"
             android:title="@string/preferences_item_ai_model_title"
             android:summary="@string/preferences_item_ai_model_summary"
             android:defaultValue="gemini-2.5-flash"
             android:dialogTitle="@string/preferences_item_ai_model_dialog_title"
+            app:dependency="pref_ai_enabled"
+            app:iconSpaceReserved="false"
+            />
+        <EditTextPreference
+            android:key="pref_ai_custom_model"
+            android:title="@string/preferences_item_ai_custom_model_title"
+            android:summary="@string/preferences_item_ai_custom_model_summary"
+            android:dialogTitle="@string/preferences_item_ai_custom_model_dialog_title"
             app:dependency="pref_ai_enabled"
             app:iconSpaceReserved="false"
             />

@@ -258,13 +258,20 @@
     <string name="preferences_item_app_lock_delay_title" translatable="false">Relock grace period (seconds)</string>
     <string name="preferences_item_app_lock_delay_summary" translatable="false">Delay before locking after app goes to background. Default is 0.</string>
     <string name="preferences_item_app_lock_delay_dialog_title" translatable="false">Enter Grace Period (seconds)</string>
+    <string name="preferences_item_app_lock_biometric_title" translatable="false">Enable Biometric Unlock</string>
+    <string name="preferences_item_app_lock_biometric_summary" translatable="false">Unlock with fingerprint or face recognition if available</string>
+    <string name="app_lock_incorrect_pin" translatable="false">Incorrect PIN (%1$d/%2$d)</string>
+    <string name="app_lock_locked_out" translatable="false">Too many attempts. Locked for %1$ds</string>
 
     <string name="preferences_category_ai" translatable="false">AI Assistant</string>
     <string name="preferences_item_ai_enabled_title" translatable="false">Enable Gemini AI</string>
     <string name="preferences_item_ai_api_key_title" translatable="false">Gemini API Key</string>
     <string name="preferences_item_ai_api_key_summary" translatable="false">Required for AI quick answers. Get your key from Google AI Studio.</string>
     <string name="preferences_item_ai_api_key_dialog_title" translatable="false">Enter Gemini API Key</string>
-    <string name="preferences_item_ai_model_title" translatable="false">AI Model Name</string>
-    <string name="preferences_item_ai_model_summary" translatable="false">The Gemini model to query. Default is gemini-2.5-flash.</string>
-    <string name="preferences_item_ai_model_dialog_title" translatable="false">Enter AI Model Name</string>
+    <string name="preferences_item_ai_model_title" translatable="false">AI Model</string>
+    <string name="preferences_item_ai_model_summary" translatable="false">Select a model or choose Custom Model</string>
+    <string name="preferences_item_ai_model_dialog_title" translatable="false">Choose AI Model</string>
+    <string name="preferences_item_ai_custom_model_title" translatable="false">Custom Model Identifier</string>
+    <string name="preferences_item_ai_custom_model_summary" translatable="false">Used when Custom Model is selected above. E.g. gemini-2.0-flash-thinking-exp</string>
+    <string name="preferences_item_ai_custom_model_dialog_title" translatable="false">Enter Custom Model Identifier</string>
 </resources>

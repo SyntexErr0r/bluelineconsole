@@ -7,11 +7,17 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
 import android.os.PowerManager;
+import androidx.biometric.BiometricManager;
 import androidx.preference.PreferenceManager;
 
 public class AppLockState {
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCKOUT_DURATION_MS = 30000L;
+
     private static boolean sIsLocked = true;
     private static long sLastExitTime = 0;
+    private static int sFailedAttempts = 0;
+    private static long sLockoutUntil = 0;
     private static BroadcastReceiver sScreenOffReceiver = null;
 
     private static synchronized void ensureReceiverRegistered(Context context) {
@@ -132,9 +138,62 @@ public class AppLockState {
     public static void setLocked(boolean locked) {
         sIsLocked = locked;
         sLastExitTime = 0;
+        if (!locked) {
+            resetFailedAttempts();
+        }
     }
 
     public static void setLastExitTime(long time) {
         sLastExitTime = time;
+    }
+
+    public static boolean isBiometricSupported(Context context) {
+        if (context == null) return false;
+        try {
+            BiometricManager bm = BiometricManager.from(context);
+            int canAuth = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG | BiometricManager.Authenticators.BIOMETRIC_WEAK);
+            return canAuth == BiometricManager.BIOMETRIC_SUCCESS;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public static boolean isLockedOut() {
+        if (sLockoutUntil > 0) {
+            if (System.currentTimeMillis() < sLockoutUntil) {
+                return true;
+            } else {
+                sLockoutUntil = 0;
+                sFailedAttempts = 0;
+            }
+        }
+        return false;
+    }
+
+    public static long getRemainingLockoutSeconds() {
+        if (!isLockedOut()) {
+            return 0;
+        }
+        return Math.max(1, (sLockoutUntil - System.currentTimeMillis() + 999) / 1000);
+    }
+
+    public static int getFailedAttempts() {
+        return sFailedAttempts;
+    }
+
+    public static int getMaxFailedAttempts() {
+        return MAX_FAILED_ATTEMPTS;
+    }
+
+    public static void recordFailedAttempt() {
+        sFailedAttempts++;
+        if (sFailedAttempts >= MAX_FAILED_ATTEMPTS) {
+            sLockoutUntil = System.currentTimeMillis() + LOCKOUT_DURATION_MS;
+        }
+    }
+
+    public static void resetFailedAttempts() {
+        sFailedAttempts = 0;
+        sLockoutUntil = 0;
     }
 }
