@@ -16,6 +16,7 @@ import android.provider.Settings;
 import android.widget.Toast;
 
 import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
+import net.nhiroki.bluelineconsole.wrapperForAndroid.ContactsReader;
 
 import java.util.HashMap;
 import java.util.List;
@@ -23,7 +24,7 @@ import java.util.Map;
 
 public class AgentActionEngine {
     public static class Action {
-        public String type; // "OPEN_APP", "SEARCH", "SEARCH_APP", "CLICK", "TYPE", "OPEN_URL", "PRESS"
+        public String type; // "OPEN_APP", "SEARCH", "SEARCH_APP", "CLICK", "TYPE", "OPEN_URL", "PRESS", "SEND_MESSAGE"
         public String appName;
         public String query;
         public String target;
@@ -38,6 +39,82 @@ public class AgentActionEngine {
             this.type = type;
             this.target = target;
         }
+
+        public Action(String type, String appName, String target, String query) {
+            this.type = type;
+            this.appName = appName;
+            this.target = target;
+            this.query = query;
+        }
+    }
+
+    public static class MessageDetails {
+        public final String recipient;
+        public final String message;
+
+        public MessageDetails(String recipient, String message) {
+            this.recipient = recipient != null ? recipient.trim() : "";
+            this.message = message != null ? message.trim() : "";
+        }
+    }
+
+    public static MessageDetails parseMessageDetails(String text) {
+        if (text == null) return new MessageDetails("", "");
+        String trimmed = text.trim();
+        String low = trimmed.toLowerCase();
+
+        // 1. "send <msg> to <recipient>"
+        if (low.startsWith("send ") && low.contains(" to ")) {
+            int toIdx = low.lastIndexOf(" to ");
+            String msg = trimmed.substring(5, toIdx).trim();
+            String recip = trimmed.substring(toIdx + 4).trim();
+            return new MessageDetails(recip, msg);
+        }
+
+        // 2. "<recipient> send <msg>"
+        if (low.contains(" send ")) {
+            int sIdx = low.indexOf(" send ");
+            String recip = trimmed.substring(0, sIdx).trim();
+            String msg = trimmed.substring(sIdx + 6).trim();
+            return new MessageDetails(recip, msg);
+        }
+
+        // 3. "<recipient> sent <msg>"
+        if (low.contains(" sent ")) {
+            int sIdx = low.indexOf(" sent ");
+            String recip = trimmed.substring(0, sIdx).trim();
+            String msg = trimmed.substring(sIdx + 6).trim();
+            return new MessageDetails(recip, msg);
+        }
+
+        // 4. "<recipient> : <msg>"
+        if (trimmed.contains(":")) {
+            int cIdx = trimmed.indexOf(':');
+            String recip = trimmed.substring(0, cIdx).trim();
+            String msg = trimmed.substring(cIdx + 1).trim();
+            return new MessageDetails(recip, msg);
+        }
+
+        // 5. "send <msg>" (no recipient specified)
+        if (low.startsWith("send ")) {
+            String msg = trimmed.substring(5).trim();
+            return new MessageDetails("", msg);
+        }
+
+        // 6. "to <recipient> <msg>"
+        if (low.startsWith("to ")) {
+            int space = trimmed.indexOf(' ', 3);
+            if (space > 3) {
+                String recip = trimmed.substring(3, space).trim();
+                String msg = trimmed.substring(space + 1).trim();
+                return new MessageDetails(recip, msg);
+            } else {
+                String recip = trimmed.substring(3).trim();
+                return new MessageDetails(recip, "");
+            }
+        }
+
+        return new MessageDetails(trimmed, "");
     }
 
     private static final Map<String, String> KNOWN_APP_PACKAGES = new HashMap<>();
@@ -82,6 +159,9 @@ public class AgentActionEngine {
 
         } else if ("SEARCH".equalsIgnoreCase(action.type) || "SEARCH_APP".equalsIgnoreCase(action.type)) {
             executeSearchApp(context, action, mainHandler);
+
+        } else if ("SEND_MESSAGE".equalsIgnoreCase(action.type)) {
+            executeSendMessage(context, action);
 
         } else if ("CLICK".equalsIgnoreCase(action.type)) {
             if (BlueLineAgentService.isServiceConnected()) {
@@ -145,6 +225,37 @@ public class AgentActionEngine {
         String query = action.query != null ? action.query.trim() : "";
         if (query.isEmpty() && action.target != null) {
             query = action.target.trim();
+        }
+
+        // Messaging apps
+        if (app.contains("whatsapp") || app.equals("wa")) {
+            MessageDetails details = parseMessageDetails(query);
+            String recipient = action.target != null && !action.target.isEmpty() ? action.target : details.recipient;
+            String msg = !details.message.isEmpty() ? details.message : "";
+            if (recipient.isEmpty() && msg.isEmpty()) {
+                recipient = query;
+            }
+            executeWhatsApp(context, recipient, msg);
+            return;
+        }
+
+        if (app.contains("telegram") || app.equals("tg")) {
+            MessageDetails details = parseMessageDetails(query);
+            String recipient = action.target != null && !action.target.isEmpty() ? action.target : details.recipient;
+            String msg = !details.message.isEmpty() ? details.message : "";
+            if (recipient.isEmpty() && msg.isEmpty()) {
+                recipient = query;
+            }
+            executeTelegram(context, recipient, msg);
+            return;
+        }
+
+        if (app.contains("sms") || app.equals("messages")) {
+            MessageDetails details = parseMessageDetails(query);
+            String recipient = action.target != null && !action.target.isEmpty() ? action.target : details.recipient;
+            String msg = !details.message.isEmpty() ? details.message : "";
+            executeSms(context, recipient, msg);
+            return;
         }
 
         // 1. YouTube
@@ -444,5 +555,200 @@ public class AgentActionEngine {
         }
         AppLogger.w("ACTION", "launchAppByName: Could NOT find app for '" + name + "'");
         Toast.makeText(context, "Could not find app: " + name, Toast.LENGTH_SHORT).show();
+    }
+
+    public static void executeSendMessage(final Context context, final Action action) {
+        String app = action.appName != null ? action.appName.trim().toLowerCase() : "whatsapp";
+        String recipient = action.target != null ? action.target.trim() : "";
+        String message = action.query != null ? action.query.trim() : "";
+
+        if (recipient.isEmpty() && !message.isEmpty()) {
+            MessageDetails details = parseMessageDetails(message);
+            if (!details.recipient.isEmpty()) {
+                recipient = details.recipient;
+                message = details.message;
+            }
+        }
+
+        if (app.contains("whatsapp") || app.equals("wa")) {
+            executeWhatsApp(context, recipient, message);
+        } else if (app.contains("telegram") || app.equals("tg")) {
+            executeTelegram(context, recipient, message);
+        } else if (app.contains("sms") || app.contains("message") || app.contains("msg")) {
+            executeSms(context, recipient, message);
+        } else {
+            executeWhatsApp(context, recipient, message);
+        }
+    }
+
+    public static void executeWhatsApp(Context context, String recipient, String message) {
+        AppLogger.i("ACTION", "executeWhatsApp: recipient='" + recipient + "', message='" + message + "'");
+        String phone = null;
+
+        if (recipient != null && !recipient.isEmpty()) {
+            String cleanNum = recipient.replaceAll("[^0-9+]", "");
+            if (cleanNum.length() >= 7) {
+                phone = cleanNum.replaceAll("[^0-9]", "");
+            } else {
+                phone = findPhoneNumberForContact(context, recipient);
+                if (phone == null && !ContactsReader.appHasReadContactsPermission(context)) {
+                    Toast.makeText(context, "Tip: Enable Contacts permission in config for automatic phone lookup", Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+
+        // If recipient was empty but message has multiple words, see if first word matches a known contact
+        if ((phone == null || phone.isEmpty()) && (recipient == null || recipient.isEmpty()) && message != null && message.contains(" ")) {
+            String firstWord = message.split("\\s+")[0];
+            String resolved = findPhoneNumberForContact(context, firstWord);
+            if (resolved != null) {
+                phone = resolved;
+                message = message.substring(firstWord.length()).trim();
+                AppLogger.i("ACTION", "executeWhatsApp: auto-extracted recipient '" + firstWord + "' from message start");
+            }
+        }
+
+        Uri uri;
+        if (phone != null && !phone.isEmpty()) {
+            if (message != null && !message.isEmpty()) {
+                uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(phone) + "&text=" + Uri.encode(message));
+            } else {
+                uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(phone));
+            }
+        } else {
+            if (message != null && !message.isEmpty()) {
+                uri = Uri.parse("https://api.whatsapp.com/send?text=" + Uri.encode(message));
+            } else {
+                launchAppByName(context, "whatsapp");
+                return;
+            }
+        }
+
+        Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+        intent.setPackage("com.whatsapp");
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        try {
+            if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                context.startActivity(intent);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // Try WhatsApp Business
+        try {
+            intent.setPackage("com.whatsapp.w4b");
+            if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                context.startActivity(intent);
+                return;
+            }
+        } catch (Exception ignored) {}
+
+        // Fallback: general chooser
+        try {
+            Intent fallbackIntent = new Intent(Intent.ACTION_VIEW, uri);
+            fallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(fallbackIntent);
+        } catch (Exception e) {
+            AppLogger.e("ACTION", "Failed to launch WhatsApp intent: " + uri, e);
+            Toast.makeText(context, "WhatsApp is not installed.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public static void executeTelegram(Context context, String recipient, String message) {
+        AppLogger.i("ACTION", "executeTelegram: recipient='" + recipient + "', message='" + message + "'");
+        Uri uri = null;
+        if (recipient != null && recipient.startsWith("@")) {
+            uri = Uri.parse("https://t.me/" + recipient.substring(1));
+        } else if (message != null && !message.isEmpty()) {
+            uri = Uri.parse("https://t.me/share/url?url=&text=" + Uri.encode(message));
+        }
+
+        if (uri != null) {
+            Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+            intent.setPackage("org.telegram.messenger");
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                    context.startActivity(intent);
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
+        launchAppByName(context, "telegram");
+    }
+
+    public static void executeSms(Context context, String recipient, String message) {
+        AppLogger.i("ACTION", "executeSms: recipient='" + recipient + "', message='" + message + "'");
+        String phone = null;
+        if (recipient != null && !recipient.isEmpty()) {
+            String cleanNum = recipient.replaceAll("[^0-9+]", "");
+            if (cleanNum.length() >= 7) {
+                phone = cleanNum;
+            } else {
+                phone = findPhoneNumberForContact(context, recipient);
+            }
+        }
+        Intent intent = new Intent(Intent.ACTION_SENDTO);
+        intent.setData(Uri.parse("smsto:" + (phone != null ? phone : "")));
+        if (message != null && !message.isEmpty()) {
+            intent.putExtra("sms_body", message);
+        }
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            context.startActivity(intent);
+        } catch (Exception e) {
+            AppLogger.e("ACTION", "Failed to launch SMS intent", e);
+        }
+    }
+
+    public static String findPhoneNumberForContact(Context context, String nameQuery) {
+        if (context == null || nameQuery == null || nameQuery.trim().isEmpty()) return null;
+        if (!ContactsReader.appHasReadContactsPermission(context)) {
+            AppLogger.w("ACTION", "Contacts permission not granted.");
+            return null;
+        }
+
+        try {
+            List<ContactsReader.Contact> contacts = ContactsReader.fetchAllContacts(context);
+            if (contacts == null || contacts.isEmpty()) return null;
+
+            String q = nameQuery.trim().toLowerCase();
+
+            // Pass 1: exact match
+            for (ContactsReader.Contact c : contacts) {
+                if (c.displayName != null && c.displayName.trim().equalsIgnoreCase(q)) {
+                    if (c.phoneNumbers != null && !c.phoneNumbers.isEmpty()) {
+                        return sanitizePhoneNumber(c.phoneNumbers.get(0));
+                    }
+                }
+            }
+
+            // Pass 2: contains match
+            for (ContactsReader.Contact c : contacts) {
+                if (c.displayName != null && c.displayName.toLowerCase().contains(q)) {
+                    if (c.phoneNumbers != null && !c.phoneNumbers.isEmpty()) {
+                        return sanitizePhoneNumber(c.phoneNumbers.get(0));
+                    }
+                }
+            }
+
+            // Pass 3: phonetic match
+            for (ContactsReader.Contact c : contacts) {
+                if (c.phoneticName != null && c.phoneticName.toLowerCase().contains(q)) {
+                    if (c.phoneNumbers != null && !c.phoneNumbers.isEmpty()) {
+                        return sanitizePhoneNumber(c.phoneNumbers.get(0));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AppLogger.e("ACTION", "Error searching contacts for: " + nameQuery, e);
+        }
+        return null;
+    }
+
+    private static String sanitizePhoneNumber(String phone) {
+        if (phone == null) return null;
+        return phone.replaceAll("[^0-9]", "");
     }
 }

@@ -268,6 +268,9 @@ public class AICandidateEntry implements CandidateEntry {
                         actLabel = "[▶ Run: Search " + mExtractedAction.appName + " for \"" + mExtractedAction.query + "\"]";
                     } else if ("OPEN_APP".equalsIgnoreCase(mExtractedAction.type)) {
                         actLabel = "[▶ Run: Open " + mExtractedAction.appName + "]";
+                    } else if ("SEND_MESSAGE".equalsIgnoreCase(mExtractedAction.type)) {
+                        String recip = mExtractedAction.target != null && !mExtractedAction.target.isEmpty() ? mExtractedAction.target : mExtractedAction.appName;
+                        actLabel = "[▶ Run: Message " + recip + "]";
                     } else if ("CLICK".equalsIgnoreCase(mExtractedAction.type)) {
                         actLabel = "[▶ Run: Click \"" + mExtractedAction.target + "\"]";
                     } else if ("TYPE".equalsIgnoreCase(mExtractedAction.type)) {
@@ -354,9 +357,10 @@ public class AICandidateEntry implements CandidateEntry {
                 JSONObject systemInstruction = new JSONObject();
                 JSONArray sysParts = new JSONArray();
                 sysParts.put(new JSONObject().put("text",
-                        "You are BlueLine Agent, an intelligent Android device assistant. When the user asks you to perform an action on their device (open an app, search inside an app, click a button, open a URL, type text), answer briefly and append an action tag at the end in one of these formats:\n" +
+                        "You are BlueLine Agent, an intelligent Android device assistant. When the user asks you to perform an action on their device (open an app, search inside an app, send a message, click a button, open a URL, type text), answer briefly and append an action tag at the end in one of these formats:\n" +
                         "[ACTION: OPEN_APP, <appName>]\n" +
                         "[ACTION: SEARCH_APP, <appName>, <searchQuery>]\n" +
+                        "[ACTION: SEND_MESSAGE, <appName>, <recipient>, <message>]\n" +
                         "[ACTION: OPEN_URL, <url>]\n" +
                         "[ACTION: CLICK, <buttonOrText>]\n" +
                         "[ACTION: TYPE, <text>]\n" +
@@ -546,12 +550,13 @@ public class AICandidateEntry implements CandidateEntry {
 
     public static AgentActionEngine.Action parseActionFromResponse(String text) {
         if (text == null) return null;
-        Pattern p = Pattern.compile("\\[ACTION:\\s*([A-Z_]+)(?:,\\s*([^,\\]]+))?(?:,\\s*([^\\]]+))?\\]", Pattern.CASE_INSENSITIVE);
+        Pattern p = Pattern.compile("\\[ACTION:\\s*([A-Z_]+)(?:,\\s*([^,\\]]+))?(?:,\\s*([^,\\]]+))?(?:,\\s*([^\\]]+))?\\]", Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(text);
         if (m.find()) {
             String type = m.group(1).trim().toUpperCase();
             String p1 = m.group(2) != null ? m.group(2).trim() : null;
             String p2 = m.group(3) != null ? m.group(3).trim() : null;
+            String p3 = m.group(4) != null ? m.group(4).trim() : null;
 
             if (p1 != null) {
                 p1 = p1.replaceAll("^[\"']+|[\"']+$", "").trim();
@@ -559,8 +564,20 @@ public class AICandidateEntry implements CandidateEntry {
             if (p2 != null) {
                 p2 = p2.replaceAll("^[\"']+|[\"']+$", "").trim();
             }
+            if (p3 != null) {
+                p3 = p3.replaceAll("^[\"']+|[\"']+$", "").trim();
+            }
 
-            if ("SEARCH_APP".equals(type) || "SEARCH".equals(type)) {
+            if ("SEND_MESSAGE".equals(type)) {
+                if (p3 != null) {
+                    return new AgentActionEngine.Action("SEND_MESSAGE", p1, p2, p3);
+                } else if (p2 != null) {
+                    AgentActionEngine.MessageDetails details = AgentActionEngine.parseMessageDetails(p2);
+                    return new AgentActionEngine.Action("SEND_MESSAGE", p1, details.recipient, details.message);
+                } else {
+                    return new AgentActionEngine.Action("OPEN_APP", p1, null);
+                }
+            } else if ("SEARCH_APP".equals(type) || "SEARCH".equals(type)) {
                 return new AgentActionEngine.Action("SEARCH_APP", p1, p2 != null ? p2 : "");
             } else if ("OPEN_APP".equals(type)) {
                 return new AgentActionEngine.Action("OPEN_APP", p1, null);
