@@ -126,6 +126,72 @@ public class ThemedDialogHelper {
                     contentHolder.addView(parentPanel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
                     windowRoot.addView(hudRoot, index, origLp);
+
+                    // Eye Blink Open animation for dialog HUD
+                    final View dialogMain = hudRoot.findViewById(R.id.cyberGlassDialogMainContainer);
+                    final View dialogHeader = hudRoot.findViewById(R.id.cyberGlassDialogHeaderWrapper);
+                    final View dialogFooter = hudRoot.findViewById(R.id.cyberGlassDialogFooterWrapper);
+
+                    if (dialogMain != null) {
+                        dialogMain.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                dialogMain.setPivotX(dialogMain.getWidth() / 2f);
+                                dialogMain.setPivotY(dialogMain.getHeight() / 2f);
+                                dialogMain.setScaleX(0.5f);
+                                dialogMain.setScaleY(0.03f);
+                                dialogMain.setAlpha(0f);
+
+                                if (dialogHeader != null) {
+                                    dialogHeader.setTranslationX(-50f * density);
+                                    dialogHeader.setAlpha(0f);
+                                }
+                                if (dialogFooter != null) {
+                                    dialogFooter.setTranslationX(50f * density);
+                                    dialogFooter.setAlpha(0f);
+                                }
+
+                                // Phase 1: Laser Slit Flash Blink (0-60ms)
+                                dialogMain.animate()
+                                        .alpha(1f)
+                                        .scaleX(1.0f)
+                                        .setDuration(60)
+                                        .setInterpolator(new android.view.animation.AccelerateInterpolator())
+                                        .withEndAction(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                // Phase 2: Eye Blink Opening Aperture (60-220ms)
+                                                dialogMain.animate()
+                                                        .scaleY(1.0f)
+                                                        .setDuration(160)
+                                                        .setInterpolator(new android.view.animation.OvershootInterpolator(1.12f))
+                                                        .start();
+                                            }
+                                        })
+                                        .start();
+
+                                // Phase 3: HUD Header & Footer Lock-In (130-230ms)
+                                if (dialogHeader != null) {
+                                    dialogHeader.animate()
+                                            .translationX(0f)
+                                            .alpha(1f)
+                                            .setDuration(100)
+                                            .setStartDelay(130)
+                                            .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                                            .start();
+                                }
+                                if (dialogFooter != null) {
+                                    dialogFooter.animate()
+                                            .translationX(0f)
+                                            .alpha(1f)
+                                            .setDuration(100)
+                                            .setStartDelay(140)
+                                            .setInterpolator(new android.view.animation.DecelerateInterpolator())
+                                            .start();
+                                }
+                            }
+                        });
+                    }
                 }
             }
         }

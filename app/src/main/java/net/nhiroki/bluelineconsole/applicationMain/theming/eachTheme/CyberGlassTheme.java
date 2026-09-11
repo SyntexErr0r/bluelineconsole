@@ -18,6 +18,9 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.graphics.drawable.DrawableCompat;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 
 import net.nhiroki.bluelineconsole.R;
 import net.nhiroki.bluelineconsole.applicationMain.BaseWindowActivity;
@@ -162,5 +165,103 @@ public class CyberGlassTheme extends BaseTheme {
     @Override
     public @ColorInt int getDefaultAccentColor(Context context) {
         return Color.parseColor("#00f0ff");
+    }
+
+    @Override
+    public void changeBaseWindowElementSizeForAnimation(final BaseWindowActivity activity, boolean visible) {
+        if (!activity.getAnimationEnabledPreferenceValue()) {
+            super.changeBaseWindowElementSizeForAnimation(activity, visible);
+            return;
+        }
+
+        final View centerLL = activity.findViewById(R.id.baseWindowMainLinearLayout);
+        final View headerWrapper = activity.findViewById(R.id.baseWindowHeaderWrapper);
+        final View footerWrapper = activity.findViewById(R.id.baseWindowFooterWrapper);
+
+        if (centerLL == null) {
+            super.changeBaseWindowElementSizeForAnimation(activity, visible);
+            return;
+        }
+
+        super.changeBaseWindowElementSizeForAnimation(activity, true);
+
+        final float density = activity.getResources().getDisplayMetrics().density;
+
+        if (visible) {
+            centerLL.post(new Runnable() {
+                @Override
+                public void run() {
+                    centerLL.setPivotX(centerLL.getWidth() / 2f);
+                    centerLL.setPivotY(centerLL.getHeight() / 2f);
+                    centerLL.setScaleX(0.5f);
+                    centerLL.setScaleY(0.03f);
+                    centerLL.setAlpha(0f);
+
+                    if (headerWrapper != null) {
+                        headerWrapper.setTranslationX(-50f * density);
+                        headerWrapper.setAlpha(0f);
+                    }
+                    if (footerWrapper != null) {
+                        footerWrapper.setTranslationX(50f * density);
+                        footerWrapper.setAlpha(0f);
+                    }
+
+                    // Phase 1: Laser Slit Flash Blink (0-60ms)
+                    centerLL.animate()
+                            .alpha(1f)
+                            .scaleX(1.0f)
+                            .setDuration(60)
+                            .setInterpolator(new AccelerateInterpolator())
+                            .withEndAction(new Runnable() {
+                                @Override
+                                public void run() {
+                                    // Phase 2: Eye Blink Opening Aperture (60-220ms)
+                                    centerLL.animate()
+                                            .scaleY(1.0f)
+                                            .setDuration(160)
+                                            .setInterpolator(new OvershootInterpolator(1.12f))
+                                            .start();
+                                }
+                            })
+                            .start();
+
+                    // Phase 3: HUD Header & Footer Lock-In (130-230ms)
+                    if (headerWrapper != null) {
+                        headerWrapper.animate()
+                                .translationX(0f)
+                                .alpha(1f)
+                                .setDuration(100)
+                                .setStartDelay(130)
+                                .setInterpolator(new DecelerateInterpolator())
+                                .start();
+                    }
+                    if (footerWrapper != null) {
+                        footerWrapper.animate()
+                                .translationX(0f)
+                                .alpha(1f)
+                                .setDuration(100)
+                                .setStartDelay(140)
+                                .setInterpolator(new DecelerateInterpolator())
+                                .start();
+                    }
+                }
+            });
+        } else {
+            // Eye Blinks Shut on Exit
+            if (headerWrapper != null) {
+                headerWrapper.animate().translationX(-40f * density).alpha(0f).setDuration(70).start();
+            }
+            if (footerWrapper != null) {
+                footerWrapper.animate().translationX(40f * density).alpha(0f).setDuration(70).start();
+            }
+            centerLL.setPivotX(centerLL.getWidth() / 2f);
+            centerLL.setPivotY(centerLL.getHeight() / 2f);
+            centerLL.animate()
+                    .scaleY(0.02f)
+                    .alpha(0f)
+                    .setDuration(100)
+                    .setInterpolator(new AccelerateInterpolator())
+                    .start();
+        }
     }
 }
