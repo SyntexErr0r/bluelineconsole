@@ -122,6 +122,40 @@ public class AgentActionTests {
         assertEquals("CALL_APP", a12.type);
         assertEquals("whatsapp", a12.appName.toLowerCase());
         assertEquals("faridul", a12.target);
+
+        // WhatsApp group messaging and opening
+        AgentActionEngine.Action a13 = AICommandSearcher.parseDirectAction("whatsapp group Devs send update ready");
+        assertNotNull(a13);
+        assertEquals("SEND_MESSAGE", a13.type);
+        assertEquals("whatsapp_group", a13.appName);
+        assertEquals("Devs", a13.target);
+        assertEquals("update ready", a13.query);
+
+        AgentActionEngine.Action a14 = AICommandSearcher.parseDirectAction("wa group Devs: update ready");
+        assertNotNull(a14);
+        assertEquals("SEND_MESSAGE", a14.type);
+        assertEquals("whatsapp_group", a14.appName);
+        assertEquals("Devs", a14.target);
+        assertEquals("update ready", a14.query);
+
+        AgentActionEngine.Action a15 = AICommandSearcher.parseDirectAction("whatsapp group Devs");
+        assertNotNull(a15);
+        assertEquals("OPEN_APP", a15.type);
+        assertEquals("whatsapp_group", a15.appName);
+        assertEquals("Devs", a15.target);
+
+        AgentActionEngine.Action a16 = AICommandSearcher.parseDirectAction("send hi to group Devs on whatsapp");
+        assertNotNull(a16);
+        assertEquals("SEND_MESSAGE", a16.type);
+        assertEquals("whatsapp_group", a16.appName);
+        assertEquals("Devs", a16.target);
+        assertEquals("hi", a16.query);
+
+        AgentActionEngine.Action a17 = AICommandSearcher.parseDirectAction("open whatsapp group Devs");
+        assertNotNull(a17);
+        assertEquals("OPEN_APP", a17.type);
+        assertEquals("whatsapp_group", a17.appName);
+        assertEquals("Devs", a17.target);
     }
 
     @Test

@@ -183,6 +183,20 @@ public class AICommandSearcher implements CommandSearcher {
             }
         }
 
+        // WhatsApp Group shortcuts: "whatsapp group <name> ...", "wa group <name> ..."
+        if (low.startsWith("whatsapp group ") || low.startsWith("wa group ")) {
+            int prefixLen = low.startsWith("wa group ") ? 9 : 15;
+            String sub = q.substring(prefixLen).trim();
+            if (!sub.isEmpty()) {
+                AgentActionEngine.MessageDetails details = AgentActionEngine.parseMessageDetails(sub);
+                if (details.message.isEmpty()) {
+                    return new AgentActionEngine.Action("OPEN_APP", "whatsapp_group", details.recipient, null);
+                } else {
+                    return new AgentActionEngine.Action("SEND_MESSAGE", "whatsapp_group", details.recipient, details.message);
+                }
+            }
+        }
+
         // 3. WhatsApp shortcuts: "whatsapp <query>", "wa <query>"
         if (low.startsWith("whatsapp ") || low.startsWith("wa ")) {
             int space = q.indexOf(' ');
@@ -236,6 +250,9 @@ public class AICommandSearcher implements CommandSearcher {
                 content = q.substring(0, idx).trim();
             }
             AgentActionEngine.MessageDetails details = AgentActionEngine.parseMessageDetails(content);
+            if (details.recipient.toLowerCase().startsWith("group ")) {
+                return new AgentActionEngine.Action("SEND_MESSAGE", "whatsapp_group", details.recipient.substring(6).trim(), details.message);
+            }
             return new AgentActionEngine.Action("SEND_MESSAGE", app, details.recipient, details.message);
         }
 
@@ -327,6 +344,14 @@ public class AICommandSearcher implements CommandSearcher {
                 String app = rest.substring(0, sIdx).trim();
                 String sub = rest.substring(sIdx + len).trim();
                 if (!app.isEmpty()) {
+                    if (app.equalsIgnoreCase("whatsapp group") || app.equalsIgnoreCase("wa group") ||
+                        app.toLowerCase().startsWith("whatsapp group ") || app.toLowerCase().startsWith("wa group ")) {
+                        String group = app.substring(app.toLowerCase().startsWith("wa group") ? 8 : 14).trim();
+                        AgentActionEngine.MessageDetails details = AgentActionEngine.parseMessageDetails(sub);
+                        String recip = !group.isEmpty() ? group : details.recipient;
+                        String msg = !details.message.isEmpty() ? details.message : sub;
+                        return new AgentActionEngine.Action("SEND_MESSAGE", "whatsapp_group", recip, msg);
+                    }
                     AgentActionEngine.MessageDetails details = AgentActionEngine.parseMessageDetails(sub);
                     return new AgentActionEngine.Action("SEND_MESSAGE", app, details.recipient, details.message);
                 }
@@ -354,6 +379,15 @@ public class AICommandSearcher implements CommandSearcher {
                 String searchQ = rest.substring(searchIdx + 8).trim();
                 if (!app.isEmpty() && !searchQ.isEmpty()) {
                     return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
+                }
+            }
+
+            // "open whatsapp group <name>", "open wa group <name>"
+            if (restLow.startsWith("whatsapp group ") || restLow.startsWith("wa group ")) {
+                int pLen = restLow.startsWith("wa group ") ? 9 : 15;
+                String group = rest.substring(pLen).trim();
+                if (!group.isEmpty()) {
+                    return new AgentActionEngine.Action("OPEN_APP", "whatsapp_group", group, null);
                 }
             }
 
@@ -401,8 +435,19 @@ public class AICommandSearcher implements CommandSearcher {
                 }
                 return "⚡ Agent: Search " + app + " for \"" + action.query + "\"";
             } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
+                if ("whatsapp_group".equalsIgnoreCase(action.appName)) {
+                    String group = action.target != null ? action.target : action.query;
+                    return "⚡ Agent: Open WhatsApp group \"" + group + "\"";
+                }
                 return "⚡ Agent: Open " + capitalize(action.appName);
             } else if ("SEND_MESSAGE".equalsIgnoreCase(action.type)) {
+                if ("whatsapp_group".equalsIgnoreCase(action.appName)) {
+                    if (action.target != null && !action.target.isEmpty() && action.query != null && !action.query.isEmpty()) {
+                        return "⚡ Agent: Send \"" + action.query + "\" to WhatsApp group \"" + action.target + "\"";
+                    } else if (action.target != null && !action.target.isEmpty()) {
+                        return "⚡ Agent: Open WhatsApp group \"" + action.target + "\"";
+                    }
+                }
                 String app = capitalize(action.appName);
                 if (action.target != null && !action.target.isEmpty() && action.query != null && !action.query.isEmpty()) {
                     return "⚡ Agent: Send \"" + action.query + "\" to " + action.target + " on " + app;
@@ -441,13 +486,21 @@ public class AICommandSearcher implements CommandSearcher {
                 }
                 tv.setText("▶ Tap or Enter to search on " + app);
             } else if ("SEND_MESSAGE".equalsIgnoreCase(action.type)) {
-                String app = capitalize(action.appName);
-                if (action.target != null && !action.target.isEmpty() && action.query != null && !action.query.isEmpty()) {
-                    tv.setText("▶ Tap or Enter to send message to " + action.target + " via " + app);
-                } else if (action.target != null && !action.target.isEmpty()) {
-                    tv.setText("▶ Tap or Enter to chat with " + action.target + " on " + app);
+                if ("whatsapp_group".equalsIgnoreCase(action.appName)) {
+                    if (action.target != null && !action.target.isEmpty() && action.query != null && !action.query.isEmpty()) {
+                        tv.setText("▶ Tap or Enter to send message to group \"" + action.target + "\" on WhatsApp");
+                    } else {
+                        tv.setText("▶ Tap or Enter to open group \"" + action.target + "\" on WhatsApp");
+                    }
                 } else {
-                    tv.setText("▶ Tap or Enter to share message via " + app);
+                    String app = capitalize(action.appName);
+                    if (action.target != null && !action.target.isEmpty() && action.query != null && !action.query.isEmpty()) {
+                        tv.setText("▶ Tap or Enter to send message to " + action.target + " via " + app);
+                    } else if (action.target != null && !action.target.isEmpty()) {
+                        tv.setText("▶ Tap or Enter to chat with " + action.target + " on " + app);
+                    } else {
+                        tv.setText("▶ Tap or Enter to share message via " + app);
+                    }
                 }
             } else if ("CALL_APP".equalsIgnoreCase(action.type)) {
                 String app = capitalize(action.appName);
@@ -455,7 +508,12 @@ public class AICommandSearcher implements CommandSearcher {
                 String target = action.target != null ? action.target : "";
                 tv.setText("▶ Tap or Enter to " + mode + " " + target + " via " + app);
             } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
-                tv.setText("▶ Tap or Enter to launch " + capitalize(action.appName));
+                if ("whatsapp_group".equalsIgnoreCase(action.appName)) {
+                    String group = action.target != null ? action.target : action.query;
+                    tv.setText("▶ Tap or Enter to open group \"" + group + "\" on WhatsApp");
+                } else {
+                    tv.setText("▶ Tap or Enter to launch " + capitalize(action.appName));
+                }
             } else if ("CLICK".equalsIgnoreCase(action.type)) {
                 tv.setText("▶ Tap or Enter to click via Accessibility Service");
             } else {

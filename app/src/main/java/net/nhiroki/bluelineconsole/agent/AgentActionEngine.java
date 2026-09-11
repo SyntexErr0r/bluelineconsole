@@ -159,7 +159,11 @@ public class AgentActionEngine {
         final Handler mainHandler = new Handler(Looper.getMainLooper());
 
         if ("OPEN_APP".equalsIgnoreCase(action.type)) {
-            launchAppByName(context, action.appName);
+            if ("whatsapp_group".equalsIgnoreCase(action.appName)) {
+                executeWhatsAppGroupOpen(context, action.target != null ? action.target : action.query);
+            } else {
+                launchAppByName(context, action.appName);
+            }
 
         } else if ("SEARCH".equalsIgnoreCase(action.type) || "SEARCH_APP".equalsIgnoreCase(action.type)) {
             executeSearchApp(context, action, mainHandler);
@@ -585,6 +589,9 @@ public class AgentActionEngine {
         }
 
         if (app.contains("whatsapp") || app.equals("wa")) {
+            if ("whatsapp_group".equalsIgnoreCase(app) && recipient != null && !recipient.toLowerCase().startsWith("group ")) {
+                recipient = "group " + recipient;
+            }
             executeWhatsApp(context, recipient, message);
         } else if (app.contains("telegram") || app.equals("tg")) {
             executeTelegram(context, recipient, message);
@@ -597,9 +604,19 @@ public class AgentActionEngine {
 
     public static void executeWhatsApp(Context context, String recipient, String message) {
         AppLogger.i("ACTION", "executeWhatsApp: recipient='" + recipient + "', message='" + message + "'");
-        String phone = null;
+        boolean isExplicitGroup = false;
+        if (recipient != null && recipient.toLowerCase().startsWith("group ")) {
+            isExplicitGroup = true;
+            recipient = recipient.substring(6).trim();
+        }
 
-        if (recipient != null && !recipient.isEmpty()) {
+        if (isExplicitGroup && (message == null || message.trim().isEmpty())) {
+            executeWhatsAppGroupOpen(context, recipient);
+            return;
+        }
+
+        String phone = null;
+        if (!isExplicitGroup && recipient != null && !recipient.isEmpty()) {
             String cleanNum = recipient.replaceAll("[^0-9+]", "");
             if (cleanNum.length() >= 7) {
                 phone = cleanNum.replaceAll("[^0-9]", "");
@@ -612,7 +629,7 @@ public class AgentActionEngine {
         }
 
         // If recipient was empty but message has multiple words, see if first word matches a known contact
-        if ((phone == null || phone.isEmpty()) && (recipient == null || recipient.isEmpty()) && message != null && message.contains(" ")) {
+        if (!isExplicitGroup && (phone == null || phone.isEmpty()) && (recipient == null || recipient.isEmpty()) && message != null && message.contains(" ")) {
             String firstWord = message.split("\\s+")[0];
             String resolved = findPhoneNumberForContact(context, firstWord);
             if (resolved != null) {
@@ -623,7 +640,8 @@ public class AgentActionEngine {
         }
 
         Uri uri;
-        if (phone != null && !phone.isEmpty()) {
+        final boolean isDirectPhone = (phone != null && !phone.isEmpty());
+        if (isDirectPhone) {
             if (message != null && !message.isEmpty()) {
                 uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(phone) + "&text=" + Uri.encode(message));
             } else {
@@ -633,7 +651,11 @@ public class AgentActionEngine {
             if (message != null && !message.isEmpty()) {
                 uri = Uri.parse("https://api.whatsapp.com/send?text=" + Uri.encode(message));
             } else {
-                launchAppByName(context, "whatsapp");
+                if (recipient != null && !recipient.isEmpty()) {
+                    executeWhatsAppGroupOpen(context, recipient);
+                } else {
+                    launchAppByName(context, "whatsapp");
+                }
                 return;
             }
         }
@@ -645,7 +667,7 @@ public class AgentActionEngine {
         try {
             if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
                 context.startActivity(intent);
-                triggerWhatsAppAutoSendIfConfigured(context, message);
+                triggerWhatsAppAutoSendIfConfigured(context, recipient, message, isDirectPhone);
                 return;
             }
         } catch (Exception ignored) {}
@@ -655,7 +677,7 @@ public class AgentActionEngine {
             intent.setPackage("com.whatsapp.w4b");
             if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
                 context.startActivity(intent);
-                triggerWhatsAppAutoSendIfConfigured(context, message);
+                triggerWhatsAppAutoSendIfConfigured(context, recipient, message, isDirectPhone);
                 return;
             }
         } catch (Exception ignored) {}
@@ -665,7 +687,7 @@ public class AgentActionEngine {
             Intent fallbackIntent = new Intent(Intent.ACTION_VIEW, uri);
             fallbackIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(fallbackIntent);
-            triggerWhatsAppAutoSendIfConfigured(context, message);
+            triggerWhatsAppAutoSendIfConfigured(context, recipient, message, isDirectPhone);
         } catch (Exception e) {
             AppLogger.e("ACTION", "Failed to launch WhatsApp intent: " + uri, e);
             Toast.makeText(context, "WhatsApp is not installed.", Toast.LENGTH_SHORT).show();
@@ -769,15 +791,44 @@ public class AgentActionEngine {
         return phone.replaceAll("[^0-9]", "");
     }
 
+    public static void executeWhatsAppGroupOpen(Context context, String groupName) {
+        AppLogger.i("ACTION", "executeWhatsAppGroupOpen: groupName='" + groupName + "'");
+        if (groupName == null || groupName.trim().isEmpty()) {
+            launchAppByName(context, "whatsapp");
+            return;
+        }
+
+        launchAppByName(context, "whatsapp");
+        if (BlueLineAgentService.isServiceConnected()) {
+            BlueLineAgentService.getInstance().scheduleWhatsAppGroupOpen(groupName);
+        } else {
+            Toast.makeText(context, "WhatsApp opened. Tap '" + groupName + "' to view group.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private static void triggerWhatsAppAutoSendIfConfigured(Context context, String message) {
+        triggerWhatsAppAutoSendIfConfigured(context, null, message, true);
+    }
+
+    private static void triggerWhatsAppAutoSendIfConfigured(Context context, String recipient, String message, boolean isDirectPhone) {
         if (message == null || message.trim().isEmpty()) return;
         boolean autoSend = PreferenceManager.getDefaultSharedPreferences(context)
                 .getBoolean("pref_whatsapp_auto_send", true);
         if (autoSend) {
             if (BlueLineAgentService.isServiceConnected()) {
-                BlueLineAgentService.getInstance().scheduleWhatsAppAutoSend();
+                if (isDirectPhone) {
+                    BlueLineAgentService.getInstance().scheduleWhatsAppAutoSend();
+                } else if (recipient != null && !recipient.trim().isEmpty()) {
+                    BlueLineAgentService.getInstance().scheduleWhatsAppGroupSend(recipient);
+                } else {
+                    BlueLineAgentService.getInstance().scheduleWhatsAppAutoSend();
+                }
             } else {
-                Toast.makeText(context, "Draft opened. Enable Accessibility in Settings for automatic sending.", Toast.LENGTH_SHORT).show();
+                if (!isDirectPhone && recipient != null && !recipient.trim().isEmpty()) {
+                    Toast.makeText(context, "Select '" + recipient + "' to send (or enable Accessibility for auto-send).", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(context, "Draft opened. Enable Accessibility in Settings for automatic sending.", Toast.LENGTH_SHORT).show();
+                }
             }
         }
     }

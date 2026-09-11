@@ -69,6 +69,10 @@ public class BlueLineAgentService extends AccessibilityService {
     private volatile boolean mPendingWhatsAppCall = false;
     private volatile boolean mPendingWhatsAppCallIsVideo = false;
     private volatile long mCallDeadline = 0;
+    private volatile boolean mPendingWhatsAppGroupSend = false;
+    private volatile boolean mPendingWhatsAppGroupOpen = false;
+    private volatile String mTargetGroupName = null;
+    private volatile long mGroupDeadline = 0;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -87,6 +91,12 @@ public class BlueLineAgentService extends AccessibilityService {
         }
         if (mPendingWhatsAppCall) {
             performWhatsAppCallClick();
+        }
+        if (mPendingWhatsAppGroupSend) {
+            performWhatsAppGroupSend();
+        }
+        if (mPendingWhatsAppGroupOpen) {
+            performWhatsAppGroupOpen();
         }
     }
 
@@ -341,8 +351,30 @@ public class BlueLineAgentService extends AccessibilityService {
                 if (mPendingWhatsAppCall) {
                     performWhatsAppCallClick();
                 }
+                if (mPendingWhatsAppGroupSend) {
+                    performWhatsAppGroupSend();
+                }
+                if (mPendingWhatsAppGroupOpen) {
+                    performWhatsAppGroupOpen();
+                }
             }, delay);
         }
+    }
+
+    public void scheduleWhatsAppGroupSend(String groupName) {
+        mPendingWhatsAppGroupSend = true;
+        mTargetGroupName = groupName != null ? groupName.trim() : "";
+        mGroupDeadline = System.currentTimeMillis() + 9000;
+        AppLogger.i("A11Y", "Scheduled WhatsApp group send for '" + mTargetGroupName + "' (9s deadline)");
+        schedulePollingChecks();
+    }
+
+    public void scheduleWhatsAppGroupOpen(String groupName) {
+        mPendingWhatsAppGroupOpen = true;
+        mTargetGroupName = groupName != null ? groupName.trim() : "";
+        mGroupDeadline = System.currentTimeMillis() + 9000;
+        AppLogger.i("A11Y", "Scheduled WhatsApp group open for '" + mTargetGroupName + "' (9s deadline)");
+        schedulePollingChecks();
     }
 
     public synchronized boolean performWhatsAppAutoSend() {
@@ -529,5 +561,119 @@ public class BlueLineAgentService extends AccessibilityService {
             if (found != null) return found;
         }
         return null;
+    }
+
+    public synchronized boolean performWhatsAppGroupSend() {
+        if (!mPendingWhatsAppGroupSend || mTargetGroupName == null || mTargetGroupName.isEmpty()) return false;
+        if (System.currentTimeMillis() > mGroupDeadline) {
+            AppLogger.w("A11Y", "WhatsApp group send timed out for: " + mTargetGroupName);
+            mPendingWhatsAppGroupSend = false;
+            mTargetGroupName = null;
+            return false;
+        }
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+        CharSequence pkg = root.getPackageName();
+        if (pkg == null) return false;
+        String pkgStr = pkg.toString().toLowerCase();
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+            return false;
+        }
+
+        // 1. Try to click the group by text directly on the screen
+        boolean clicked = clickByText(mTargetGroupName, false);
+        if (clicked) {
+            AppLogger.i("A11Y", "WhatsApp group send: clicked group text '" + mTargetGroupName + "'");
+            mMainHandler.postDelayed(() -> {
+                AccessibilityNodeInfo curRoot = getRootInActiveWindow();
+                if (curRoot != null) {
+                    AccessibilityNodeInfo fab = findNodeEndingWithId(curRoot, ":id/fab");
+                    if (fab != null && fab.isVisibleToUser() && performClickOnNode(fab)) {
+                        AppLogger.i("A11Y", "WhatsApp group send: clicked FAB");
+                        mMainHandler.postDelayed(this::performWhatsAppAutoSend, 450);
+                    } else {
+                        performWhatsAppAutoSend();
+                    }
+                }
+            }, 350);
+            mPendingWhatsAppGroupSend = false;
+            mTargetGroupName = null;
+            return true;
+        }
+
+        // 2. If already selected, check if FAB is visible and click it
+        AccessibilityNodeInfo fab = findNodeEndingWithId(root, ":id/fab");
+        if (fab != null && fab.isVisibleToUser()) {
+            if (performClickOnNode(fab)) {
+                AppLogger.i("A11Y", "WhatsApp group send: clicked FAB directly");
+                mMainHandler.postDelayed(this::performWhatsAppAutoSend, 450);
+                mPendingWhatsAppGroupSend = false;
+                mTargetGroupName = null;
+                return true;
+            }
+        }
+
+        // 3. If group not found in visible list, use search icon
+        AccessibilityNodeInfo searchNode = findSearchNode(root);
+        if (searchNode != null) {
+            if (searchNode.isEditable()) {
+                Bundle args = new Bundle();
+                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mTargetGroupName);
+                searchNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            } else {
+                if (performClickOnNode(searchNode)) {
+                    mMainHandler.postDelayed(() -> {
+                        typeText(mTargetGroupName);
+                    }, 300);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public synchronized boolean performWhatsAppGroupOpen() {
+        if (!mPendingWhatsAppGroupOpen || mTargetGroupName == null || mTargetGroupName.isEmpty()) return false;
+        if (System.currentTimeMillis() > mGroupDeadline) {
+            AppLogger.w("A11Y", "WhatsApp group open timed out for: " + mTargetGroupName);
+            mPendingWhatsAppGroupOpen = false;
+            mTargetGroupName = null;
+            return false;
+        }
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+        CharSequence pkg = root.getPackageName();
+        if (pkg == null) return false;
+        String pkgStr = pkg.toString().toLowerCase();
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+            return false;
+        }
+
+        boolean clicked = clickByText(mTargetGroupName, false);
+        if (clicked) {
+            AppLogger.i("A11Y", "WhatsApp group open: opened group '" + mTargetGroupName + "'");
+            mPendingWhatsAppGroupOpen = false;
+            mTargetGroupName = null;
+            return true;
+        }
+
+        AccessibilityNodeInfo searchNode = findSearchNode(root);
+        if (searchNode != null) {
+            if (searchNode.isEditable()) {
+                Bundle args = new Bundle();
+                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mTargetGroupName);
+                searchNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            } else {
+                if (performClickOnNode(searchNode)) {
+                    mMainHandler.postDelayed(() -> {
+                        typeText(mTargetGroupName);
+                    }, 300);
+                }
+            }
+        }
+
+        return false;
     }
 }
