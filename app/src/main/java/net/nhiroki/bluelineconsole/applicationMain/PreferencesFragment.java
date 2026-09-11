@@ -222,6 +222,12 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
                 ThemedDialogHelper.styleDialog((AlertDialog) getDialog(), getActivity());
             }
         }
+
+        @Override
+        public void onDismiss(@NonNull android.content.DialogInterface dialog) {
+            ThemedDialogHelper.stopCaustic(getDialog());
+            super.onDismiss(dialog);
+        }
     }
 
     public static class ThemedEditTextPreferenceDialogFragment extends EditTextPreferenceDialogFragmentCompat {
@@ -239,6 +245,12 @@ public class PreferencesFragment extends PreferenceFragmentCompat {
             if (getDialog() instanceof AlertDialog) {
                 ThemedDialogHelper.styleDialog((AlertDialog) getDialog(), getActivity());
             }
+        }
+
+        @Override
+        public void onDismiss(@NonNull android.content.DialogInterface dialog) {
+            ThemedDialogHelper.stopCaustic(getDialog());
+            super.onDismiss(dialog);
         }
     }
 }

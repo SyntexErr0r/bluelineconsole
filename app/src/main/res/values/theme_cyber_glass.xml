@@ -48,9 +48,9 @@
     </style>
 
     <style name="CyberGlassAlertDialogTheme" parent="Theme.AppCompat.DayNight.Dialog.Alert">
-        <item name="android:windowBackground">@drawable/cyber_glass_dialog_background</item>
-        <item name="android:colorBackground">#f2030914</item>
-        <item name="colorBackgroundFloating">#f2030914</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackground">@android:color/transparent</item>
+        <item name="colorBackgroundFloating">@android:color/transparent</item>
         <item name="android:textColor">@color/cyberGlassTextColor</item>
         <item name="android:textColorPrimary">@color/cyberGlassTextColor</item>
         <item name="android:textColorSecondary">@color/cyberGlassDisabledTextColor</item>

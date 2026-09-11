@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cyberGlassDialogRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_gravity="center"
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <!-- Top-Left Angled Header Tab with glowing cyan diagonal border -->
+    <LinearLayout
+        android:id="@+id/cyberGlassDialogHeaderWrapper"
+        android:layout_width="wrap_content"
+        android:minWidth="160sp"
+        android:layout_height="24sp"
+        android:layout_gravity="start"
+        android:layout_marginBottom="-2dp"
+        android:background="@drawable/cyber_glass_header"
+        android:orientation="horizontal"
+        android:gravity="center_vertical|start"
+        android:paddingStart="12sp"
+        android:paddingEnd="20sp">
+
+        <TextView
+            android:id="@+id/cyberGlassDialogHeaderTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#00f0ff"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Main Window Container with complete glowing cyan border and caustic glass fill -->
+    <LinearLayout
+        android:id="@+id/cyberGlassDialogMainContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="10dp"
+        android:paddingHorizontal="12dp"
+        android:orientation="vertical">
+
+        <!-- Frame where the dialog content/parentPanel will be housed -->
+        <FrameLayout
+            android:id="@+id/cyberGlassDialogContentHolder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- Bottom-Right Angled Footer Tab with glowing cyan diagonal border -->
+    <LinearLayout
+        android:id="@+id/cyberGlassDialogFooterWrapper"
+        android:layout_width="wrap_content"
+        android:minWidth="160sp"
+        android:layout_height="24sp"
+        android:layout_marginTop="-2dp"
+        android:layout_gravity="end"
+        android:background="@drawable/cyber_glass_footer"
+        android:orientation="horizontal"
+        android:gravity="center_vertical|end"
+        android:paddingStart="20sp"
+        android:paddingEnd="12sp">
+
+        <TextView
+            android:id="@+id/cyberGlassDialogFooterTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end|center_vertical"
+            android:textStyle="bold"
+            android:textColor="#00f0ff"
+            android:fontFamily="monospace"
+            android:textSize="12sp"
+            android:text="// CONFIG_HUD" />
+    </LinearLayout>
+</LinearLayout>

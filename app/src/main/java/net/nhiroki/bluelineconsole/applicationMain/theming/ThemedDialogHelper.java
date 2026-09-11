@@ -7,22 +7,28 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.InsetDrawable;
 import android.os.Build;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckedTextView;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.preference.PreferenceManager;
 
+import net.nhiroki.bluelineconsole.R;
 import net.nhiroki.bluelineconsole.applicationMain.BaseWindowActivity;
+import net.nhiroki.bluelineconsole.applicationMain.theming.eachTheme.UnderwaterCausticDrawable;
 
 public class ThemedDialogHelper {
     public static void styleDialog(final AlertDialog alertDialog, final Activity activity) {
@@ -47,72 +53,163 @@ public class ThemedDialogHelper {
         final int accentColor = color;
         final float density = activity.getResources().getDisplayMetrics().density;
 
-        applyStyles(alertDialog, accentColor, density);
+        applyCyberGlassHUD(alertDialog, activity, accentColor, density);
 
         Window window = alertDialog.getWindow();
         if (window != null) {
             window.getDecorView().post(new Runnable() {
                 @Override
                 public void run() {
-                    applyStyles(alertDialog, accentColor, density);
+                    applyCyberGlassHUD(alertDialog, activity, accentColor, density);
                 }
             });
         }
     }
 
-    private static void applyStyles(final AlertDialog alertDialog, final int accentColor, final float density) {
-        // 1. Floating frosted dark glass background with dynamic accentColor border
+    private static void applyCyberGlassHUD(final AlertDialog alertDialog, final Activity activity, final int accentColor, final float density) {
         Window window = alertDialog.getWindow();
-        if (window != null) {
-            GradientDrawable shape = new GradientDrawable();
-            shape.setShape(GradientDrawable.RECTANGLE);
-            shape.setColor(Color.parseColor("#f2030914")); // Deep frosted cyber glass
-            shape.setStroke((int) (2 * density), accentColor);
-            shape.setCornerRadius(12 * density);
+        if (window == null) return;
 
-            int inset = (int) (16 * density);
-            InsetDrawable insetDrawable = new InsetDrawable(shape, inset, inset, inset, inset);
-            window.setBackgroundDrawable(insetDrawable);
+        // 1. Transparent dialog window with background blur on Android 12+
+        window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        int displayWidth = activity.getResources().getDisplayMetrics().widthPixels;
+        int targetWidth = (int) Math.min(displayWidth * 0.94f, 540 * density);
+        window.setLayout(targetWidth, WindowManager.LayoutParams.WRAP_CONTENT);
+        window.setGravity(Gravity.CENTER);
+
+        if (Build.VERSION.SDK_INT >= 31) {
+            try {
+                window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+                window.getAttributes().setBlurBehindRadius(40);
+            } catch (Exception ignored) {}
         }
 
-        // 2. Title View
-        TextView titleView = alertDialog.findViewById(androidx.appcompat.R.id.alertTitle);
-        if (titleView == null) {
-            titleView = alertDialog.findViewById(android.R.id.title);
-        }
-        if (titleView != null) {
-            titleView.setTextColor(accentColor);
-            titleView.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-            titleView.setTextSize(18);
+        // 2. Wrap parentPanel inside authentic Cyber Glass HUD Frame
+        View parentPanel = alertDialog.findViewById(androidx.appcompat.R.id.parentPanel);
+        if (parentPanel == null) {
+            parentPanel = alertDialog.findViewById(R.id.parentPanel);
         }
 
-        // 3. Message View
+        if (parentPanel != null) {
+            // Check if not already wrapped
+            if (!(parentPanel.getParent() instanceof ViewGroup && ((ViewGroup) parentPanel.getParent()).getId() == R.id.cyberGlassDialogContentHolder)) {
+                ViewGroup windowRoot = (ViewGroup) parentPanel.getParent();
+                if (windowRoot != null) {
+                    int index = windowRoot.indexOfChild(parentPanel);
+                    ViewGroup.LayoutParams origLp = parentPanel.getLayoutParams();
+
+                    // Read original title
+                    TextView origTitleView = alertDialog.findViewById(androidx.appcompat.R.id.alertTitle);
+                    if (origTitleView == null) origTitleView = alertDialog.findViewById(android.R.id.title);
+                    CharSequence titleText = "";
+                    if (origTitleView != null && origTitleView.getText() != null) {
+                        titleText = origTitleView.getText();
+                    }
+
+                    // Hide original topPanel so title isn't doubled
+                    View topPanel = alertDialog.findViewById(androidx.appcompat.R.id.topPanel);
+                    if (topPanel != null) {
+                        topPanel.setVisibility(View.GONE);
+                    } else if (origTitleView != null) {
+                        origTitleView.setVisibility(View.GONE);
+                    }
+
+                    // Inflate Cyber Glass HUD frame
+                    View hudRoot = LayoutInflater.from(activity).inflate(R.layout.cyber_glass_dialog_frame, windowRoot, false);
+                    TextView headerTitle = hudRoot.findViewById(R.id.cyberGlassDialogHeaderTitle);
+                    headerTitle.setText(titleText);
+
+                    FrameLayout contentHolder = hudRoot.findViewById(R.id.cyberGlassDialogContentHolder);
+
+                    windowRoot.removeView(parentPanel);
+                    parentPanel.setBackground(null);
+                    contentHolder.addView(parentPanel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+                    windowRoot.addView(hudRoot, index, origLp);
+                }
+            }
+        }
+
+        // 3. Style Cyber Glass Header Tab (Top-Left Angled Tab)
+        View headerWrapper = alertDialog.findViewById(R.id.cyberGlassDialogHeaderWrapper);
+        if (headerWrapper != null && headerWrapper.getBackground() != null) {
+            DrawableCompat.setTint(headerWrapper.getBackground().mutate(), accentColor);
+        }
+        TextView headerTitle = alertDialog.findViewById(R.id.cyberGlassDialogHeaderTitle);
+        if (headerTitle != null) {
+            headerTitle.setTextColor(accentColor);
+            headerTitle.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            // If original title was updated, keep synced
+            TextView origTitleView = alertDialog.findViewById(androidx.appcompat.R.id.alertTitle);
+            if (origTitleView == null) origTitleView = alertDialog.findViewById(android.R.id.title);
+            if (origTitleView != null && origTitleView.getText() != null && origTitleView.getText().length() > 0) {
+                headerTitle.setText(origTitleView.getText());
+            }
+        }
+
+        // 4. Style Cyber Glass Main Container with Animated Underwater Caustics
+        View mainContainer = alertDialog.findViewById(R.id.cyberGlassDialogMainContainer);
+        if (mainContainer != null) {
+            if (!(mainContainer.getBackground() instanceof UnderwaterCausticDrawable)) {
+                UnderwaterCausticDrawable causticDrawable = new UnderwaterCausticDrawable(accentColor);
+                causticDrawable.setDensity(density);
+                mainContainer.setBackground(causticDrawable);
+                causticDrawable.start();
+            } else {
+                ((UnderwaterCausticDrawable) mainContainer.getBackground()).setAccentColor(accentColor);
+            }
+        }
+
+        // 5. Style Cyber Glass Footer Tab (Bottom-Right Angled Tab)
+        View footerWrapper = alertDialog.findViewById(R.id.cyberGlassDialogFooterWrapper);
+        if (footerWrapper != null && footerWrapper.getBackground() != null) {
+            DrawableCompat.setTint(footerWrapper.getBackground().mutate(), accentColor);
+        }
+        TextView footerTitle = alertDialog.findViewById(R.id.cyberGlassDialogFooterTitle);
+        if (footerTitle != null) {
+            footerTitle.setTextColor(accentColor);
+            footerTitle.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            footerTitle.setText("// " + activity.getString(R.string.app_name).toUpperCase());
+        }
+
+        // 6. Clear backgrounds of panels inside parentPanel
+        View buttonPanel = alertDialog.findViewById(androidx.appcompat.R.id.buttonPanel);
+        if (buttonPanel != null) buttonPanel.setBackground(null);
+        View contentPanel = alertDialog.findViewById(androidx.appcompat.R.id.contentPanel);
+        if (contentPanel != null) contentPanel.setBackground(null);
+        View customPanel = alertDialog.findViewById(androidx.appcompat.R.id.customPanel);
+        if (customPanel != null) customPanel.setBackground(null);
+
+        // 7. Message View
         TextView messageView = alertDialog.findViewById(android.R.id.message);
         if (messageView != null) {
             messageView.setTextColor(Color.parseColor("#b0d4e3"));
             messageView.setTypeface(Typeface.MONOSPACE);
         }
 
-        // 4. Action Buttons (Positive, Negative, Neutral)
+        // 8. Action Buttons (Positive, Negative, Neutral)
         Button posBtn = alertDialog.getButton(DialogInterface.BUTTON_POSITIVE);
         if (posBtn != null) {
             posBtn.setTextColor(accentColor);
             posBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            posBtn.setBackgroundColor(Color.TRANSPARENT);
         }
 
         Button negBtn = alertDialog.getButton(DialogInterface.BUTTON_NEGATIVE);
         if (negBtn != null) {
             negBtn.setTextColor(accentColor);
             negBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            negBtn.setBackgroundColor(Color.TRANSPARENT);
         }
 
         Button neuBtn = alertDialog.getButton(DialogInterface.BUTTON_NEUTRAL);
         if (neuBtn != null) {
             neuBtn.setTextColor(accentColor);
             neuBtn.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            neuBtn.setBackgroundColor(Color.TRANSPARENT);
         }
 
-        // 5. Single-Choice List for ListPreference (AI Model, Theme, etc.)
+        // 9. Single-Choice List for ListPreference (AI Model, Theme, etc.)
         final ListView listView = alertDialog.getListView();
         if (listView != null) {
             listView.setDivider(new ColorDrawable(Color.argb(45, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))));
@@ -160,7 +257,7 @@ public class ThemedDialogHelper {
             });
         }
 
-        // 6. Input text field for EditTextPreference (PIN, Custom Model, Grace Period, API Key)
+        // 10. Input text field for EditTextPreference (PIN, Custom Model, Grace Period, API Key)
         EditText editText = alertDialog.findViewById(android.R.id.edit);
         if (editText == null) {
             View customView = alertDialog.findViewById(androidx.appcompat.R.id.custom);
@@ -202,5 +299,13 @@ public class ThemedDialogHelper {
             }
         }
         return null;
+    }
+
+    public static void stopCaustic(android.app.Dialog dialog) {
+        if (dialog == null) return;
+        View mainContainer = dialog.findViewById(R.id.cyberGlassDialogMainContainer);
+        if (mainContainer != null && mainContainer.getBackground() instanceof UnderwaterCausticDrawable) {
+            ((UnderwaterCausticDrawable) mainContainer.getBackground()).stop();
+        }
     }
 }
