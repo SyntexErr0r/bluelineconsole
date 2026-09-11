@@ -3,6 +3,8 @@ package net.nhiroki.bluelineconsole.commandSearchers.eachSearcher;
 import android.content.ClipboardManager;
 import android.content.ClipData;
 import android.content.Context;
+import android.content.res.ColorStateList;
+import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -88,10 +90,12 @@ public class AICandidateEntry implements CandidateEntry {
             mainActivity.getTheme().resolveAttribute(net.nhiroki.bluelineconsole.R.attr.bluelineconsoleBaseTextColor, textColorValue, true);
             int baseTextColor = textColorValue.data;
 
+            int accentColor = mainActivity.getAccentColor();
+
             // Session Header
             mHeaderTextView = new TextView(mainActivity);
             mHeaderTextView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            mHeaderTextView.setTextColor(Color.parseColor("#00f0ff"));
+            mHeaderTextView.setTextColor(accentColor);
             mHeaderTextView.setTypeface(android.graphics.Typeface.MONOSPACE);
             mHeaderTextView.setPadding(0, 0, 0, (int) (4 * pixelsPerSp));
             mView.addView(mHeaderTextView);
@@ -116,6 +120,9 @@ public class AICandidateEntry implements CandidateEntry {
             progressParams.gravity = Gravity.START;
             progressParams.setMargins(0, (int) (6 * pixelsPerSp), 0, 0);
             mProgressBar.setLayoutParams(progressParams);
+            if (Build.VERSION.SDK_INT >= 21) {
+                mProgressBar.setIndeterminateTintList(ColorStateList.valueOf(accentColor));
+            }
             mView.addView(mProgressBar);
 
             // Action Buttons (Copy, Clear Chat)
@@ -127,7 +134,7 @@ public class AICandidateEntry implements CandidateEntry {
             TextView copyButton = new TextView(mainActivity);
             copyButton.setText("[Copy Answer]");
             copyButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            copyButton.setTextColor(Color.parseColor("#00f0ff"));
+            copyButton.setTextColor(accentColor);
             copyButton.setTypeface(android.graphics.Typeface.MONOSPACE);
             copyButton.setPadding(0, (int) (4 * pixelsPerSp), (int) (16 * pixelsPerSp), (int) (4 * pixelsPerSp));
             copyButton.setOnClickListener(v -> {
@@ -189,7 +196,8 @@ public class AICandidateEntry implements CandidateEntry {
             msgView.setPadding((int) (6 * pixelsPerSp), (int) (2 * pixelsPerSp), (int) (6 * pixelsPerSp), (int) (2 * pixelsPerSp));
 
             if ("user".equalsIgnoreCase(msg.role)) {
-                msgView.setTextColor(Color.parseColor("#8000f0ff"));
+                int accent = mainActivity.getAccentColor();
+                msgView.setTextColor(Color.argb(160, Color.red(accent), Color.green(accent), Color.blue(accent)));
                 msgView.setText("[You]: " + msg.text);
             } else {
                 msgView.setTextColor(Color.parseColor("#80cccccc"));

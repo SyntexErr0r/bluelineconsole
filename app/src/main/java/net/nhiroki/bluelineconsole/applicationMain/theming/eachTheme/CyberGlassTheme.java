@@ -84,8 +84,9 @@ public class CyberGlassTheme extends BaseTheme {
         }
 
         View window = activity.findViewById(R.id.baseWindowMainLinearLayout);
+        int currentAccent = activity.getAccentColor();
         if (window != null) {
-            UnderwaterCausticDrawable causticDrawable = new UnderwaterCausticDrawable(this.getDefaultAccentColor(activity));
+            UnderwaterCausticDrawable causticDrawable = new UnderwaterCausticDrawable(currentAccent);
             causticDrawable.setDensity(activity.getResources().getDisplayMetrics().density);
             window.setBackground(causticDrawable);
             causticDrawable.start();
@@ -93,9 +94,9 @@ public class CyberGlassTheme extends BaseTheme {
 
         ListView candidateListView = activity.findViewById(R.id.candidateListView);
         if (candidateListView != null) {
-            candidateListView.setDivider(new ColorDrawable(Color.parseColor("#2600f0ff")));
+            candidateListView.setDivider(new ColorDrawable(Color.argb(38, Color.red(currentAccent), Color.green(currentAccent), Color.blue(currentAccent))));
             candidateListView.setDividerHeight((int) (1 * activity.getResources().getDisplayMetrics().density));
-            candidateListView.setSelector(new ColorDrawable(Color.parseColor("#3300f0ff")));
+            candidateListView.setSelector(new ColorDrawable(Color.argb(51, Color.red(currentAccent), Color.green(currentAccent), Color.blue(currentAccent))));
             candidateListView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         }
     }
@@ -123,6 +124,11 @@ public class CyberGlassTheme extends BaseTheme {
         TextView footerText = activity.findViewById(R.id.baseWindowMainFooterTextView);
         if (footerText != null) {
             footerText.setTextColor(color);
+        }
+        ListView candidateListView = activity.findViewById(R.id.candidateListView);
+        if (candidateListView != null) {
+            candidateListView.setDivider(new ColorDrawable(Color.argb(38, Color.red(color), Color.green(color), Color.blue(color))));
+            candidateListView.setSelector(new ColorDrawable(Color.argb(51, Color.red(color), Color.green(color), Color.blue(color))));
         }
     }
 

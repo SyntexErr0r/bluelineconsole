@@ -18,6 +18,8 @@ import java.util.Map;
 public class AppThemeDirectory {
     public static final String PREF_NAME_THEME = "pref_appearance_theme";
 
+    public static final String DEFAULT_THEME_ID = "cyber_glass";
+
     private static final AppTheme[] THEMES = {
             new CyberGlassTheme(),
             new BlueLineConsoleDefaultTheme(),
@@ -48,7 +50,10 @@ public class AppThemeDirectory {
     }
 
     public static AppTheme loadAppTheme(Context context) {
-        String themeName = PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_NAME_THEME, "");
+        String themeName = PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_NAME_THEME, DEFAULT_THEME_ID);
+        if (themeName == null || themeName.isEmpty() || "default".equals(themeName)) {
+            themeName = DEFAULT_THEME_ID;
+        }
         return loadAppTheme(themeName);
     }
 
@@ -60,10 +65,14 @@ public class AppThemeDirectory {
             }
         }
 
+        if (themeName == null || themeName.isEmpty() || "default".equals(themeName)) {
+            return themeMap.get(DEFAULT_THEME_ID);
+        }
+
         AppTheme ret = themeMap.get(themeName);
         if (ret != null) {
             return ret;
         }
-        return THEMES[0];
+        return themeMap.get(DEFAULT_THEME_ID);
     }
 }

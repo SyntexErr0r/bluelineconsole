@@ -22,6 +22,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:theme="@style/AppThemeCyberGlass"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_descriptor"
         >
@@ -36,7 +37,7 @@
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:stateNotNeeded="true"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="true"
             android:windowSoftInputMode="stateAlwaysVisible|adjustResize">
             <intent-filter>
@@ -63,7 +64,7 @@
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
             android:stateNotNeeded="true"
-            android:theme="@style/AppThemeBlueLineConsoleHome"
+            android:theme="@style/AppThemeCyberGlassHome"
             android:exported="true"
             android:windowSoftInputMode="stateAlwaysVisible|adjustResize">
             <intent-filter>
@@ -75,84 +76,84 @@
         </activity>
         <activity
             android:name=".applicationMain.NotificationMigrationLostActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesActivity"
             android:exported="false"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             />
         <activity
             android:name=".applicationMain.PreferencesCustomWebActivity"
             android:exported="false"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             />
         <activity
             android:name=".applicationMain.PreferencesEachURLActivity"
             android:exported="false"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:windowSoftInputMode="stateVisible|adjustResize"
             />
         <activity
             android:name=".applicationMain.PreferencesAccentColorActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesWidgetCommandsActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesWidgetCommandEachActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesWidgetCommandSelectWidget"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesHomeScreenItemsActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesHomeScreenAddWidgetActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesHomeScreenEachDefaultItemCommandActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.PreferencesHomeScreenEachWidgetActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.StartUpHelpActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".applicationMain.LicensingInformationActivity"
             android:exported="false"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             />
         <activity
             android:name=".commands.netutils.PingActivity"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             android:exported="false"
             />
         <activity
             android:name=".commands.netutils.Ping6Activity"
             android:exported="false"
-            android:theme="@style/AppThemeBlueLineConsole"
+            android:theme="@style/AppThemeCyberGlass"
             />
 
         <receiver android:name=".widget.LauncherWidgetProvider"

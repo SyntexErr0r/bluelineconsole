@@ -41,7 +41,7 @@
         >
         <ListPreference
             android:key="pref_appearance_theme"
-            android:defaultValue="default"
+            android:defaultValue="cyber_glass"
             android:title="@string/preferences_item_appearance_theme_title"
             android:summary="@string/preferences_item_appearance_theme_summary"
             app:iconSpaceReserved="false"
