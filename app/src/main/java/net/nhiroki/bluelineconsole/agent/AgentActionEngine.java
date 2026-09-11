@@ -272,28 +272,13 @@ public class AgentActionEngine {
                 }
             } catch (Exception ignored) {}
 
-            // Launch app directly and use accessibility service if available
+            // Launch app directly
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
             if (launch != null) {
-                launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(launch);
-
-                if (BlueLineAgentService.isServiceConnected()) {
-                    final String searchQuery = query;
-                    mainHandler.postDelayed(() -> {
-                        BlueLineAgentService service = BlueLineAgentService.getInstance();
-                        if (service != null) {
-                            service.performInAppSearch(searchQuery);
-                        }
-                    }, 500);
-
-                    mainHandler.postDelayed(() -> {
-                        BlueLineAgentService service = BlueLineAgentService.getInstance();
-                        if (service != null) {
-                            service.performInAppSearch(searchQuery);
-                        }
-                    }, 1200);
+                if (!(context instanceof android.app.Activity)) {
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 }
+                context.startActivity(launch);
                 return;
             }
         }
@@ -387,7 +372,9 @@ public class AgentActionEngine {
                 try {
                     Intent launch = context.getPackageManager().getLaunchIntentForPackage(p);
                     if (launch != null) {
-                        launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        if (!(context instanceof android.app.Activity)) {
+                            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        }
                         context.startActivity(launch);
                         return;
                     }
@@ -418,7 +405,9 @@ public class AgentActionEngine {
         if (pkg != null) {
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
             if (launch != null) {
-                launch.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                if (!(context instanceof android.app.Activity)) {
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                }
                 context.startActivity(launch);
                 return;
             }

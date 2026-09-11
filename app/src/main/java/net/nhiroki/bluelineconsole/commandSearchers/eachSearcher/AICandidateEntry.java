@@ -145,7 +145,7 @@ public class AICandidateEntry implements CandidateEntry {
             mActionButton.setOnClickListener(v -> {
                 if (mExtractedAction != null) {
                     AgentActionEngine.executeAction(mainActivity, mExtractedAction);
-                    mainActivity.finish();
+                    mainActivity.finishIfNotHome();
                 }
             });
 
@@ -518,7 +518,7 @@ public class AICandidateEntry implements CandidateEntry {
                 } else if (mState == STATE_SUCCESS) {
                     if (mExtractedAction != null) {
                         AgentActionEngine.executeAction(activity, mExtractedAction);
-                        activity.finish();
+                        activity.finishIfNotHome();
                     } else if (!mAnswerText.isEmpty()) {
                         ClipboardManager clipboard = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
                         ClipData clip = ClipData.newPlainText("Gemini Answer", mAnswerText);

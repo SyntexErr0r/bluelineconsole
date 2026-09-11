@@ -279,7 +279,7 @@ public class AICommandSearcher implements CommandSearcher {
         public EventLauncher getEventLauncher(Context context) {
             return activity -> {
                 AgentActionEngine.executeAction(activity, action);
-                activity.finish();
+                activity.finishIfNotHome();
             };
         }
 

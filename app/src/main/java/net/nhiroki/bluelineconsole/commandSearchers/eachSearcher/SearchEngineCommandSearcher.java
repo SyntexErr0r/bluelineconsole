@@ -105,7 +105,7 @@ public class SearchEngineCommandSearcher implements CommandSearcher {
             return activity -> {
                 try {
                     activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(urlBase)));
-                    activity.finish();
+                    activity.finishIfNotHome();
                 } catch (ActivityNotFoundException e) {
                     Toast.makeText(context, R.string.error_failure_could_not_open_url, Toast.LENGTH_LONG).show();
                 }
@@ -166,7 +166,7 @@ public class SearchEngineCommandSearcher implements CommandSearcher {
             return activity -> {
                 try {
                     activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(urlBase + Uri.encode(query))));
-                    activity.finish();
+                    activity.finishIfNotHome();
                 } catch (ActivityNotFoundException e) {
                     Toast.makeText(context, R.string.error_failure_could_not_open_url, Toast.LENGTH_LONG).show();
                 }

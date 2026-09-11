@@ -78,9 +78,27 @@ public class BlueLineAgentService extends AccessibilityService {
     public void onInterrupt() {
     }
 
+    public static boolean isSafeWindow(AccessibilityNodeInfo root) {
+        if (root == null) return false;
+        CharSequence pkg = root.getPackageName();
+        if (pkg == null) return false;
+        String p = pkg.toString().toLowerCase();
+        if (p.equals("com.android.systemui") ||
+            p.equals("android") ||
+            p.contains("launcher") ||
+            p.contains("recents") ||
+            p.contains("quickstep") ||
+            p.contains("systemui") ||
+            p.equals("net.nhiroki.bluelineconsole") ||
+            p.equals("net.nhiroki.bluelineconsole.beta")) {
+            return false;
+        }
+        return true;
+    }
+
     public boolean clickByText(String targetText, boolean exact) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
+        if (!isSafeWindow(root)) return false;
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(targetText);
         if (nodes != null) {
             for (AccessibilityNodeInfo node : nodes) {
@@ -107,7 +125,7 @@ public class BlueLineAgentService extends AccessibilityService {
 
     public boolean clickById(String viewId) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
+        if (!isSafeWindow(root)) return false;
         List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByViewId(viewId);
         if (nodes != null && !nodes.isEmpty()) {
             for (AccessibilityNodeInfo node : nodes) {
@@ -121,7 +139,7 @@ public class BlueLineAgentService extends AccessibilityService {
 
     public boolean typeText(String textToType) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
+        if (!isSafeWindow(root)) return false;
         AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
         if (focused != null && focused.isEditable()) {
             Bundle args = new Bundle();
@@ -140,7 +158,7 @@ public class BlueLineAgentService extends AccessibilityService {
 
     public boolean performInAppSearch(final String query) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
+        if (!isSafeWindow(root)) return false;
 
         // 1. If an editable input is already visible or focused, type into it directly
         AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
@@ -149,7 +167,6 @@ public class BlueLineAgentService extends AccessibilityService {
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query);
             boolean typed = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
             if (typed) {
-                focused.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 return true;
             }
         }
@@ -162,11 +179,13 @@ public class BlueLineAgentService extends AccessibilityService {
                 args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query);
                 return searchNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
             } else {
-                performClickOnNode(searchNode);
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    typeText(query);
-                }, 400);
-                return true;
+                boolean clicked = performClickOnNode(searchNode);
+                if (clicked) {
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        typeText(query);
+                    }, 400);
+                    return true;
+                }
             }
         }
 
@@ -224,15 +243,12 @@ public class BlueLineAgentService extends AccessibilityService {
             }
             current = current.getParent();
         }
-        Rect rect = new Rect();
-        node.getBoundsInScreen(rect);
-        if (rect.width() > 0 && rect.height() > 0) {
-            return tapAt(rect.centerX(), rect.centerY());
-        }
         return false;
     }
 
     public boolean tapAt(float x, float y) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (!isSafeWindow(root)) return false;
         if (Build.VERSION.SDK_INT >= 24) {
             Path path = new Path();
             path.moveTo(x, y);
@@ -245,7 +261,7 @@ public class BlueLineAgentService extends AccessibilityService {
 
     public boolean scroll(boolean forward) {
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
+        if (!isSafeWindow(root)) return false;
         AccessibilityNodeInfo scrollable = findFirstScrollableNode(root);
         if (scrollable != null) {
             return scrollable.performAction(forward ? AccessibilityNodeInfo.ACTION_SCROLL_FORWARD : AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
