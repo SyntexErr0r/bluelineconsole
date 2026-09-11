@@ -7,6 +7,8 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
@@ -134,6 +136,72 @@ public class BlueLineAgentService extends AccessibilityService {
             return editable.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
         }
         return false;
+    }
+
+    public boolean performInAppSearch(final String query) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+
+        // 1. If an editable input is already visible or focused, type into it directly
+        AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+        if (focused != null && focused.isEditable()) {
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query);
+            boolean typed = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            if (typed) {
+                focused.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                return true;
+            }
+        }
+
+        // 2. Look for search icon, search button, or search view
+        AccessibilityNodeInfo searchNode = findSearchNode(root);
+        if (searchNode != null) {
+            if (searchNode.isEditable()) {
+                Bundle args = new Bundle();
+                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query);
+                return searchNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            } else {
+                performClickOnNode(searchNode);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    typeText(query);
+                }, 400);
+                return true;
+            }
+        }
+
+        // 3. Fallback to any editable node
+        AccessibilityNodeInfo editable = findFirstEditableNode(root);
+        if (editable != null) {
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, query);
+            return editable.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+        }
+        return false;
+    }
+
+    private AccessibilityNodeInfo findSearchNode(AccessibilityNodeInfo node) {
+        if (node == null) return null;
+        CharSequence desc = node.getContentDescription();
+        CharSequence text = node.getText();
+        String viewId = node.getViewIdResourceName();
+
+        if (desc != null && desc.toString().toLowerCase().contains("search")) {
+            return node;
+        }
+        if (text != null && text.toString().toLowerCase().contains("search")) {
+            return node;
+        }
+        if (viewId != null && viewId.toLowerCase().contains("search")) {
+            return node;
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            AccessibilityNodeInfo found = findSearchNode(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private AccessibilityNodeInfo findFirstEditableNode(AccessibilityNodeInfo node) {

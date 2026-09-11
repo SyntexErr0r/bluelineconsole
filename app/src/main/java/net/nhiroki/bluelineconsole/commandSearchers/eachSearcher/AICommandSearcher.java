@@ -124,7 +124,7 @@ public class AICommandSearcher implements CommandSearcher {
             }
         }
 
-        // 2. "search <query> on/in <app>" or "search <app> for <query>"
+        // 2. "search <query> on/in <app>" or "search <app> for <query>" or "search <query>"
         if (low.startsWith("search ")) {
             int forIdx = low.indexOf(" for ");
             if (forIdx > 7) {
@@ -145,9 +145,49 @@ public class AICommandSearcher implements CommandSearcher {
                     return new AgentActionEngine.Action("SEARCH_APP", app, searchQ);
                 }
             }
+
+            // Generic web search
+            String generalQuery = q.substring(7).trim();
+            if (!generalQuery.isEmpty()) {
+                return new AgentActionEngine.Action("SEARCH_APP", "Google", generalQuery);
+            }
         }
 
-        // 3. "click <target>" or "tap <target>"
+        // 3. "play <query>" -> YouTube search
+        if (low.startsWith("play ")) {
+            String song = q.substring(5).trim();
+            if (!song.isEmpty()) {
+                return new AgentActionEngine.Action("SEARCH_APP", "YouTube", song);
+            }
+        }
+
+        // 4. "youtube <query>", "yt <query>"
+        if (low.startsWith("youtube ") || low.startsWith("yt ")) {
+            int space = q.indexOf(' ');
+            String ytQ = q.substring(space + 1).trim();
+            if (!ytQ.isEmpty()) {
+                return new AgentActionEngine.Action("SEARCH_APP", "YouTube", ytQ);
+            }
+        }
+
+        // 5. "spotify <query>"
+        if (low.startsWith("spotify ")) {
+            String spQ = q.substring(8).trim();
+            if (!spQ.isEmpty()) {
+                return new AgentActionEngine.Action("SEARCH_APP", "Spotify", spQ);
+            }
+        }
+
+        // 6. "maps <query>", "map <query>"
+        if (low.startsWith("maps ") || low.startsWith("map ")) {
+            int space = q.indexOf(' ');
+            String mapQ = q.substring(space + 1).trim();
+            if (!mapQ.isEmpty()) {
+                return new AgentActionEngine.Action("SEARCH_APP", "Maps", mapQ);
+            }
+        }
+
+        // 7. "click <target>" or "tap <target>"
         if (low.startsWith("click ") || low.startsWith("tap ")) {
             int spaceIdx = q.indexOf(' ');
             String target = q.substring(spaceIdx + 1).trim();
@@ -156,7 +196,7 @@ public class AICommandSearcher implements CommandSearcher {
             }
         }
 
-        // 4. "type <text>"
+        // 8. "type <text>"
         if (low.startsWith("type ")) {
             String txt = q.substring(5).trim();
             if (!txt.isEmpty()) {
@@ -164,7 +204,7 @@ public class AICommandSearcher implements CommandSearcher {
             }
         }
 
-        // 5. "open <app>" or "launch <app>"
+        // 9. "open <app>" or "launch <app>"
         if (low.startsWith("open ") || low.startsWith("launch ")) {
             int spaceIdx = q.indexOf(' ');
             String app = q.substring(spaceIdx + 1).trim();
@@ -195,7 +235,11 @@ public class AICommandSearcher implements CommandSearcher {
         @Override
         public String getTitle() {
             if ("SEARCH_APP".equalsIgnoreCase(action.type)) {
-                return "⚡ Agent: Search " + capitalize(action.appName) + " for \"" + action.query + "\"";
+                String app = capitalize(action.appName);
+                if ("chrome".equalsIgnoreCase(app) || "browser".equalsIgnoreCase(app) || "google".equalsIgnoreCase(app)) {
+                    app = "Google";
+                }
+                return "⚡ Agent: Search " + app + " for \"" + action.query + "\"";
             } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
                 return "⚡ Agent: Open " + capitalize(action.appName);
             } else if ("CLICK".equalsIgnoreCase(action.type)) {
@@ -216,7 +260,11 @@ public class AICommandSearcher implements CommandSearcher {
             tv.setTypeface(Typeface.MONOSPACE);
             tv.setPadding(0, 4, 0, 8);
             if ("SEARCH_APP".equalsIgnoreCase(action.type)) {
-                tv.setText("▶ Tap or Enter to launch " + capitalize(action.appName) + " & search");
+                String app = capitalize(action.appName);
+                if ("chrome".equalsIgnoreCase(app) || "browser".equalsIgnoreCase(app) || "google".equalsIgnoreCase(app)) {
+                    app = "Google";
+                }
+                tv.setText("▶ Tap or Enter to search on " + app);
             } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
                 tv.setText("▶ Tap or Enter to launch " + capitalize(action.appName));
             } else if ("CLICK".equalsIgnoreCase(action.type)) {
@@ -237,7 +285,7 @@ public class AICommandSearcher implements CommandSearcher {
 
         @Override public boolean hasLongView() { return false; }
         @Override public Drawable getIcon(Context context) {
-            return ContextCompat.getDrawable(context, net.nhiroki.bluelineconsole.R.drawable.ic_mic_cyber);
+            return ContextCompat.getDrawable(context, net.nhiroki.bluelineconsole.R.drawable.ic_agent_cyber);
         }
         @Override public boolean hasEvent() { return true; }
         @Override public boolean isSubItem() { return false; }

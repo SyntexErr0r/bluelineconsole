@@ -23,7 +23,6 @@ import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.applicationMain.lib.ScreenCaptureHelper;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
-import net.nhiroki.bluelineconsole.agent.AgentTTS;
 import net.nhiroki.bluelineconsole.interfaces.EventLauncher;
 
 import org.json.JSONArray;
@@ -412,20 +411,6 @@ public class AICandidateEntry implements CandidateEntry {
                     // Record both user question and model answer into AIChatSession
                     AIChatSession.getInstance().addMessage(new AIChatSession.ChatMessage("user", prompt, imageBase64));
                     AIChatSession.getInstance().addMessage(new AIChatSession.ChatMessage("model", mAnswerText));
-
-                    // Voice TTS confirmation if enabled
-                    String speech = mAnswerText.replaceAll("(?i)\\[ACTION:[^\\]]+\\]", "").trim();
-                    if (!speech.isEmpty()) {
-                        if (speech.length() > 250) {
-                            int dot = speech.indexOf('.', 100);
-                            if (dot != -1 && dot < 250) {
-                                speech = speech.substring(0, dot + 1);
-                            } else {
-                                speech = speech.substring(0, 250) + "...";
-                            }
-                        }
-                        AgentTTS.speak(activity, speech);
-                    }
 
                 } else {
                     String detail = "";

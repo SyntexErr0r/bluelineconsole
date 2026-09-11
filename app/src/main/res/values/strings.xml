@@ -275,13 +275,9 @@
     <string name="preferences_item_ai_custom_model_summary" translatable="false">Used when Custom Model is selected above. E.g. gemini-2.0-flash-thinking-exp</string>
     <string name="preferences_item_ai_custom_model_dialog_title" translatable="false">Enter Custom Model Identifier</string>
 
-    <!-- AI Agent & Voice Strings -->
-    <string name="accessibility_service_description" translatable="false">Enables BlueLine AI Agent to automate in-app actions, search inside apps, and assist with hands-free device navigation on your behalf.</string>
-    <string name="preferences_category_agent" translatable="false">AI Agent &amp; Voice</string>
-    <string name="preferences_item_agent_voice_enabled_title" translatable="false">Voice Input Button</string>
-    <string name="preferences_item_agent_voice_enabled_summary" translatable="false">Display microphone button on console bar to talk to agent</string>
-    <string name="preferences_item_agent_tts_title" translatable="false">Spoken Voice Feedback (TTS)</string>
-    <string name="preferences_item_agent_tts_summary" translatable="false">Speak action confirmations and AI summaries aloud</string>
+    <!-- AI Agent Strings -->
+    <string name="accessibility_service_description" translatable="false">Enables BlueLine AI Agent to automate in-app actions, search inside apps, and assist with device navigation on your behalf.</string>
+    <string name="preferences_category_agent" translatable="false">AI Agent &amp; Automation</string>
     <string name="preferences_item_agent_accessibility_title" translatable="false">Accessibility Agent Service</string>
     <string name="preferences_item_agent_accessibility_summary_active" translatable="false">Active - Agent can interact inside other apps</string>
     <string name="preferences_item_agent_accessibility_summary_inactive" translatable="false">Tap to enable in Android Settings for full in-app automation</string>

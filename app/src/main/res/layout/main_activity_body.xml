@@ -17,8 +17,6 @@
         android:layout_height="wrap_content"
         android:padding="0px"
         android:background="?bluelineconsoleFrameColor"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
         android:animateLayoutChanges="true"
         android:focusable="false"
         android:focusableInTouchMode="false"
@@ -26,8 +24,7 @@
         >
         <EditText
             android:id="@+id/mainInputText"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:inputType="text"
             android:textSize="40sp"
@@ -41,16 +38,6 @@
             >
             <requestFocus/>
         </EditText>
-        <ImageButton
-            android:id="@+id/mainVoiceInputButton"
-            android:layout_width="46dp"
-            android:layout_height="match_parent"
-            android:layout_gravity="center_vertical"
-            android:background="?android:selectableItemBackgroundBorderless"
-            android:contentDescription="Voice Input"
-            android:src="@drawable/ic_mic_cyber"
-            android:padding="10dp"
-            android:scaleType="fitCenter" />
     </LinearLayout>
     <LinearLayout
         android:id="@+id/candidateViewWrapperLinearLayout"

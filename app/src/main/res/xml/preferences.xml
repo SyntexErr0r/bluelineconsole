@@ -251,20 +251,6 @@
         android:title="@string/preferences_category_agent"
         app:iconSpaceReserved="false"
         >
-        <SwitchPreference
-            android:key="pref_agent_voice_enabled"
-            android:title="@string/preferences_item_agent_voice_enabled_title"
-            android:summary="@string/preferences_item_agent_voice_enabled_summary"
-            android:defaultValue="true"
-            app:iconSpaceReserved="false"
-            />
-        <SwitchPreference
-            android:key="pref_agent_voice_tts_enabled"
-            android:title="@string/preferences_item_agent_tts_title"
-            android:summary="@string/preferences_item_agent_tts_summary"
-            android:defaultValue="false"
-            app:iconSpaceReserved="false"
-            />
         <Preference
             android:key="pref_agent_accessibility_settings"
             android:title="@string/preferences_item_agent_accessibility_title"
