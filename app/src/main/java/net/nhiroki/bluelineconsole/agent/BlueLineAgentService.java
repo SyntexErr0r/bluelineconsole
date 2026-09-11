@@ -73,6 +73,8 @@ public class BlueLineAgentService extends AccessibilityService {
     private volatile boolean mPendingWhatsAppGroupOpen = false;
     private volatile String mTargetGroupName = null;
     private volatile long mGroupDeadline = 0;
+    private volatile long mGroupStartTime = 0;
+    private volatile long mLastSearchClickTime = 0;
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -364,6 +366,8 @@ public class BlueLineAgentService extends AccessibilityService {
     public void scheduleWhatsAppGroupSend(String groupName) {
         mPendingWhatsAppGroupSend = true;
         mTargetGroupName = groupName != null ? groupName.trim() : "";
+        mGroupStartTime = System.currentTimeMillis();
+        mLastSearchClickTime = 0;
         mGroupDeadline = System.currentTimeMillis() + 9000;
         AppLogger.i("A11Y", "Scheduled WhatsApp group send for '" + mTargetGroupName + "' (9s deadline)");
         schedulePollingChecks();
@@ -372,6 +376,8 @@ public class BlueLineAgentService extends AccessibilityService {
     public void scheduleWhatsAppGroupOpen(String groupName) {
         mPendingWhatsAppGroupOpen = true;
         mTargetGroupName = groupName != null ? groupName.trim() : "";
+        mGroupStartTime = System.currentTimeMillis();
+        mLastSearchClickTime = 0;
         mGroupDeadline = System.currentTimeMillis() + 9000;
         AppLogger.i("A11Y", "Scheduled WhatsApp group open for '" + mTargetGroupName + "' (9s deadline)");
         schedulePollingChecks();
@@ -563,6 +569,132 @@ public class BlueLineAgentService extends AccessibilityService {
         return null;
     }
 
+    private boolean isAvatarOrPhotoNode(AccessibilityNodeInfo node) {
+        if (node == null) return false;
+        CharSequence cls = node.getClassName();
+        if (cls != null) {
+            String cStr = cls.toString();
+            if (cStr.contains("ImageView") || cStr.contains("ImageButton")) {
+                return true;
+            }
+        }
+        String viewId = node.getViewIdResourceName();
+        if (viewId != null) {
+            String vLow = viewId.toLowerCase();
+            if (vLow.contains("photo") || vLow.contains("avatar") || vLow.contains("picture") || vLow.contains("profile_pic") || vLow.contains("icon")) {
+                return true;
+            }
+        }
+        CharSequence desc = node.getContentDescription();
+        if (desc != null) {
+            String dLow = desc.toString().toLowerCase();
+            if (dLow.contains("profile photo") || dLow.contains("profile picture") || dLow.contains("view photo") || dLow.contains("avatar")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private AccessibilityNodeInfo findClickableRowAncestor(AccessibilityNodeInfo node) {
+        AccessibilityNodeInfo current = node;
+        while (current != null) {
+            if (isAvatarOrPhotoNode(current)) {
+                return null;
+            }
+            if (current.isClickable()) {
+                CharSequence cls = current.getClassName();
+                if (cls != null && (cls.toString().contains("ImageView") || cls.toString().contains("ImageButton"))) {
+                    current = current.getParent();
+                    continue;
+                }
+                return current;
+            }
+            current = current.getParent();
+        }
+        return null;
+    }
+
+    public boolean clickChatRowByText(String targetText) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (!isSafeWindow(root)) return false;
+        if (targetText == null || targetText.trim().isEmpty()) return false;
+        String q = targetText.trim().toLowerCase();
+        AppLogger.i("A11Y", "clickChatRowByText: looking for '" + q + "'");
+
+        List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(targetText);
+        if (nodes == null || nodes.isEmpty()) return false;
+
+        // Pass 1: exact match on TextView / text
+        for (AccessibilityNodeInfo node : nodes) {
+            if (node == null) continue;
+            if (isAvatarOrPhotoNode(node)) continue;
+            if (node.isEditable()) continue;
+            CharSequence cls = node.getClassName();
+            if (cls != null && cls.toString().contains("EditText")) continue;
+
+            CharSequence text = node.getText();
+            CharSequence desc = node.getContentDescription();
+            String tStr = text != null ? text.toString().trim() : "";
+            String dStr = desc != null ? desc.toString().trim() : "";
+
+            if (tStr.equalsIgnoreCase(targetText) || dStr.equalsIgnoreCase(targetText)) {
+                AccessibilityNodeInfo row = findClickableRowAncestor(node);
+                if (row != null && row.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    AppLogger.i("A11Y", "clickChatRowByText (exact): clicked row ancestor for '" + targetText + "'");
+                    return true;
+                }
+                if (node.isClickable() && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    AppLogger.i("A11Y", "clickChatRowByText (exact): clicked node directly for '" + targetText + "'");
+                    return true;
+                }
+            }
+        }
+
+        // Pass 2: case-insensitive contains match
+        for (AccessibilityNodeInfo node : nodes) {
+            if (node == null) continue;
+            if (isAvatarOrPhotoNode(node)) continue;
+            if (node.isEditable()) continue;
+            CharSequence cls = node.getClassName();
+            if (cls != null && cls.toString().contains("EditText")) continue;
+
+            CharSequence text = node.getText();
+            CharSequence desc = node.getContentDescription();
+            String tStr = text != null ? text.toString().trim().toLowerCase() : "";
+            String dStr = desc != null ? desc.toString().trim().toLowerCase() : "";
+
+            if (tStr.contains(q) || dStr.contains(q)) {
+                AccessibilityNodeInfo row = findClickableRowAncestor(node);
+                if (row != null && row.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    AppLogger.i("A11Y", "clickChatRowByText (contains): clicked row ancestor for '" + targetText + "'");
+                    return true;
+                }
+                if (node.isClickable() && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    AppLogger.i("A11Y", "clickChatRowByText (contains): clicked node directly for '" + targetText + "'");
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private AccessibilityNodeInfo findWhatsAppSearchInput(AccessibilityNodeInfo root) {
+        if (root == null) return null;
+        AccessibilityNodeInfo byId = findNodeEndingWithId(root, ":id/search_src_text");
+        if (byId != null && byId.isEditable()) return byId;
+        byId = findNodeEndingWithId(root, ":id/search_input");
+        if (byId != null && byId.isEditable()) return byId;
+        return findFirstEditableNode(root);
+    }
+
+    private AccessibilityNodeInfo findWhatsAppSearchButton(AccessibilityNodeInfo root) {
+        if (root == null) return null;
+        AccessibilityNodeInfo byId = findNodeEndingWithId(root, ":id/menuitem_search");
+        if (byId != null && byId.isVisibleToUser()) return byId;
+        return findSearchNode(root);
+    }
+
     public synchronized boolean performWhatsAppGroupSend() {
         if (!mPendingWhatsAppGroupSend || mTargetGroupName == null || mTargetGroupName.isEmpty()) return false;
         if (System.currentTimeMillis() > mGroupDeadline) {
@@ -581,14 +713,17 @@ public class BlueLineAgentService extends AccessibilityService {
             return false;
         }
 
-        // 1. Try to click the group by text directly on the screen
-        boolean clicked = clickByText(mTargetGroupName, false);
+        // 1. Try to click matching group row in the picker list
+        boolean clicked = clickChatRowByText(mTargetGroupName);
         if (clicked) {
-            AppLogger.i("A11Y", "WhatsApp group send: clicked group text '" + mTargetGroupName + "'");
+            AppLogger.i("A11Y", "WhatsApp group send: selected group row for '" + mTargetGroupName + "'");
             mMainHandler.postDelayed(() -> {
                 AccessibilityNodeInfo curRoot = getRootInActiveWindow();
                 if (curRoot != null) {
                     AccessibilityNodeInfo fab = findNodeEndingWithId(curRoot, ":id/fab");
+                    if (fab == null) {
+                        fab = findNodeEndingWithId(curRoot, ":id/send");
+                    }
                     if (fab != null && fab.isVisibleToUser() && performClickOnNode(fab)) {
                         AppLogger.i("A11Y", "WhatsApp group send: clicked FAB");
                         mMainHandler.postDelayed(this::performWhatsAppAutoSend, 450);
@@ -602,8 +737,11 @@ public class BlueLineAgentService extends AccessibilityService {
             return true;
         }
 
-        // 2. If already selected, check if FAB is visible and click it
+        // 2. If group was already selected and FAB is visible, click FAB
         AccessibilityNodeInfo fab = findNodeEndingWithId(root, ":id/fab");
+        if (fab == null) {
+            fab = findNodeEndingWithId(root, ":id/send");
+        }
         if (fab != null && fab.isVisibleToUser()) {
             if (performClickOnNode(fab)) {
                 AppLogger.i("A11Y", "WhatsApp group send: clicked FAB directly");
@@ -614,18 +752,26 @@ public class BlueLineAgentService extends AccessibilityService {
             }
         }
 
-        // 3. If group not found in visible list, use search icon
-        AccessibilityNodeInfo searchNode = findSearchNode(root);
-        if (searchNode != null) {
-            if (searchNode.isEditable()) {
-                Bundle args = new Bundle();
-                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mTargetGroupName);
-                searchNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+        // 3. If group not found in visible list, use search after 1000ms
+        long elapsed = System.currentTimeMillis() - mGroupStartTime;
+        if (elapsed >= 1000) {
+            AccessibilityNodeInfo searchInput = findWhatsAppSearchInput(root);
+            if (searchInput != null) {
+                CharSequence currentText = searchInput.getText();
+                String currentStr = currentText != null ? currentText.toString() : "";
+                if (!currentStr.equalsIgnoreCase(mTargetGroupName)) {
+                    Bundle args = new Bundle();
+                    args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mTargetGroupName);
+                    boolean set = searchInput.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+                    AppLogger.i("A11Y", "WhatsApp group send: typed '" + mTargetGroupName + "' into search bar: " + (set ? "SUCCESS" : "FAILED"));
+                }
             } else {
-                if (performClickOnNode(searchNode)) {
-                    mMainHandler.postDelayed(() -> {
-                        typeText(mTargetGroupName);
-                    }, 300);
+                if (System.currentTimeMillis() - mLastSearchClickTime > 2000) {
+                    AccessibilityNodeInfo searchBtn = findWhatsAppSearchButton(root);
+                    if (searchBtn != null && performClickOnNode(searchBtn)) {
+                        mLastSearchClickTime = System.currentTimeMillis();
+                        AppLogger.i("A11Y", "WhatsApp group send: clicked search button");
+                    }
                 }
             }
         }
@@ -651,7 +797,8 @@ public class BlueLineAgentService extends AccessibilityService {
             return false;
         }
 
-        boolean clicked = clickByText(mTargetGroupName, false);
+        // 1. Try to click matching chat row directly in visible list / search results
+        boolean clicked = clickChatRowByText(mTargetGroupName);
         if (clicked) {
             AppLogger.i("A11Y", "WhatsApp group open: opened group '" + mTargetGroupName + "'");
             mPendingWhatsAppGroupOpen = false;
@@ -659,17 +806,27 @@ public class BlueLineAgentService extends AccessibilityService {
             return true;
         }
 
-        AccessibilityNodeInfo searchNode = findSearchNode(root);
-        if (searchNode != null) {
-            if (searchNode.isEditable()) {
-                Bundle args = new Bundle();
-                args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mTargetGroupName);
-                searchNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+        // 2. Only attempt search after waiting 1000ms for initial chat list to load
+        long elapsed = System.currentTimeMillis() - mGroupStartTime;
+        if (elapsed >= 1000) {
+            AccessibilityNodeInfo searchInput = findWhatsAppSearchInput(root);
+            if (searchInput != null) {
+                CharSequence currentText = searchInput.getText();
+                String currentStr = currentText != null ? currentText.toString() : "";
+                if (!currentStr.equalsIgnoreCase(mTargetGroupName)) {
+                    Bundle args = new Bundle();
+                    args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, mTargetGroupName);
+                    boolean set = searchInput.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+                    AppLogger.i("A11Y", "Typed '" + mTargetGroupName + "' into WhatsApp search bar: " + (set ? "SUCCESS" : "FAILED"));
+                }
             } else {
-                if (performClickOnNode(searchNode)) {
-                    mMainHandler.postDelayed(() -> {
-                        typeText(mTargetGroupName);
-                    }, 300);
+                // Click search button if not clicked recently (wait at least 2000ms between attempts)
+                if (System.currentTimeMillis() - mLastSearchClickTime > 2000) {
+                    AccessibilityNodeInfo searchBtn = findWhatsAppSearchButton(root);
+                    if (searchBtn != null && performClickOnNode(searchBtn)) {
+                        mLastSearchClickTime = System.currentTimeMillis();
+                        AppLogger.i("A11Y", "Clicked WhatsApp search button");
+                    }
                 }
             }
         }
