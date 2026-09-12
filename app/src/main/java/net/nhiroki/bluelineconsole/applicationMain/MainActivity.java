@@ -17,6 +17,7 @@ import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.view.animation.Animation;
 import android.view.animation.CycleInterpolator;
 import android.view.animation.TranslateAnimation;
@@ -212,7 +213,7 @@ public class MainActivity extends BaseWindowActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             this.changeBaseWindowElementSizeForAnimation(true);
-        } else if (this.mIsAppUnlockMode) {
+        } else if (this.mIsAppUnlockMode && !this.biometricPromptShowing) {
             this.exitAppUnlockModeAndFinish();
         }
     }
@@ -226,7 +227,8 @@ public class MainActivity extends BaseWindowActivity {
             MainActivity.myActiveInstance = null;
         }
         if (this.mIsAppUnlockMode) {
-            this.exitAppUnlockModeAndFinish();
+            cancelAppUnlockCooldown();
+            this.mIsAppUnlockMode = false;
         }
         if (this.mAppLockGlobeWebView != null) {
             this.mAppLockGlobeWebView.destroy();
@@ -429,12 +431,13 @@ public class MainActivity extends BaseWindowActivity {
             lockoutHandler.removeCallbacks(lockoutRunnable);
             lockoutRunnable = null;
         }
+        boolean wasBiometricShowing = this.biometricPromptShowing;
         biometricPromptShowing = false;
         if (threadPool != null) {
             threadPool.shutdownNow();
             threadPool = null;
         }
-        if (this.mIsAppUnlockMode) {
+        if (this.mIsAppUnlockMode && !wasBiometricShowing) {
             this.exitAppUnlockModeAndFinish();
         }
         super.onPause();
@@ -766,11 +769,6 @@ public class MainActivity extends BaseWindowActivity {
         }
 
         setupKeypadButtons();
-
-        View dismissBtn = findViewById(R.id.appLockDismissBtn);
-        if (dismissBtn != null) {
-            dismissBtn.setOnClickListener(v -> exitAppUnlockModeAndFinish());
-        }
 
         mainInputText.setText("");
         mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
@@ -1113,12 +1111,47 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     private void exitAppUnlockModeAndFinish() {
-        exitAppUnlockMode();
-        finishIfNotHome();
+        if (!this.mIsAppUnlockMode) return;
+        this.mIsAppUnlockMode = false;
+        this.mTargetLockedPackage = null;
+        this.mTargetLockedAppName = null;
+        this.mAppUnlockFailedAttempts = 0;
+        cancelAppUnlockCooldown();
+
+        AppLockManager.getInstance().resetLockTriggerThrottle();
+
+        try {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null && getCurrentFocus() != null) {
+                imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            Intent home = new Intent(Intent.ACTION_MAIN);
+            home.addCategory(Intent.CATEGORY_HOME);
+            home.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            startActivity(home);
+        } catch (Exception ignored) {}
+
         BlueLineAgentService service = BlueLineAgentService.getInstance();
         if (service != null) {
-            service.pressBack();
+            service.pressHome();
         }
+
+        View appLockWrapper = findViewById(R.id.appLockWrapperLinearLayout);
+        if (appLockWrapper != null) {
+            appLockWrapper.setVisibility(View.GONE);
+        }
+        View candidateWrapper = findViewById(R.id.candidateViewWrapperLinearLayout);
+        if (candidateWrapper != null) {
+            candidateWrapper.setVisibility(View.GONE);
+        }
+
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            hideAppLockGlobeBackdrop();
+            finishIfNotHome();
+        }, 350);
     }
 
     @SuppressLint("SetJavaScriptEnabled")

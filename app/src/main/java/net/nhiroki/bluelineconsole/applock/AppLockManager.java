@@ -1035,4 +1035,8 @@ public class AppLockManager {
             }
         }, 60);
     }
+
+    public void resetLockTriggerThrottle() {
+        this.mLastLockTriggerTime = 0;
+    }
 }

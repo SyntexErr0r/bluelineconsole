@@ -6,21 +6,11 @@
   <title>Cybernetic Security Shield</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body, html { width: 100%; height: 100%; overflow: hidden; background: #020208; font-family: monospace; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #020208; }
     canvas { width: 100vw; height: 100vh; display: block; touch-action: none; }
-    #ui {
-      position: absolute; top: 18px; left: 18px; z-index: 5;
-      color: #00f0ff; pointer-events: none; text-shadow: 0 0 6px #00f0ff;
-      font-size: 11px; opacity: 0.75; letter-spacing: 1.5px;
-    }
   </style>
 </head>
 <body>
-  <div id="ui">
-    <div>SYSTEM: CYBERNETIC SECURITY SHIELD</div>
-    <div>TOUCH / DRAG: FLUID ROTATION &amp; BEND</div>
-  </div>
-
   <canvas id="canvas"></canvas>
 
   <script>
