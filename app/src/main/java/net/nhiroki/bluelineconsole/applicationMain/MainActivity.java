@@ -57,6 +57,7 @@ public class MainActivity extends BaseWindowActivity {
     public static final int REQUEST_CODE_FOR_COMING_BACK = 1;
     public static final int REQUEST_CODE_FOR_SCREEN_CAPTURE = 99;
     private Runnable pendingScreenCaptureCallback = null;
+    private boolean mReturningFromScreenCapture = false;
 
     private boolean cameBackFlag = false;
     private boolean comingBackFlag = false;
@@ -250,6 +251,21 @@ public class MainActivity extends BaseWindowActivity {
         if (this.mIsAppUnlockMode) {
             return;
         }
+        if (this.mReturningFromScreenCapture) {
+            this.mReturningFromScreenCapture = false;
+            this.cameBackFlag = false;
+            AppLogger.d("LIFECYCLE", "MainActivity resumed from screen capture permission");
+            if (threadPool == null || threadPool.isShutdown()) {
+                threadPool = Executors.newSingleThreadExecutor();
+            }
+            if (this.pendingScreenCaptureCallback != null) {
+                Runnable cb = this.pendingScreenCaptureCallback;
+                this.pendingScreenCaptureCallback = null;
+                mainInputText.post(cb);
+            }
+            MainActivity.this.enableBaseWindowAnimation();
+            return;
+        }
         AppLogger.d("LIFECYCLE", "MainActivity resumed (home=" + this.iAmHomeActivity + ", cameBack=" + cameBackFlag + ")");
         resultCandidateListAdapter.setShowIcons(PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_appearance_show_icons", true));
 
@@ -362,6 +378,7 @@ public class MainActivity extends BaseWindowActivity {
 
     public void requestScreenCapture(Runnable onGranted) {
         this.pendingScreenCaptureCallback = onGranted;
+        this.mReturningFromScreenCapture = true;
         android.media.projection.MediaProjectionManager mgr =
                 (android.media.projection.MediaProjectionManager) getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE);
         if (mgr != null) {
@@ -373,14 +390,13 @@ public class MainActivity extends BaseWindowActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_FOR_SCREEN_CAPTURE) {
+            this.cameBackFlag = true;
             if (resultCode == RESULT_OK && data != null) {
                 net.nhiroki.bluelineconsole.applicationMain.lib.ScreenCaptureHelper.setProjectionResult(resultCode, data);
-                if (this.pendingScreenCaptureCallback != null) {
-                    Runnable cb = this.pendingScreenCaptureCallback;
-                    this.pendingScreenCaptureCallback = null;
-                    cb.run();
-                }
+                this.mReturningFromScreenCapture = true;
             } else {
+                this.pendingScreenCaptureCallback = null;
+                this.mReturningFromScreenCapture = false;
                 android.widget.Toast.makeText(this, "Screen capture permission was declined.", android.widget.Toast.LENGTH_SHORT).show();
             }
             return;
