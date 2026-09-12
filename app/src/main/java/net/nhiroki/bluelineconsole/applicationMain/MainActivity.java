@@ -356,19 +356,16 @@ public class MainActivity extends BaseWindowActivity {
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
             findViewById(R.id.candidateViewWrapperLinearLayout).setVisibility(View.GONE);
             mainInputText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+            mainInputText.setEnabled(true);
+            mainInputText.setHint("Enter PIN...");
+            mainInputText.setText("");
 
             if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
-                mainInputText.setEnabled(true);
-                long remaining = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getRemainingLockoutSeconds();
-                mainInputText.setHint(String.format(getString(R.string.app_lock_locked_out), remaining));
-
                 lockoutRunnable = new Runnable() {
                     @Override
                     public void run() {
                         if (MainActivity.this.isFinishing()) return;
                         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
-                            long rem = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getRemainingLockoutSeconds();
-                            mainInputText.setHint(String.format(getString(R.string.app_lock_locked_out), rem));
                             lockoutHandler.postDelayed(this, 1000);
                         } else {
                             mainInputText.setEnabled(true);
@@ -378,15 +375,6 @@ public class MainActivity extends BaseWindowActivity {
                     }
                 };
                 lockoutHandler.postDelayed(lockoutRunnable, 1000);
-            } else {
-                mainInputText.setEnabled(true);
-                int failed = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getFailedAttempts();
-                if (failed > 0) {
-                    mainInputText.setHint(String.format(getString(R.string.app_lock_incorrect_pin), failed, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getMaxFailedAttempts()));
-                } else {
-                    mainInputText.setHint("Enter PIN...");
-                }
-                mainInputText.setText("");
             }
         } else {
             mainInputText.setEnabled(true);
@@ -1060,7 +1048,7 @@ public class MainActivity extends BaseWindowActivity {
         int seconds = (int) Math.max(1, (remainingMs + 999) / 1000);
         TextView status = findViewById(R.id.appLockStatusText);
         if (status != null) {
-            status.setText(String.format("Too many failed attempts. Try again in %ds...", seconds));
+            status.setText(String.format("Try again in %ds...", seconds));
         }
     }
 
@@ -1081,7 +1069,7 @@ public class MainActivity extends BaseWindowActivity {
         } else {
             TextView status = findViewById(R.id.appLockStatusText);
             if (status != null) {
-                status.setText(String.format("Incorrect PIN or Pattern (%d of 3 attempts)", this.mAppUnlockFailedAttempts));
+                status.setText("Incorrect PIN or Pattern");
             }
         }
     }
