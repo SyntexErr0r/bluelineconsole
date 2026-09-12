@@ -879,35 +879,28 @@ public class AgentActionEngine {
     }
 
     public static void executeWhatsAppCall(Context context, String contact, boolean isVideo) {
-        executeWhatsAppCall(context, contact, null, isVideo);
-    }
-
-    public static void executeWhatsAppCall(Context context, String contact, String explicitPhone, boolean isVideo) {
-        AppLogger.i("ACTION", "executeWhatsAppCall: contact='" + contact + "', explicitPhone='" + explicitPhone + "', isVideo=" + isVideo);
+        AppLogger.i("ACTION", "executeWhatsAppCall: contact='" + contact + "', isVideo=" + isVideo);
         if (contact == null || contact.trim().isEmpty()) {
             launchAppByName(context, "whatsapp");
             return;
         }
 
-        // 1. Resolve phone number if possible
-        String phone = (explicitPhone != null && !explicitPhone.trim().isEmpty()) ? explicitPhone.replaceAll("[^0-9]", "") : null;
-        if (phone == null || phone.isEmpty()) {
-            String cleanNum = contact.replaceAll("[^0-9+]", "");
-            if (cleanNum.length() >= 7) {
-                phone = cleanNum.replaceAll("[^0-9]", "");
-            } else {
-                phone = findPhoneNumberForContact(context, contact);
-            }
-        }
-
-        // 2. Try direct WhatsApp VoIP Call Intent via ContactsContract.Data (using contact name & phone digits)
-        boolean launchedDirect = launchWhatsAppDirectCallIntent(context, contact, phone, isVideo);
+        // 1. Try direct WhatsApp VoIP Call Intent via ContactsContract.Data
+        boolean launchedDirect = launchWhatsAppDirectCallIntent(context, contact, isVideo);
         if (launchedDirect) {
             AppLogger.i("ACTION", "executeWhatsAppCall: launched directly via WhatsApp VoIP data URI");
             return;
         }
 
-        // 3. Fallback: Open chat + schedule call click
+        // 2. Resolve phone number and open chat + schedule call click
+        String phone = null;
+        String cleanNum = contact.replaceAll("[^0-9+]", "");
+        if (cleanNum.length() >= 7) {
+            phone = cleanNum.replaceAll("[^0-9]", "");
+        } else {
+            phone = findPhoneNumberForContact(context, contact);
+        }
+
         if (phone != null && !phone.isEmpty()) {
             Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(phone));
             Intent intent = new Intent(Intent.ACTION_VIEW, uri);
@@ -917,39 +910,40 @@ public class AgentActionEngine {
             boolean started = false;
             try {
                 net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
-                context.startActivity(intent);
-                started = true;
-            } catch (Exception ignored) {
-                try {
-                    intent.setPackage("com.whatsapp.w4b");
-                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
+                if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
                     context.startActivity(intent);
                     started = true;
-                } catch (Exception ignored2) {}
+                }
+            } catch (Exception ignored) {}
+
+            if (!started) {
+                try {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
+                    intent.setPackage("com.whatsapp.w4b");
+                    if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                        context.startActivity(intent);
+                        started = true;
+                    }
+                } catch (Exception ignored) {}
             }
 
             if (started) {
                 if (BlueLineAgentService.isServiceConnected()) {
                     BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(isVideo);
                 } else {
-                    Toast.makeText(context, "Opening WhatsApp. (Enable BlueLine Console in Accessibility Settings to auto-call)", Toast.LENGTH_LONG).show();
+                    Toast.makeText(context, "Chat opened. Tap Call at top (or enable Accessibility for auto-call).", Toast.LENGTH_SHORT).show();
                 }
                 return;
             }
         }
 
-        // 4. Fallback: Launch WhatsApp and notify
+        // 3. Fallback: Launch WhatsApp and notify
         launchAppByName(context, "whatsapp");
         Toast.makeText(context, "Could not find contact '" + contact + "' for WhatsApp call.", Toast.LENGTH_SHORT).show();
     }
 
     public static boolean launchWhatsAppDirectCallIntent(Context context, String contactName, boolean isVideo) {
-        return launchWhatsAppDirectCallIntent(context, contactName, null, isVideo);
-    }
-
-    public static boolean launchWhatsAppDirectCallIntent(Context context, String contactName, String phoneNumber, boolean isVideo) {
-        if (context == null) return false;
-        if ((contactName == null || contactName.trim().isEmpty()) && (phoneNumber == null || phoneNumber.trim().isEmpty())) return false;
+        if (context == null || contactName == null || contactName.trim().isEmpty()) return false;
         if (!ContactsReader.appHasReadContactsPermission(context)) {
             AppLogger.w("ACTION", "Contacts permission not granted for WhatsApp VoIP lookup");
             return false;
@@ -965,8 +959,7 @@ public class AgentActionEngine {
                     new String[]{
                             ContactsContract.Data._ID,
                             ContactsContract.Data.DISPLAY_NAME,
-                            ContactsContract.Data.DATA1,
-                            ContactsContract.Data.DATA3
+                            ContactsContract.Data.DATA1
                     },
                     ContactsContract.Data.MIMETYPE + " = ?",
                     new String[]{mimeType},
@@ -974,37 +967,27 @@ public class AgentActionEngine {
             );
 
             if (cursor != null) {
-                String q = (contactName != null) ? contactName.trim().toLowerCase() : "";
-                String phoneDigits = (phoneNumber != null) ? phoneNumber.replaceAll("[^0-9]", "") : "";
-                if (phoneDigits.isEmpty() && contactName != null) {
-                    String extracted = contactName.replaceAll("[^0-9]", "");
-                    if (extracted.length() >= 6) {
-                        phoneDigits = extracted;
-                    }
-                }
-                String phoneSuffix = (phoneDigits.length() >= 7) ? phoneDigits.substring(phoneDigits.length() - 7) : phoneDigits;
-
+                String q = contactName.trim().toLowerCase();
                 long matchedDataId = -1;
 
-                // Pass 1: exact contact name match
-                if (!q.isEmpty()) {
-                    while (cursor.moveToNext()) {
-                        int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
-                        if (nameCol != -1) {
-                            String name = cursor.getString(nameCol);
-                            if (name != null && name.trim().equalsIgnoreCase(q)) {
-                                matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                                break;
-                            }
+                // Pass 1: exact match
+                while (cursor.moveToNext()) {
+                    int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
+                    if (nameCol != -1) {
+                        String name = cursor.getString(nameCol);
+                        if (name != null && name.trim().equalsIgnoreCase(q)) {
+                            matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                            break;
                         }
                     }
                 }
 
-                // Pass 2: contains match on name
-                if (matchedDataId == -1 && !q.isEmpty()) {
+                // Pass 2: contains match
+                if (matchedDataId == -1) {
                     cursor.moveToPosition(-1);
                     while (cursor.moveToNext()) {
                         int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
+                        int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
                         if (nameCol != -1) {
                             String name = cursor.getString(nameCol);
                             if (name != null && name.toLowerCase().contains(q)) {
@@ -1012,34 +995,11 @@ public class AgentActionEngine {
                                 break;
                             }
                         }
-                    }
-                }
-
-                // Pass 3: phone match on DATA1, DATA3
-                if (matchedDataId == -1 && !phoneSuffix.isEmpty()) {
-                    cursor.moveToPosition(-1);
-                    while (cursor.moveToNext()) {
-                        int data1Col = cursor.getColumnIndex(ContactsContract.Data.DATA1);
-                        int data3Col = cursor.getColumnIndex(ContactsContract.Data.DATA3);
-
-                        if (data1Col != -1) {
-                            String d1 = cursor.getString(data1Col);
-                            if (d1 != null) {
-                                String cleanD1 = d1.replaceAll("[^0-9]", "");
-                                if (cleanD1.endsWith(phoneSuffix) || cleanD1.contains(phoneDigits)) {
-                                    matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                                    break;
-                                }
-                            }
-                        }
-                        if (data3Col != -1) {
-                            String d3 = cursor.getString(data3Col);
-                            if (d3 != null) {
-                                String cleanD3 = d3.replaceAll("[^0-9]", "");
-                                if (cleanD3.endsWith(phoneSuffix) || cleanD3.contains(phoneDigits)) {
-                                    matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                                    break;
-                                }
+                        if (dataCol != -1) {
+                            String d1 = cursor.getString(dataCol);
+                            if (d1 != null && d1.contains(q)) {
+                                matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                                break;
                             }
                         }
                     }
@@ -1052,19 +1012,18 @@ public class AgentActionEngine {
                     intent.setPackage("com.whatsapp");
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                    try {
-                        net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+                    if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
                         context.startActivity(intent);
                         return true;
-                    } catch (Exception e) {
-                        try {
-                            intent.setPackage("com.whatsapp.w4b");
-                            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                            context.startActivity(intent);
-                            return true;
-                        } catch (Exception e2) {
-                            AppLogger.e("ACTION", "WhatsApp direct VoIP launch failed: " + e2.getMessage());
-                        }
+                    }
+
+                    // Try WhatsApp Business
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
+                    intent.setPackage("com.whatsapp.w4b");
+                    if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                        context.startActivity(intent);
+                        return true;
                     }
                 }
             }

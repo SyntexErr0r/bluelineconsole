@@ -371,13 +371,41 @@ public class ContactManager {
             case CALL_METHOD_WHATSAPP_VOICE: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                AgentActionEngine.executeWhatsAppCall(context, contactName, cleanPhone, false);
+                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, false);
+                if (!success && !cleanPhone.isEmpty()) {
+                    Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
+                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                    intent.setPackage("com.whatsapp");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try {
+                        context.startActivity(intent);
+                        Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        launchDialer(context, phone);
+                    }
+                } else if (!success) {
+                    launchDialer(context, phone);
+                }
                 break;
             }
             case CALL_METHOD_WHATSAPP_VIDEO: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                AgentActionEngine.executeWhatsAppCall(context, contactName, cleanPhone, true);
+                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, true);
+                if (!success && !cleanPhone.isEmpty()) {
+                    Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
+                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                    intent.setPackage("com.whatsapp");
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try {
+                        context.startActivity(intent);
+                        Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                    } catch (Exception e) {
+                        launchDialer(context, phone);
+                    }
+                } else if (!success) {
+                    launchDialer(context, phone);
+                }
                 break;
             }
             case CALL_METHOD_TELEGRAM: {
