@@ -584,7 +584,7 @@ public class BlueLineAgentService extends AccessibilityService {
         };
         for (String idSuffix : dialogBtnIds) {
             AccessibilityNodeInfo btn = findNodeEndingWithId(root, idSuffix);
-            if (btn != null && btn.isVisibleToUser()) {
+            if (btn != null) {
                 String resId = btn.getViewIdResourceName();
                 if (resId == null || (!resId.contains("toolbar") && !resId.contains("action_bar"))) {
                     return btn;
@@ -594,14 +594,14 @@ public class BlueLineAgentService extends AccessibilityService {
 
         // 2. Search by text
         List<AccessibilityNodeInfo> candidates = new ArrayList<>();
-        String[] texts = {"CALL", "Call", "Voice call", "Voice Call", "Video call", "Video Call", "Start call", "Start Call"};
+        String[] texts = {"CALL", "Call", "Voice call", "Voice Call", "Video call", "Video Call", "Start call", "Start Call", "Start voice call", "Start video call", "OK"};
         for (String t : texts) {
             List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(t);
             if (nodes != null) candidates.addAll(nodes);
         }
 
         for (AccessibilityNodeInfo btn : candidates) {
-            if (btn == null || !btn.isVisibleToUser()) continue;
+            if (btn == null) continue;
             String id = btn.getViewIdResourceName();
             if (id != null && (id.contains("menuitem") || id.contains("action_bar") || id.contains("toolbar"))) {
                 continue; // Skip action bar items
@@ -616,7 +616,7 @@ public class BlueLineAgentService extends AccessibilityService {
                 if (tStr.equalsIgnoreCase("CALL") || tStr.equalsIgnoreCase("Call") ||
                     tStr.equalsIgnoreCase("Voice Call") || tStr.equalsIgnoreCase("Video Call") ||
                     tStr.equalsIgnoreCase("Start Call") || tStr.equalsIgnoreCase("Start Voice Call") ||
-                    tStr.equalsIgnoreCase("Start Video Call")) {
+                    tStr.equalsIgnoreCase("Start Video Call") || tStr.equalsIgnoreCase("OK")) {
                     if (!isVideo && tStr.toLowerCase().contains("video")) {
                         continue;
                     }
@@ -640,7 +640,7 @@ public class BlueLineAgentService extends AccessibilityService {
         CharSequence pkg = root.getPackageName();
         if (pkg == null) return false;
         String pkgStr = pkg.toString().toLowerCase();
-        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b") && !pkgStr.equals("android")) {
             return false;
         }
 
@@ -662,13 +662,13 @@ public class BlueLineAgentService extends AccessibilityService {
                 AppLogger.i("A11Y", "WhatsApp call: clicked " + (isVideo ? "video" : "voice") + " call button");
                 mPendingWhatsAppCall = false;
                 mPendingWhatsAppCallDialogConfirm = true;
-                mDialogConfirmDeadline = System.currentTimeMillis() + 4000;
+                mDialogConfirmDeadline = System.currentTimeMillis() + 5000;
 
                 // Watch closely for the confirmation dialog
-                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 200);
-                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 500);
-                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 900);
-                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 1500);
+                int[] delays = {150, 300, 500, 800, 1200, 1800, 2500, 3500};
+                for (int d : delays) {
+                    mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, d);
+                }
                 return true;
             }
         }
@@ -688,7 +688,7 @@ public class BlueLineAgentService extends AccessibilityService {
         CharSequence pkg = root.getPackageName();
         if (pkg == null) return false;
         String pkgStr = pkg.toString().toLowerCase();
-        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b") && !pkgStr.equals("android")) {
             return false;
         }
 

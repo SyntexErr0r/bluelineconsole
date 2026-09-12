@@ -371,13 +371,13 @@ public class ContactManager {
             case CALL_METHOD_WHATSAPP_VOICE: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                AgentActionEngine.executeWhatsAppCall(context, !cleanPhone.isEmpty() ? cleanPhone : contactName, false);
+                AgentActionEngine.executeWhatsAppCall(context, contactName, cleanPhone, false);
                 break;
             }
             case CALL_METHOD_WHATSAPP_VIDEO: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                AgentActionEngine.executeWhatsAppCall(context, !cleanPhone.isEmpty() ? cleanPhone : contactName, true);
+                AgentActionEngine.executeWhatsAppCall(context, contactName, cleanPhone, true);
                 break;
             }
             case CALL_METHOD_TELEGRAM: {
