@@ -13,10 +13,10 @@ public class AppLockTests {
 
     @Test
     public void testLockedAppConfig() {
-        AppLockManager.LockedAppConfig cfg = new AppLockManager.LockedAppConfig("com.whatsapp", "9428", "9428", true);
+        AppLockManager.LockedAppConfig cfg = new AppLockManager.LockedAppConfig("com.whatsapp", "9428", "94258", true);
         assertEquals("com.whatsapp", cfg.packageName);
         assertEquals("9428", cfg.pin);
-        assertEquals("9428", cfg.pattern);
+        assertEquals("94258", cfg.pattern);
         assertTrue(cfg.enabled);
 
         // Null safe defaults

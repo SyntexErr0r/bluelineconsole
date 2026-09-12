@@ -104,16 +104,28 @@ public class AppLockManager {
             }
         }
 
-        // Initialize default rules requested: WhatsApp (PIN 9428, Pattern 9428), Telegram (PIN 8353, Pattern 835)
+        // Initialize default rules requested: WhatsApp (PIN 9428, Pattern 94258), Telegram (PIN 8353, Pattern 835)
         if (mLockedApps.isEmpty()) {
             initDefaultLocks(prefs);
+        } else {
+            // Upgrade WhatsApp pattern 9428 to 94258 if stored from earlier version
+            LockedAppConfig wa = mLockedApps.get("com.whatsapp");
+            if (wa != null && "9428".equals(wa.pattern)) {
+                wa.pattern = "94258";
+                saveLockedApps(prefs);
+            }
+            LockedAppConfig wa4b = mLockedApps.get("com.whatsapp.w4b");
+            if (wa4b != null && "9428".equals(wa4b.pattern)) {
+                wa4b.pattern = "94258";
+                saveLockedApps(prefs);
+            }
         }
     }
 
     private void initDefaultLocks(SharedPreferences prefs) {
-        // WhatsApp defaults: PIN 9428, Pattern 9428 (dots 9 -> 4 -> 2 -> 8)
-        mLockedApps.put("com.whatsapp", new LockedAppConfig("com.whatsapp", "9428", "9428", true));
-        mLockedApps.put("com.whatsapp.w4b", new LockedAppConfig("com.whatsapp.w4b", "9428", "9428", true));
+        // WhatsApp defaults: PIN 9428, Pattern 94258 (dots 9 -> 4 -> 2 -> 5 -> 8 because passing 2 to 8 crosses 5)
+        mLockedApps.put("com.whatsapp", new LockedAppConfig("com.whatsapp", "9428", "94258", true));
+        mLockedApps.put("com.whatsapp.w4b", new LockedAppConfig("com.whatsapp.w4b", "9428", "94258", true));
 
         // Telegram defaults: PIN 8353, Pattern 835 (dots 8 -> 3 -> 5)
         mLockedApps.put("org.telegram.messenger", new LockedAppConfig("org.telegram.messenger", "8353", "835", true));
