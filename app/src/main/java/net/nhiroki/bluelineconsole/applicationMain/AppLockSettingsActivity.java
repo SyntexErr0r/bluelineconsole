@@ -188,14 +188,15 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
 
     private void updateFastScrollThumbPosition(int firstVisibleItem, int visibleItemCount, int totalItemCount) {
         if (mFastScrollContainer == null || mFastScrollThumb == null) return;
-        if (totalItemCount == 0) {
+
+        boolean isFiltered = mSearchEdit != null && !mSearchEdit.getText().toString().trim().isEmpty();
+        if (isFiltered && totalItemCount > 0 && visibleItemCount >= totalItemCount) {
             mFastScrollContainer.setVisibility(View.GONE);
             return;
         }
 
-        boolean isScrollable = (totalItemCount > visibleItemCount && visibleItemCount > 0) || totalItemCount > 8;
-        mFastScrollContainer.setVisibility(isScrollable ? View.VISIBLE : View.GONE);
-        if (!isScrollable) return;
+        mFastScrollContainer.setVisibility(View.VISIBLE);
+        if (totalItemCount == 0) return;
 
         int containerHeight = mFastScrollContainer.getHeight();
         int thumbHeight = mFastScrollThumb.getHeight();
@@ -228,19 +229,19 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
     private void refreshFastScrollState() {
         if (mFastScrollContainer == null || mFastScrollThumb == null || mAppListView == null || mAdapter == null) return;
         int totalCount = mAdapter.getCount();
-        if (totalCount == 0) {
-            mFastScrollContainer.setVisibility(View.GONE);
-            return;
-        }
 
+        boolean isFiltered = mSearchEdit != null && !mSearchEdit.getText().toString().trim().isEmpty();
         int firstVisible = mAppListView.getFirstVisiblePosition();
         int lastVisible = mAppListView.getLastVisiblePosition();
         int visibleCount = (lastVisible >= firstVisible && firstVisible >= 0) ? (lastVisible - firstVisible + 1) : 0;
 
-        boolean isScrollable = (totalCount > visibleCount && visibleCount > 0) || totalCount > 8;
-        mFastScrollContainer.setVisibility(isScrollable ? View.VISIBLE : View.GONE);
+        if (isFiltered && totalCount > 0 && visibleCount >= totalCount) {
+            mFastScrollContainer.setVisibility(View.GONE);
+            return;
+        }
 
-        if (isScrollable) {
+        mFastScrollContainer.setVisibility(View.VISIBLE);
+        if (totalCount > 0) {
             updateFastScrollThumbPosition(firstVisible, visibleCount > 0 ? visibleCount : 1, totalCount);
         }
     }
