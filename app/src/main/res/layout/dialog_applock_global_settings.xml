@@ -63,7 +63,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="14dp">
+        android:layout_marginBottom="10dp">
 
         <TextView
             android:layout_width="0dp"
@@ -76,6 +76,31 @@
 
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/dialogGlobalSwitchTimeLock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:thumbTint="#00f0ff"
+            app:trackTint="#6600f0ff" />
+    </LinearLayout>
+
+    <!-- Switch 4: Lock Home Launcher -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="14dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Lock Home Launcher (Nova, Smart, etc.)"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/dialogGlobalSwitchLockLauncher"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:thumbTint="#00f0ff"

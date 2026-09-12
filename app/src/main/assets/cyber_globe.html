@@ -100,6 +100,7 @@
     const fsSource = `#version 300 es
       precision highp float;
       in vec3 vPos;
+      uniform float uErrorGlow;
       out vec4 fragColor;
 
       void main() {
@@ -109,12 +110,14 @@
         vec3 cyan = vec3(0.0, 0.94, 1.0);
         vec3 deepBlue = vec3(0.08, 0.04, 0.85);
         vec3 magenta = vec3(1.0, 0.0, 0.55);
+        vec3 crimsonRed = vec3(1.0, 0.02, 0.14);
 
         float mixFactor = sin(vPos.z * 2.5) * 0.5 + 0.5;
         vec3 color = mix(cyan, deepBlue, mixFactor);
         color = mix(color, magenta, sin(vPos.x * 2.0) * 0.5 + 0.5);
+        color = mix(color, crimsonRed, uErrorGlow);
 
-        float alpha = (1.0 - d * 2.0) * 0.88;
+        float alpha = (1.0 - d * 2.0) * (0.88 + uErrorGlow * 0.12);
 
         fragColor = vec4(color, alpha);
       }
@@ -175,6 +178,7 @@
 
       const uImpactsLoc = gl.getUniformLocation(program, 'uImpacts');
       const uImpactTimesLoc = gl.getUniformLocation(program, 'uImpactTimes');
+      const uErrorGlowLoc = gl.getUniformLocation(program, 'uErrorGlow');
 
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
@@ -217,12 +221,18 @@
         touchX = -999; touchY = -999;
       });
 
-      // --- Ambient Pulse / Ripple System ---
+      // --- Ambient Pulse & Red Error Glow System ---
       let impacts = [0,0,0, 0,0,0, 0,0,0];
       let impactTimes = [-1, -1, -1];
       let impactIndex = 0;
       let highPitchAmpVal = 0.8;
       let lastAutoPulseTime = performance.now();
+      let errorGlowVal = 0.0;
+
+      window.triggerErrorRedGlow = function() {
+        errorGlowVal = 1.0;
+        triggerPulseRipple();
+      };
 
       function triggerPulseRipple(clientX, clientY) {
         let x, y, z;
@@ -287,10 +297,15 @@
           }
         }
 
+        if (errorGlowVal > 0.0) {
+          errorGlowVal = Math.max(0.0, errorGlowVal - deltaTime * 1.8);
+        }
+
         gl.clearColor(0.008, 0.008, 0.02, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         gl.uniform1f(uHighPitchAmpLoc, highPitchAmpVal);
+        gl.uniform1f(uErrorGlowLoc, errorGlowVal);
         gl.uniform2f(uTouchLoc, touchX, touchY);
         gl.uniform1f(uTouchActiveLoc, touchActive);
         gl.uniform1f(uTouchTimeLoc, touchTime);

@@ -18,9 +18,13 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.view.animation.Animation;
-import android.view.animation.CycleInterpolator;
-import android.view.animation.TranslateAnimation;
+import android.animation.ArgbEvaluator;
+import android.animation.ValueAnimator;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import android.content.pm.PackageManager;
 import android.content.pm.ApplicationInfo;
 import android.graphics.Color;
@@ -98,6 +102,8 @@ public class MainActivity extends BaseWindowActivity {
     private long mAppUnlockCooldownUntil = 0;
     private final Handler mCooldownHandler = new Handler(Looper.getMainLooper());
     private Runnable mCooldownTickRunnable = null;
+    private final Handler mAppLockHudHandler = new Handler(Looper.getMainLooper());
+    private Runnable mAppLockHudRunnable = null;
 
     public MainActivity() {
         super(R.layout.main_activity_body, true);
@@ -225,6 +231,7 @@ public class MainActivity extends BaseWindowActivity {
             MainActivity.myActiveInstance = null;
         }
         if (this.mIsAppUnlockMode) {
+            stopAppLockHudTicker();
             cancelAppUnlockCooldown();
             this.mIsAppUnlockMode = false;
         }
@@ -536,16 +543,106 @@ public class MainActivity extends BaseWindowActivity {
         this.temporaryContentShown = true;
     }
 
-    private void triggerShakeAnimation() {
-        View target = findViewById(R.id.baseWindowMainLinearLayout);
-        if (target == null) {
-            target = mainInputText;
+    private void triggerRedGlowAnimation() {
+        if (mAppLockGlobeWebView != null && mAppLockGlobeWebView.getVisibility() == View.VISIBLE) {
+            mAppLockGlobeWebView.evaluateJavascript("if (window.triggerErrorRedGlow) { window.triggerErrorRedGlow(); }", null);
         }
-        if (target != null) {
-            Animation shake = new TranslateAnimation(0, 16, 0, 0);
-            shake.setDuration(400);
-            shake.setInterpolator(new CycleInterpolator(4));
-            target.startAnimation(shake);
+
+        final int currentAccent = getAccentColor();
+        final int glowRed = Color.parseColor("#FFFF003F");
+
+        ValueAnimator colorAnim = ValueAnimator.ofObject(new ArgbEvaluator(), glowRed, currentAccent);
+        colorAnim.setDuration(600);
+        colorAnim.addUpdateListener(animator -> {
+            if (!isFinishing()) {
+                applyAccentColor((int) animator.getAnimatedValue());
+            }
+        });
+        colorAnim.start();
+
+        TextView status = findViewById(R.id.appLockStatusText);
+        if (status != null) {
+            status.setTextColor(glowRed);
+            ValueAnimator statusAnim = ValueAnimator.ofObject(new ArgbEvaluator(), glowRed, currentAccent);
+            statusAnim.setDuration(600);
+            statusAnim.addUpdateListener(animator -> {
+                if (!isFinishing()) {
+                    status.setTextColor((int) animator.getAnimatedValue());
+                }
+            });
+            statusAnim.start();
+        }
+    }
+
+    private void triggerShakeAnimation() {
+        triggerRedGlowAnimation();
+    }
+
+    private void startAppLockHudTicker() {
+        stopAppLockHudTicker();
+        updateAppLockHudVitals();
+        mAppLockHudRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mIsAppUnlockMode && !isFinishing()) {
+                    updateAppLockHudVitals();
+                    mAppLockHudHandler.postDelayed(this, 1000);
+                }
+            }
+        };
+        mAppLockHudHandler.postDelayed(mAppLockHudRunnable, 1000);
+    }
+
+    private void stopAppLockHudTicker() {
+        if (mAppLockHudRunnable != null) {
+            mAppLockHudHandler.removeCallbacks(mAppLockHudRunnable);
+            mAppLockHudRunnable = null;
+        }
+    }
+
+    private void updateAppLockHudVitals() {
+        TextView clockText = findViewById(R.id.appLockClockText);
+        TextView dateText = findViewById(R.id.appLockDateText);
+        TextView batteryText = findViewById(R.id.appLockBatteryText);
+        TextView shieldText = findViewById(R.id.appLockShieldText);
+
+        Date now = new Date();
+        if (clockText != null) {
+            SimpleDateFormat clockFmt = android.text.format.DateFormat.is24HourFormat(this)
+                    ? new SimpleDateFormat("HH:mm", Locale.getDefault())
+                    : new SimpleDateFormat("h:mm a", Locale.getDefault());
+            clockText.setText(clockFmt.format(now));
+        }
+
+        if (dateText != null) {
+            SimpleDateFormat dateFmt = new SimpleDateFormat("EEE, MMM d", Locale.getDefault());
+            dateText.setText(dateFmt.format(now).toUpperCase(Locale.ROOT));
+        }
+
+        if (batteryText != null) {
+            try {
+                Intent batteryIntent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+                if (batteryIntent != null) {
+                    int level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                    int scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                    int status = batteryIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                    boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                         status == BatteryManager.BATTERY_STATUS_FULL;
+                    int pct = (level >= 0 && scale > 0) ? (int) ((level / (float) scale) * 100) : 100;
+                    batteryText.setText((isCharging ? "⚡ " : "🔋 ") + pct + "%");
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (shieldText != null) {
+            boolean inCooldown = System.currentTimeMillis() < this.mAppUnlockCooldownUntil;
+            if (inCooldown) {
+                shieldText.setText("SHIELD: LOCKED");
+                shieldText.setTextColor(Color.parseColor("#FFFF003F"));
+            } else {
+                shieldText.setText("SHIELD: ACTIVE");
+                shieldText.setTextColor(getAccentColor());
+            }
         }
     }
 
@@ -592,7 +689,7 @@ public class MainActivity extends BaseWindowActivity {
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
-                    triggerShakeAnimation();
+                    triggerRedGlowAnimation();
                     net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
                     updateAppLockUI();
                 }
@@ -756,12 +853,20 @@ public class MainActivity extends BaseWindowActivity {
         mainInputText.setText("");
         mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
         mainInputText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        mainInputText.setShowSoftInputOnFocus(false);
+        try {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(mainInputText.getWindowToken(), 0);
+            }
+        } catch (Exception ignored) {}
         mainInputText.setEnabled(true);
         mainInputText.requestFocus();
 
         this.setWholeLayout();
         this.enableBaseWindowAnimation();
         this.showAppLockGlobeBackdrop();
+        this.startAppLockHudTicker();
 
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) {
             new Handler(Looper.getMainLooper()).postDelayed(this::tryTriggerBiometricForAppUnlock, 300);
@@ -828,7 +933,7 @@ public class MainActivity extends BaseWindowActivity {
                 return;
             }
             if (forceCheck || input.length() >= 4) {
-                triggerShakeAnimation();
+                triggerRedGlowAnimation();
                 mainInputText.setText("");
             }
             return;
@@ -845,7 +950,7 @@ public class MainActivity extends BaseWindowActivity {
         } else {
             int targetLen = storedPin.isEmpty() ? 4 : storedPin.length();
             if (forceCheck || input.length() >= Math.max(4, targetLen)) {
-                triggerShakeAnimation();
+                triggerRedGlowAnimation();
                 net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
                 mainInputText.setText("");
                 this.updateAppLockUI();
@@ -873,7 +978,7 @@ public class MainActivity extends BaseWindowActivity {
                 return;
             }
             if (forceCheck || input.length() >= 4) {
-                triggerShakeAnimation();
+                triggerRedGlowAnimation();
                 mainInputText.setText("");
             }
             return;
@@ -993,6 +1098,7 @@ public class MainActivity extends BaseWindowActivity {
     private void onAppUnlockSuccess() {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
         cancelAppUnlockCooldown();
+        stopAppLockHudTicker();
         String pkg = this.mTargetLockedPackage;
         String appName = this.mTargetLockedAppName != null ? this.mTargetLockedAppName : pkg;
 
@@ -1005,6 +1111,11 @@ public class MainActivity extends BaseWindowActivity {
         if (launchIntent != null) {
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
             startActivity(launchIntent);
+        } else if (AppLockManager.getInstance().isHomeLauncher(this, pkg)) {
+            Intent home = new Intent(Intent.ACTION_MAIN);
+            home.addCategory(Intent.CATEGORY_HOME);
+            home.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            startActivity(home);
         }
         exitAppUnlockMode();
         new Handler(Looper.getMainLooper()).postDelayed(this::finishIfNotHome, 300);
@@ -1013,6 +1124,7 @@ public class MainActivity extends BaseWindowActivity {
     private void startAppUnlockCooldown() {
         this.mAppUnlockCooldownUntil = System.currentTimeMillis() + 10000;
         updateCooldownStatus();
+        updateAppLockHudVitals();
 
         if (mCooldownTickRunnable != null) {
             mCooldownHandler.removeCallbacks(mCooldownTickRunnable);
@@ -1025,6 +1137,7 @@ public class MainActivity extends BaseWindowActivity {
                 if (remainingMs <= 0) {
                     cancelAppUnlockCooldown();
                     mAppUnlockFailedAttempts = 0;
+                    updateAppLockHudVitals();
                     TextView status = findViewById(R.id.appLockStatusText);
                     if (status != null) {
                         status.setText("Enter PIN or Pattern to unlock");
@@ -1053,11 +1166,12 @@ public class MainActivity extends BaseWindowActivity {
             mCooldownHandler.removeCallbacks(mCooldownTickRunnable);
             mCooldownTickRunnable = null;
         }
+        updateAppLockHudVitals();
     }
 
     private void onAppUnlockFailure() {
         this.mAppUnlockFailedAttempts++;
-        triggerShakeAnimation();
+        triggerRedGlowAnimation();
         mainInputText.setText("");
         if (this.mAppUnlockFailedAttempts >= 3) {
             startAppUnlockCooldown();
@@ -1067,10 +1181,13 @@ public class MainActivity extends BaseWindowActivity {
                 status.setText("Incorrect PIN or Pattern");
             }
         }
+        updateAppLockHudVitals();
     }
 
     private void exitAppUnlockMode() {
         cancelAppUnlockCooldown();
+        stopAppLockHudTicker();
+        mainInputText.setShowSoftInputOnFocus(true);
         this.mIsAppUnlockMode = false;
         this.mTargetLockedPackage = null;
         this.mTargetLockedAppName = null;
@@ -1096,6 +1213,30 @@ public class MainActivity extends BaseWindowActivity {
 
     private void exitAppUnlockModeAndFinish() {
         if (!this.mIsAppUnlockMode) return;
+
+        boolean isLauncher = mTargetLockedPackage != null &&
+                AppLockManager.getInstance().isHomeLauncher(this, mTargetLockedPackage);
+
+        if (isLauncher) {
+            // Target is a home launcher. Do NOT send Intent.CATEGORY_HOME or call pressHome(),
+            // as that would immediately return to the locked launcher and loop indefinitely!
+            BlueLineAgentService service = BlueLineAgentService.getInstance();
+            if (service != null && service.lockScreen()) {
+                exitAppUnlockMode();
+                finishIfNotHome();
+                return;
+            }
+            // If screen lock via accessibility is unavailable, reject exit to protect launcher
+            triggerRedGlowAnimation();
+            TextView status = findViewById(R.id.appLockStatusText);
+            if (status != null) {
+                status.setText("Launcher is locked. Enter PIN to access.");
+            }
+            return;
+        }
+
+        stopAppLockHudTicker();
+        mainInputText.setShowSoftInputOnFocus(true);
         this.mIsAppUnlockMode = false;
         this.mTargetLockedPackage = null;
         this.mTargetLockedAppName = null;

@@ -342,6 +342,13 @@ public class BlueLineAgentService extends AccessibilityService {
         return performGlobalAction(GLOBAL_ACTION_RECENTS);
     }
 
+    public boolean lockScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            return performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN);
+        }
+        return false;
+    }
+
     public void scheduleWhatsAppAutoSend() {
         mPendingWhatsAppAutoSend = true;
         mAutoSendDeadline = System.currentTimeMillis() + 8000;

@@ -208,10 +208,12 @@ public class AppLockDialogHelper {
         SwitchCompat swMaster = view.findViewById(R.id.dialogGlobalSwitchMasterEnable);
         SwitchCompat swLockAll = view.findViewById(R.id.dialogGlobalSwitchLockAll);
         SwitchCompat swTimeLock = view.findViewById(R.id.dialogGlobalSwitchTimeLock);
+        SwitchCompat swLockLauncher = view.findViewById(R.id.dialogGlobalSwitchLockLauncher);
 
         if (swMaster != null) swMaster.setChecked(mgr.isMasterEnabled(context));
         if (swLockAll != null) swLockAll.setChecked(mgr.isLockAllApps(context));
         if (swTimeLock != null) swTimeLock.setChecked(mgr.isTimeLockEnabled(context));
+        if (swLockLauncher != null) swLockLauncher.setChecked(mgr.isLockHomeLauncher(context));
 
         TextView tvPinInfo = view.findViewById(R.id.dialogMasterPinInfo);
         TextView btnChangePin = view.findViewById(R.id.dialogBtnChangeMasterPin);
@@ -266,6 +268,14 @@ public class AppLockDialogHelper {
                 mgr.setTimeLockEnabled(context, isChecked);
                 refreshLabels.run();
                 Toast.makeText(context, "Dynamic Time Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
+                if (onUpdated != null) onUpdated.run();
+            });
+        }
+
+        if (swLockLauncher != null) {
+            swLockLauncher.setOnCheckedChangeListener((bv, isChecked) -> {
+                mgr.setLockHomeLauncher(context, isChecked);
+                Toast.makeText(context, "Lock Home Launcher " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
                 if (onUpdated != null) onUpdated.run();
             });
         }

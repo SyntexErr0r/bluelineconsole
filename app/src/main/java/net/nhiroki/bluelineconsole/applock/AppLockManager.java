@@ -39,6 +39,7 @@ public class AppLockManager {
     public static final String KEY_MASTER_PIN = "pref_app_lock_master_pin";
     public static final String KEY_MASTER_PATTERN = "pref_app_lock_master_pattern";
     public static final String KEY_EXEMPT_APPS = "pref_app_lock_exempt_apps";
+    public static final String KEY_LOCK_HOME_LAUNCHER = "pref_app_lock_lock_launcher";
 
     public static final String KEY_GRACE_PERIOD_MODE = "pref_app_lock_grace_period_mode";
     public static final String KEY_GRACE_PERIOD_CUSTOM_SEC = "pref_app_lock_grace_period_custom_sec";
@@ -92,6 +93,7 @@ public class AppLockManager {
     private boolean mMasterEnabled = true;
     private boolean mLockAllApps = true;
     private boolean mTimeLockEnabled = true;
+    private boolean mLockHomeLauncher = false;
     private String mMasterPin = DEFAULT_MASTER_PIN;
     private String mMasterPattern = DEFAULT_MASTER_PATTERN;
     private final Set<String> mExemptApps = new HashSet<>();
@@ -126,6 +128,7 @@ public class AppLockManager {
         mMasterEnabled = prefs.getBoolean(KEY_MASTER_ENABLED, true);
         mLockAllApps = prefs.getBoolean(KEY_LOCK_ALL_APPS, true);
         mTimeLockEnabled = prefs.getBoolean(KEY_TIME_LOCK_ENABLED, true);
+        mLockHomeLauncher = prefs.getBoolean(KEY_LOCK_HOME_LAUNCHER, false);
         mMasterPin = prefs.getString(KEY_MASTER_PIN, DEFAULT_MASTER_PIN);
         mMasterPattern = prefs.getString(KEY_MASTER_PATTERN, DEFAULT_MASTER_PATTERN);
         mGracePeriodMode = prefs.getString(KEY_GRACE_PERIOD_MODE, GRACE_UNTIL_LOCKED);
@@ -216,6 +219,7 @@ public class AppLockManager {
                     .putBoolean(KEY_MASTER_ENABLED, mMasterEnabled)
                     .putBoolean(KEY_LOCK_ALL_APPS, mLockAllApps)
                     .putBoolean(KEY_TIME_LOCK_ENABLED, mTimeLockEnabled)
+                    .putBoolean(KEY_LOCK_HOME_LAUNCHER, mLockHomeLauncher)
                     .putString(KEY_MASTER_PIN, mMasterPin)
                     .putString(KEY_MASTER_PATTERN, mMasterPattern)
                     .putStringSet(KEY_EXEMPT_APPS, new HashSet<>(mExemptApps))
@@ -543,6 +547,18 @@ public class AppLockManager {
         AppLogger.i("APPLOCK", "Lock All Apps set to: " + enabled);
     }
 
+    public synchronized boolean isLockHomeLauncher(Context context) {
+        ensureInitialized(context);
+        return mLockHomeLauncher;
+    }
+
+    public synchronized void setLockHomeLauncher(Context context, boolean enabled) {
+        ensureInitialized(context);
+        mLockHomeLauncher = enabled;
+        saveLockedApps(getPrefs(context));
+        AppLogger.i("APPLOCK", "Lock Home Launcher set to: " + enabled);
+    }
+
     public synchronized boolean isTimeLockEnabled(Context context) {
         ensureInitialized(context);
         return mTimeLockEnabled;
@@ -700,7 +716,7 @@ public class AppLockManager {
             return cfg;
         }
 
-        if (mLockAllApps && !mExemptApps.contains(pkg) && !isSystemPackage(context, pkg) && !isHomeLauncher(context, pkg)) {
+        if (mLockAllApps && !mExemptApps.contains(pkg) && !isSystemPackage(context, pkg) && (!isHomeLauncher(context, pkg) || mLockHomeLauncher)) {
             String effPin = (t9Pin != null && !t9Pin.isEmpty()) ? t9Pin : getMasterPin(context);
             String effPattern = (t9Pin != null && !t9Pin.isEmpty()) ? expandPatternWithIntermediateDots(t9Pin) : getMasterPattern(context);
             return new LockedAppConfig(pkg, effPin, effPattern, true);
@@ -788,6 +804,9 @@ public class AppLockManager {
 
         // Home Launchers (Smart Launcher, Nova, Pixel Launcher, etc.)
         if (isHomeLauncher(context, p)) {
+            if (mLockHomeLauncher || (mLockedApps.containsKey(p) && mLockedApps.get(p).enabled)) {
+                return false;
+            }
             return true;
         }
 
@@ -837,7 +856,11 @@ public class AppLockManager {
         if (!mMasterEnabled || packageName == null) return false;
         String pkg = packageName.toLowerCase();
 
-        if (isSystemPackage(context, pkg) || isHomeLauncher(context, pkg)) {
+        if (isSystemPackage(context, pkg)) {
+            return false;
+        }
+
+        if (isHomeLauncher(context, pkg) && !mLockHomeLauncher && (!mLockedApps.containsKey(pkg) || !mLockedApps.get(pkg).enabled)) {
             return false;
         }
 
@@ -850,16 +873,21 @@ public class AppLockManager {
             return false;
         }
 
-        if (mLockAllApps && context != null) {
-            try {
-                PackageManager pm = context.getPackageManager();
-                if (pm != null) {
-                    Intent launchIntent = pm.getLaunchIntentForPackage(pkg);
-                    if (launchIntent != null) {
-                        return true;
+        if (mLockAllApps) {
+            if (isHomeLauncher(context, pkg)) {
+                return mLockHomeLauncher;
+            }
+            if (context != null) {
+                try {
+                    PackageManager pm = context.getPackageManager();
+                    if (pm != null) {
+                        Intent launchIntent = pm.getLaunchIntentForPackage(pkg);
+                        if (launchIntent != null) {
+                            return true;
+                        }
                     }
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
         }
 
         return false;

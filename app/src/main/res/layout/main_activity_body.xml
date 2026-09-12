@@ -49,6 +49,62 @@
         android:padding="8dp"
         android:background="?android:colorBackground">
 
+        <!-- Cyber Security HUD: Real-time Clock, Date & System Vitals -->
+        <LinearLayout
+            android:id="@+id/appLockHudLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingTop="4dp"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/appLockClockText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textStyle="bold"
+                android:textSize="26sp"
+                android:textColor="?bluelineconsoleBaseTextColor" />
+
+            <TextView
+                android:id="@+id/appLockDateText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:letterSpacing="0.08"
+                android:textColor="?bluelineconsoleAccentColor" />
+
+            <!-- System Vitals (Battery Level, Charging, Security Shield) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="3dp">
+
+                <TextView
+                    android:id="@+id/appLockBatteryText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textSize="10sp"
+                    android:textColor="?bluelineconsoleDisabledTextColor" />
+
+                <TextView
+                    android:id="@+id/appLockShieldText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textSize="10sp"
+                    android:layout_marginStart="10dp"
+                    android:textColor="?bluelineconsoleAccentColor"
+                    android:text="🛡️ 3D SHIELD ACTIVE" />
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- App Info Row -->
         <LinearLayout
             android:layout_width="match_parent"

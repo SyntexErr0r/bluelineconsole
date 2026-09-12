@@ -34,7 +34,9 @@ import net.nhiroki.bluelineconsole.applock.AppLockManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class AppLockSettingsActivity extends BaseWindowActivity {
 
@@ -285,10 +287,12 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
         boolean master = mgr.isMasterEnabled(this);
         boolean lockAll = mgr.isLockAllApps(this);
         boolean time = mgr.isTimeLockEnabled(this);
+        boolean launcher = mgr.isLockHomeLauncher(this);
 
         if (mTvTopStatusSummary != null) {
             mTvTopStatusSummary.setText((master ? "Lock: ON" : "Lock: OFF") +
                     " | " + (lockAll ? "All: ON" : "All: OFF") +
+                    " | " + (launcher ? "Launcher: ON" : "Launcher: OFF") +
                     " | " + (time ? "Time: ON" : "Time: OFF"));
         }
         if (mAdapter != null) {
@@ -303,11 +307,21 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             intent.addCategory(Intent.CATEGORY_LAUNCHER);
             List<ResolveInfo> resolveInfos = pm.queryIntentActivities(intent, 0);
 
+            Intent homeIntent = new Intent(Intent.ACTION_MAIN, null);
+            homeIntent.addCategory(Intent.CATEGORY_HOME);
+            List<ResolveInfo> homeInfos = pm.queryIntentActivities(homeIntent, 0);
+            if (homeInfos != null) {
+                resolveInfos.addAll(homeInfos);
+            }
+
+            Set<String> seen = new HashSet<>();
             List<AppEntry> list = new ArrayList<>();
             for (ResolveInfo ri : resolveInfos) {
                 if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
                     String pkg = ri.activityInfo.packageName;
                     if (pkg.equals(getPackageName())) continue; // Skip console itself
+                    if (seen.contains(pkg)) continue;
+                    seen.add(pkg);
                     String name = ri.loadLabel(pm).toString();
                     Drawable icon = ri.loadIcon(pm);
                     list.add(new AppEntry(pkg, name, icon));
@@ -393,14 +407,18 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             boolean isExempt = mgr.isExempt(mContext, item.packageName);
             boolean isHome = mgr.isHomeLauncher(mContext, item.packageName);
             String t9Pin = AppLockManager.getT9PinForPackage(mContext, item.packageName);
+            boolean launcherLockActive = mgr.isLockHomeLauncher(mContext) || (cfg != null && cfg.enabled);
 
-            boolean isLocked = !isHome && !isExempt;
-
-            if (isHome) {
-                statusView.setText("🛡️ Home Launcher (Always Unlocked)");
+            if (isHome && !launcherLockActive) {
+                statusView.setText("🏠 Home Launcher (Unlocked)");
                 statusView.setTextColor(0xFF4D7A94);
                 btnLockToggle.setImageResource(R.drawable.ic_unlock_cyber);
-                btnLockToggle.setEnabled(false);
+                btnLockToggle.setEnabled(true);
+                btnLockToggle.setOnClickListener(v -> {
+                    mgr.setAppLock(mContext, item.packageName, "", "");
+                    Toast.makeText(mContext, item.appName + " (Launcher) is now LOCKED", Toast.LENGTH_SHORT).show();
+                    notifyDataSetChanged();
+                });
             } else if (isExempt) {
                 statusView.setText("🔓 Unlocked (Exempt from Lock)");
                 statusView.setTextColor(0xFFFF5577);
@@ -412,7 +430,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
                     notifyDataSetChanged();
                 });
             } else if (cfg != null) {
-                StringBuilder sb = new StringBuilder("🔒 Custom: ");
+                StringBuilder sb = new StringBuilder(isHome ? "🏠🔒 Custom: " : "🔒 Custom: ");
                 if (!cfg.pin.isEmpty()) sb.append("PIN: ").append(cfg.pin);
                 if (!cfg.pattern.isEmpty()) {
                     if (!cfg.pin.isEmpty()) sb.append(" | ");
@@ -428,7 +446,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
                     notifyDataSetChanged();
                 });
             } else {
-                statusView.setText("🔒 Locked (T9 PIN: " + t9Pin + ")");
+                statusView.setText((isHome ? "🏠 " : "") + "🔒 Locked (T9 PIN: " + t9Pin + ")");
                 statusView.setTextColor(0xFF00F0FF);
                 btnLockToggle.setImageResource(R.drawable.ic_lock_cyber);
                 btnLockToggle.setEnabled(true);
