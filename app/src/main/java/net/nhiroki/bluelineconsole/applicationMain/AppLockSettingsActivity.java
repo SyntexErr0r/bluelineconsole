@@ -79,12 +79,18 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         this.changeBaseWindowElementSizeForAnimation(true);
+        if (hasFocus && mAppListView != null) {
+            mAppListView.post(this::refreshFastScrollState);
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         refreshTopSummary();
+        if (mAppListView != null) {
+            mAppListView.post(this::refreshFastScrollState);
+        }
     }
 
     @Override
@@ -182,23 +188,61 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
 
     private void updateFastScrollThumbPosition(int firstVisibleItem, int visibleItemCount, int totalItemCount) {
         if (mFastScrollContainer == null || mFastScrollThumb == null) return;
-        if (totalItemCount <= visibleItemCount || totalItemCount == 0) {
+        if (totalItemCount == 0) {
             mFastScrollContainer.setVisibility(View.GONE);
             return;
         }
-        mFastScrollContainer.setVisibility(View.VISIBLE);
+
+        boolean isScrollable = (totalItemCount > visibleItemCount && visibleItemCount > 0) || totalItemCount > 8;
+        mFastScrollContainer.setVisibility(isScrollable ? View.VISIBLE : View.GONE);
+        if (!isScrollable) return;
 
         int containerHeight = mFastScrollContainer.getHeight();
         int thumbHeight = mFastScrollThumb.getHeight();
         if (thumbHeight <= 0) {
             thumbHeight = (int) (44 * getResources().getDisplayMetrics().density);
         }
-        if (containerHeight <= thumbHeight) return;
+        if (containerHeight <= thumbHeight) {
+            mFastScrollContainer.post(() -> {
+                if (mFastScrollContainer != null && mFastScrollThumb != null) {
+                    int cHeight = mFastScrollContainer.getHeight();
+                    int tHeight = mFastScrollThumb.getHeight();
+                    if (tHeight <= 0) tHeight = (int) (44 * getResources().getDisplayMetrics().density);
+                    if (cHeight > tHeight) {
+                        float maxTrans = cHeight - tHeight;
+                        float frac = (float) firstVisibleItem / Math.max(1, totalItemCount - Math.max(1, visibleItemCount));
+                        frac = Math.max(0f, Math.min(1f, frac));
+                        mFastScrollThumb.setTranslationY(frac * maxTrans);
+                    }
+                }
+            });
+            return;
+        }
 
         float maxTranslation = containerHeight - thumbHeight;
-        float fraction = (float) firstVisibleItem / Math.max(1, totalItemCount - visibleItemCount);
+        float fraction = (float) firstVisibleItem / Math.max(1, totalItemCount - Math.max(1, visibleItemCount));
         fraction = Math.max(0f, Math.min(1f, fraction));
         mFastScrollThumb.setTranslationY(fraction * maxTranslation);
+    }
+
+    private void refreshFastScrollState() {
+        if (mFastScrollContainer == null || mFastScrollThumb == null || mAppListView == null || mAdapter == null) return;
+        int totalCount = mAdapter.getCount();
+        if (totalCount == 0) {
+            mFastScrollContainer.setVisibility(View.GONE);
+            return;
+        }
+
+        int firstVisible = mAppListView.getFirstVisiblePosition();
+        int lastVisible = mAppListView.getLastVisiblePosition();
+        int visibleCount = (lastVisible >= firstVisible && firstVisible >= 0) ? (lastVisible - firstVisible + 1) : 0;
+
+        boolean isScrollable = (totalCount > visibleCount && visibleCount > 0) || totalCount > 8;
+        mFastScrollContainer.setVisibility(isScrollable ? View.VISIBLE : View.GONE);
+
+        if (isScrollable) {
+            updateFastScrollThumbPosition(firstVisible, visibleCount > 0 ? visibleCount : 1, totalCount);
+        }
     }
 
     private void refreshTopSummary() {
@@ -255,6 +299,9 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
         }
         if (mAdapter != null) {
             mAdapter.notifyDataSetChanged();
+            if (mAppListView != null) {
+                mAppListView.post(this::refreshFastScrollState);
+            }
         }
     }
 
