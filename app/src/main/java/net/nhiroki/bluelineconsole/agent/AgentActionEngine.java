@@ -843,6 +843,13 @@ public class AgentActionEngine {
         String contact = action.target != null ? action.target.trim() : (action.query != null ? action.query.trim() : "");
         boolean isVideo = "video".equalsIgnoreCase(action.query) || (action.appName != null && action.appName.toLowerCase().contains("video"));
 
+        if (app.contains("telegram") || app.equals("tg")) {
+            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
+        } else if (app.contains("whatsapp") || app.equals("wa")) {
+            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
+        }
+
         // If contact exists in phonebook, route through ContactManager for unified handling
         ContactsReader.Contact c = ContactManager.getInstance().findContact(context, contact);
         if (c != null) {
@@ -922,6 +929,7 @@ public class AgentActionEngine {
             boolean started = false;
             try {
                 if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                     context.startActivity(intent);
                     started = true;
                 }
@@ -931,6 +939,7 @@ public class AgentActionEngine {
                 try {
                     intent.setPackage("com.whatsapp.w4b");
                     if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                        net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                         context.startActivity(intent);
                         started = true;
                     }
@@ -1023,6 +1032,7 @@ public class AgentActionEngine {
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
                     if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                        net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                         context.startActivity(intent);
                         return true;
                     }
@@ -1030,6 +1040,7 @@ public class AgentActionEngine {
                     // Try WhatsApp Business
                     intent.setPackage("com.whatsapp.w4b");
                     if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                        net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                         context.startActivity(intent);
                         return true;
                     }

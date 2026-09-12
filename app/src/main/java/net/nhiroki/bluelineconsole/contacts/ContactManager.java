@@ -14,6 +14,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import net.nhiroki.bluelineconsole.agent.BlueLineAgentService;
+import net.nhiroki.bluelineconsole.applock.AppLockManager;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -361,6 +362,8 @@ public class ContactManager {
 
         switch (method) {
             case CALL_METHOD_WHATSAPP_VOICE: {
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                 boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, false);
                 if (!success && !cleanPhone.isEmpty()) {
                     Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
@@ -383,6 +386,8 @@ public class ContactManager {
                 break;
             }
             case CALL_METHOD_WHATSAPP_VIDEO: {
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                 boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, true);
                 if (!success && !cleanPhone.isEmpty()) {
                     Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
@@ -405,6 +410,7 @@ public class ContactManager {
                 break;
             }
             case CALL_METHOD_TELEGRAM: {
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
                 ContactCustomConfig cfg = getCustomConfig(context, getContactKey(contact));
                 String tgUser = (cfg != null && !cfg.telegramUsername.isEmpty()) ? cfg.telegramUsername : "";
                 if (!tgUser.isEmpty()) {
@@ -441,6 +447,8 @@ public class ContactManager {
 
         switch (method) {
             case MSG_METHOD_WHATSAPP: {
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                 if (!cleanPhone.isEmpty()) {
                     String url = "https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone);
                     if (defaultText != null && !defaultText.isEmpty()) {
@@ -461,6 +469,7 @@ public class ContactManager {
                 break;
             }
             case MSG_METHOD_TELEGRAM: {
+                AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
                 ContactCustomConfig cfg = getCustomConfig(context, getContactKey(contact));
                 String tgUser = (cfg != null && !cfg.telegramUsername.isEmpty()) ? cfg.telegramUsername : "";
                 if (!tgUser.isEmpty()) {

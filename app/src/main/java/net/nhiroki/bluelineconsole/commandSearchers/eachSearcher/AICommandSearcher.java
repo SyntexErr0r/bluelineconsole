@@ -629,6 +629,15 @@ public class AICommandSearcher implements CommandSearcher {
         public EventLauncher getEventLauncher(Context context) {
             return activity -> {
                 AppLogger.i("AGENT", "Launching agent action: " + action.type + " (app=" + action.appName + ", target=" + action.target + ", query=" + action.query + ")");
+                String app = action.appName != null ? action.appName.toLowerCase() : "";
+                if (app.contains("whatsapp") || app.equals("wa")) {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
+                } else if (app.contains("telegram") || app.equals("tg")) {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
+                } else if (app.contains("phone") || app.equals("dialer")) {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.google.android.dialer");
+                }
                 AgentActionEngine.executeAction(activity, action);
                 activity.finishIfNotHome();
             };
