@@ -213,8 +213,6 @@ public class MainActivity extends BaseWindowActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             this.changeBaseWindowElementSizeForAnimation(true);
-        } else if (this.mIsAppUnlockMode && !this.biometricPromptShowing) {
-            this.exitAppUnlockModeAndFinish();
         }
     }
 
@@ -424,9 +422,6 @@ public class MainActivity extends BaseWindowActivity {
         if (threadPool != null) {
             threadPool.shutdownNow();
             threadPool = null;
-        }
-        if (this.mIsAppUnlockMode && !wasBiometricShowing) {
-            this.exitAppUnlockModeAndFinish();
         }
         super.onPause();
     }
@@ -1080,6 +1075,7 @@ public class MainActivity extends BaseWindowActivity {
         this.mTargetLockedPackage = null;
         this.mTargetLockedAppName = null;
         this.mAppUnlockFailedAttempts = 0;
+        AppLockManager.getInstance().resetLockTriggerThrottle();
 
         View appLockWrapper = findViewById(R.id.appLockWrapperLinearLayout);
         if (appLockWrapper != null) {
