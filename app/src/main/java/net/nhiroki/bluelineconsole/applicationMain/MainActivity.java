@@ -348,12 +348,7 @@ public class MainActivity extends BaseWindowActivity {
                 if (failed > 0) {
                     mainInputText.setHint(String.format(getString(R.string.app_lock_incorrect_pin), failed, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getMaxFailedAttempts()));
                 } else {
-                    boolean timeLockActive = net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().isTimeLockEnabled(this);
-                    if (timeLockActive) {
-                        mainInputText.setHint("Enter PIN or Time Lock (HHmm)...");
-                    } else {
-                        mainInputText.setHint("Enter PIN...");
-                    }
+                    mainInputText.setHint("Enter PIN...");
                 }
                 mainInputText.setText("");
             }
