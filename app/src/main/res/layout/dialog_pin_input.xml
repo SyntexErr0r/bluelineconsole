@@ -3,19 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@drawable/cyber_glass_dialog_background">
-
-    <TextView
-        android:id="@+id/dialogPinTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="🔒 SET PIN LOCK"
-        android:textColor="#00f0ff"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:fontFamily="monospace"
-        android:layout_marginBottom="4dp" />
+    android:padding="8dp"
+    android:background="@android:color/transparent">
 
     <TextView
         android:id="@+id/dialogPinSubtitle"
@@ -59,8 +48,6 @@
             android:textSize="13sp"
             android:fontFamily="monospace"
             android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true"
             android:layout_marginEnd="8dp" />
 
         <TextView
@@ -72,8 +59,6 @@
             android:textSize="13sp"
             android:textStyle="bold"
             android:fontFamily="monospace"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true" />
+            android:padding="8dp" />
     </LinearLayout>
 </LinearLayout>

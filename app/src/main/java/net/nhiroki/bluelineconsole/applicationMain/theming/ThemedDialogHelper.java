@@ -282,6 +282,10 @@ public class ThemedDialogHelper {
                             if (Build.VERSION.SDK_INT >= 21) {
                                 ctv.setCheckMarkTintList(radioTint);
                             }
+                        } else if (child instanceof TextView) {
+                            TextView tv = (TextView) child;
+                            tv.setTextColor(Color.parseColor("#e6f9ff"));
+                            tv.setTypeface(Typeface.MONOSPACE);
                         }
                     }
                     return true;

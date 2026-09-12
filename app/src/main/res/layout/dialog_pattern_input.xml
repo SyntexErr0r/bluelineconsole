@@ -3,20 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="8dp"
     android:gravity="center_horizontal"
-    android:background="@drawable/cyber_glass_dialog_background">
-
-    <TextView
-        android:id="@+id/dialogPatternTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="🔒 DRAW PATTERN LOCK"
-        android:textColor="#00f0ff"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        android:fontFamily="monospace"
-        android:layout_marginBottom="4dp" />
+    android:background="@android:color/transparent">
 
     <TextView
         android:id="@+id/dialogPatternSubtitle"
@@ -60,8 +49,6 @@
             android:textSize="13sp"
             android:fontFamily="monospace"
             android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true"
             android:layout_marginEnd="8dp" />
 
         <TextView
@@ -73,8 +60,6 @@
             android:textSize="13sp"
             android:fontFamily="monospace"
             android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true"
             android:layout_marginEnd="8dp" />
 
         <TextView
@@ -86,8 +71,6 @@
             android:textSize="13sp"
             android:textStyle="bold"
             android:fontFamily="monospace"
-            android:padding="8dp"
-            android:clickable="true"
-            android:focusable="true" />
+            android:padding="8dp" />
     </LinearLayout>
 </LinearLayout>

@@ -1,7 +1,8 @@
 package net.nhiroki.bluelineconsole.applock;
 
-import android.app.AlertDialog;
+import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,7 +10,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.SwitchCompat;
+
 import net.nhiroki.bluelineconsole.R;
+import net.nhiroki.bluelineconsole.applicationMain.theming.ThemedDialogHelper;
 
 public class AppLockDialogHelper {
 
@@ -21,23 +26,33 @@ public class AppLockDialogHelper {
         void onPinSaved(String pin);
     }
 
+    private static Activity getActivityFromContext(Context context) {
+        if (context instanceof Activity) {
+            return (Activity) context;
+        }
+        Context cur = context;
+        while (cur instanceof ContextWrapper) {
+            if (cur instanceof Activity) {
+                return (Activity) cur;
+            }
+            cur = ((ContextWrapper) cur).getBaseContext();
+        }
+        return null;
+    }
+
     public static void showPatternDialog(Context context, String title, OnPatternSavedListener listener) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_pattern_input, null);
         builder.setView(view);
+        builder.setTitle(title != null && !title.isEmpty() ? title : "🔒 DRAW PATTERN LOCK");
 
         final AlertDialog dialog = builder.create();
 
-        TextView titleView = view.findViewById(R.id.dialogPatternTitle);
         TextView statusView = view.findViewById(R.id.dialogPatternStatus);
         PatternLockView patternView = view.findViewById(R.id.dialogPatternLockView);
         TextView btnClear = view.findViewById(R.id.dialogPatternBtnClear);
         TextView btnCancel = view.findViewById(R.id.dialogPatternBtnCancel);
         TextView btnSave = view.findViewById(R.id.dialogPatternBtnSave);
-
-        if (title != null && !title.isEmpty()) {
-            titleView.setText(title);
-        }
 
         final String[] recordedPattern = new String[]{""};
 
@@ -74,23 +89,23 @@ public class AppLockDialogHelper {
         });
 
         dialog.show();
+        Activity act = getActivityFromContext(context);
+        if (act != null) {
+            ThemedDialogHelper.styleDialog(dialog, act);
+        }
     }
 
     public static void showPinDialog(Context context, String title, String currentPin, OnPinSavedListener listener) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_pin_input, null);
         builder.setView(view);
+        builder.setTitle(title != null && !title.isEmpty() ? title : "🔒 SET PIN LOCK");
 
         final AlertDialog dialog = builder.create();
 
-        TextView titleView = view.findViewById(R.id.dialogPinTitle);
         EditText pinInput = view.findViewById(R.id.dialogPinEditText);
         TextView btnCancel = view.findViewById(R.id.dialogPinBtnCancel);
         TextView btnSave = view.findViewById(R.id.dialogPinBtnSave);
-
-        if (title != null && !title.isEmpty()) {
-            titleView.setText(title);
-        }
 
         if (currentPin != null && !currentPin.isEmpty()) {
             pinInput.setText(currentPin);
@@ -110,6 +125,10 @@ public class AppLockDialogHelper {
         });
 
         dialog.show();
+        Activity act = getActivityFromContext(context);
+        if (act != null) {
+            ThemedDialogHelper.styleDialog(dialog, act);
+        }
     }
 
     public static void showAppActionMenu(Context context, String packageName, String appName, Runnable onUpdated) {
@@ -126,8 +145,8 @@ public class AppLockDialogHelper {
         };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
-        builder.setTitle("🔒 " + appName);
-        builder.setItems(options, (dialog, which) -> {
+        builder.setTitle("🔒 " + appName.toUpperCase());
+        builder.setItems(options, (d, which) -> {
             switch (which) {
                 case 0: {
                     // Set Custom PIN
@@ -166,25 +185,32 @@ public class AppLockDialogHelper {
                 }
             }
         });
-        builder.setNegativeButton("Close", null);
-        builder.show();
+        builder.setNegativeButton("[Close]", null);
+
+        final AlertDialog dialog = builder.create();
+        dialog.show();
+        Activity act = getActivityFromContext(context);
+        if (act != null) {
+            ThemedDialogHelper.styleDialog(dialog, act);
+        }
     }
 
     public static void showGlobalSettingsDialog(Context context, Runnable onUpdated) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
         View view = LayoutInflater.from(context).inflate(R.layout.dialog_applock_global_settings, null);
         builder.setView(view);
+        builder.setTitle("⚙️ GLOBAL APPLOCK SETTINGS");
 
         final AlertDialog dialog = builder.create();
         AppLockManager mgr = AppLockManager.getInstance();
 
-        android.widget.Switch swMaster = view.findViewById(R.id.dialogGlobalSwitchMasterEnable);
-        android.widget.Switch swLockAll = view.findViewById(R.id.dialogGlobalSwitchLockAll);
-        android.widget.Switch swTimeLock = view.findViewById(R.id.dialogGlobalSwitchTimeLock);
+        SwitchCompat swMaster = view.findViewById(R.id.dialogGlobalSwitchMasterEnable);
+        SwitchCompat swLockAll = view.findViewById(R.id.dialogGlobalSwitchLockAll);
+        SwitchCompat swTimeLock = view.findViewById(R.id.dialogGlobalSwitchTimeLock);
 
-        swMaster.setChecked(mgr.isMasterEnabled(context));
-        swLockAll.setChecked(mgr.isLockAllApps(context));
-        swTimeLock.setChecked(mgr.isTimeLockEnabled(context));
+        if (swMaster != null) swMaster.setChecked(mgr.isMasterEnabled(context));
+        if (swLockAll != null) swLockAll.setChecked(mgr.isLockAllApps(context));
+        if (swTimeLock != null) swTimeLock.setChecked(mgr.isTimeLockEnabled(context));
 
         TextView tvPinInfo = view.findViewById(R.id.dialogMasterPinInfo);
         TextView btnChangePin = view.findViewById(R.id.dialogBtnChangeMasterPin);
@@ -199,68 +225,92 @@ public class AppLockDialogHelper {
         Runnable refreshLabels = () -> {
             boolean timeActive = mgr.isTimeLockEnabled(context);
             String masterPin = mgr.getMasterPin(context);
-            tvPinInfo.setText(timeActive ? "Master PIN: Rolling Time (" + masterPin + ")" : "Master PIN: Custom (" + masterPin + ")");
+            if (tvPinInfo != null) {
+                tvPinInfo.setText(timeActive ? "Master PIN: Rolling Time (" + masterPin + ")" : "Master PIN: Custom (" + masterPin + ")");
+            }
 
             String masterPat = mgr.getMasterPattern(context);
-            tvPatInfo.setText(timeActive ? "Master Pattern: Rolling Time" : "Master Pattern: Custom (" + masterPat + ")");
+            if (tvPatInfo != null) {
+                tvPatInfo.setText(timeActive ? "Master Pattern: Rolling Time" : "Master Pattern: Custom (" + masterPat + ")");
+            }
         };
 
         refreshLabels.run();
 
-        swMaster.setOnCheckedChangeListener((bv, isChecked) -> {
-            mgr.setMasterEnabled(context, isChecked);
-            Toast.makeText(context, "App Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
-            if (onUpdated != null) onUpdated.run();
-        });
-
-        swLockAll.setOnCheckedChangeListener((bv, isChecked) -> {
-            mgr.setLockAllApps(context, isChecked);
-            Toast.makeText(context, "Lock All Apps " + (isChecked ? "ACTIVE" : "OFF"), Toast.LENGTH_SHORT).show();
-            if (onUpdated != null) onUpdated.run();
-        });
-
-        swTimeLock.setOnCheckedChangeListener((bv, isChecked) -> {
-            mgr.setTimeLockEnabled(context, isChecked);
-            refreshLabels.run();
-            Toast.makeText(context, "Dynamic Time Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
-            if (onUpdated != null) onUpdated.run();
-        });
-
-        btnChangePin.setOnClickListener(v -> {
-            String cur = mgr.getMasterPin(context);
-            showPinDialog(context, "Set Master PIN", cur, pin -> {
-                mgr.setMasterPin(context, pin);
-                refreshLabels.run();
-                Toast.makeText(context, "Master PIN set to: " + pin, Toast.LENGTH_SHORT).show();
+        if (swMaster != null) {
+            swMaster.setOnCheckedChangeListener((bv, isChecked) -> {
+                mgr.setMasterEnabled(context, isChecked);
+                Toast.makeText(context, "App Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
                 if (onUpdated != null) onUpdated.run();
             });
-        });
+        }
 
-        btnResetPin.setOnClickListener(v -> {
-            mgr.setMasterPin(context, AppLockManager.DEFAULT_MASTER_PIN);
-            refreshLabels.run();
-            Toast.makeText(context, "Master PIN reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
-            if (onUpdated != null) onUpdated.run();
-        });
-
-        btnDrawPat.setOnClickListener(v -> {
-            showPatternDialog(context, "Draw Master Pattern", pattern -> {
-                mgr.setMasterPattern(context, pattern);
-                refreshLabels.run();
-                Toast.makeText(context, "Master Pattern saved", Toast.LENGTH_SHORT).show();
+        if (swLockAll != null) {
+            swLockAll.setOnCheckedChangeListener((bv, isChecked) -> {
+                mgr.setLockAllApps(context, isChecked);
+                Toast.makeText(context, "Lock All Apps " + (isChecked ? "ACTIVE" : "OFF"), Toast.LENGTH_SHORT).show();
                 if (onUpdated != null) onUpdated.run();
             });
-        });
+        }
 
-        btnResetPat.setOnClickListener(v -> {
-            mgr.setMasterPattern(context, AppLockManager.DEFAULT_MASTER_PATTERN);
-            refreshLabels.run();
-            Toast.makeText(context, "Master Pattern reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
-            if (onUpdated != null) onUpdated.run();
-        });
+        if (swTimeLock != null) {
+            swTimeLock.setOnCheckedChangeListener((bv, isChecked) -> {
+                mgr.setTimeLockEnabled(context, isChecked);
+                refreshLabels.run();
+                Toast.makeText(context, "Dynamic Time Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
+                if (onUpdated != null) onUpdated.run();
+            });
+        }
 
-        btnDone.setOnClickListener(v -> dialog.dismiss());
+        if (btnChangePin != null) {
+            btnChangePin.setOnClickListener(v -> {
+                String cur = mgr.getMasterPin(context);
+                showPinDialog(context, "Set Master PIN", cur, pin -> {
+                    mgr.setMasterPin(context, pin);
+                    refreshLabels.run();
+                    Toast.makeText(context, "Master PIN set to: " + pin, Toast.LENGTH_SHORT).show();
+                    if (onUpdated != null) onUpdated.run();
+                });
+            });
+        }
+
+        if (btnResetPin != null) {
+            btnResetPin.setOnClickListener(v -> {
+                mgr.setMasterPin(context, AppLockManager.DEFAULT_MASTER_PIN);
+                refreshLabels.run();
+                Toast.makeText(context, "Master PIN reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
+                if (onUpdated != null) onUpdated.run();
+            });
+        }
+
+        if (btnDrawPat != null) {
+            btnDrawPat.setOnClickListener(v -> {
+                showPatternDialog(context, "Draw Master Pattern", pattern -> {
+                    mgr.setMasterPattern(context, pattern);
+                    refreshLabels.run();
+                    Toast.makeText(context, "Master Pattern saved", Toast.LENGTH_SHORT).show();
+                    if (onUpdated != null) onUpdated.run();
+                });
+            });
+        }
+
+        if (btnResetPat != null) {
+            btnResetPat.setOnClickListener(v -> {
+                mgr.setMasterPattern(context, AppLockManager.DEFAULT_MASTER_PATTERN);
+                refreshLabels.run();
+                Toast.makeText(context, "Master Pattern reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
+                if (onUpdated != null) onUpdated.run();
+            });
+        }
+
+        if (btnDone != null) {
+            btnDone.setOnClickListener(v -> dialog.dismiss());
+        }
 
         dialog.show();
+        Activity act = getActivityFromContext(context);
+        if (act != null) {
+            ThemedDialogHelper.styleDialog(dialog, act);
+        }
     }
 }

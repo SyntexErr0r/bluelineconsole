@@ -1,20 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp"
-    android:background="@drawable/cyber_glass_dialog_background">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="⚙️ SYSTEM &amp; MASTER CODE SETTINGS"
-        android:textColor="#00f0ff"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:fontFamily="monospace"
-        android:layout_marginBottom="12dp" />
+    android:padding="8dp"
+    android:background="@android:color/transparent">
 
     <!-- Switch 1: Master Enable -->
     <LinearLayout
@@ -33,10 +24,12 @@
             android:textSize="13sp"
             android:fontFamily="monospace" />
 
-        <Switch
+        <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/dialogGlobalSwitchMasterEnable"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            app:thumbTint="#00f0ff"
+            app:trackTint="#6600f0ff" />
     </LinearLayout>
 
     <!-- Switch 2: Lock All Apps -->
@@ -56,10 +49,12 @@
             android:textSize="13sp"
             android:fontFamily="monospace" />
 
-        <Switch
+        <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/dialogGlobalSwitchLockAll"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            app:thumbTint="#00f0ff"
+            app:trackTint="#6600f0ff" />
     </LinearLayout>
 
     <!-- Switch 3: Dynamic Time Lock -->
@@ -79,10 +74,12 @@
             android:textSize="13sp"
             android:fontFamily="monospace" />
 
-        <Switch
+        <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/dialogGlobalSwitchTimeLock"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            app:thumbTint="#00f0ff"
+            app:trackTint="#6600f0ff" />
     </LinearLayout>
 
     <!-- Divider -->
