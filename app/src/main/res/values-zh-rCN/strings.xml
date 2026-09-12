@@ -5,7 +5,7 @@
     <string name="preferences_item_about_this_app_github_repo_summary">访问 https://github.com/nhirokinet/bluelineconsole</string>
 
     <!-- ActivityMain -->
-    <string name="displayedFullVersionString">版本 %1$s</string>
+    <string name="displayedFullVersionString">ver. v%1$s</string>
     <string name="loading_main_caption">正在刷新数据库......</string>
     <string name="loading_detail_for_command_search">安装后首次启动,或是更改语言设定后首次启动，\n刷新可能需要一段时间才能完成（有时几十秒）。</string>
 	

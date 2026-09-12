@@ -5,7 +5,7 @@
     <string name="preferences_item_about_this_app_github_repo_summary">前往 https://github.com/nhirokinet/bluelineconsole</string>
 
     <!-- ActivityMain -->
-    <string name="displayedFullVersionString">版本 %1$s</string>
+    <string name="displayedFullVersionString">ver. v%1$s</string>
     <string name="loading_main_caption">正在重新整理資料庫&#8230;</string>
     <string name="loading_detail_for_command_search">在首次啟動，或者在首次變更語言設定之後首次啟動，\n重新整理可能需要一段時間（有時幾十秒）。</string>
 
