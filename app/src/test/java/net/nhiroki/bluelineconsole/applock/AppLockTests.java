@@ -252,4 +252,81 @@ public class AppLockTests {
         assertEquals(1, quick.size());
         assertTrue(quick.get(0) instanceof AppLockCommandSearcher.AppLockQuickLockCandidateEntry);
     }
+
+    @Test
+    public void testT9PinComputation() {
+        // WhatsApp: W-H-A-T -> 9-4-2-8
+        assertEquals("9428", AppLockManager.computeT9PinFromName("WhatsApp"));
+        assertEquals("9428", AppLockManager.computeT9PinFromName("whatsapp"));
+
+        // Telegram: T-E-L-E -> 8-3-5-3
+        assertEquals("8353", AppLockManager.computeT9PinFromName("Telegram"));
+
+        // Termux: T-E-R-M -> 8-3-7-6
+        assertEquals("8376", AppLockManager.computeT9PinFromName("Termux"));
+
+        // Smart Launcher: S-M-A-R -> 7-6-2-7
+        assertEquals("7627", AppLockManager.computeT9PinFromName("Smart Launcher"));
+
+        // YouTube: Y-O-U-T -> 9-6-8-8
+        assertEquals("9688", AppLockManager.computeT9PinFromName("YouTube"));
+
+        // Chrome: C-H-R-O -> 2-4-7-6
+        assertEquals("2476", AppLockManager.computeT9PinFromName("Chrome"));
+
+        // Instagram: I-N-S-T -> 4-6-7-8
+        assertEquals("4678", AppLockManager.computeT9PinFromName("Instagram"));
+
+        // Short names padded to 4 digits: "AI" -> "2444", "X" -> "9999"
+        assertEquals("2444", AppLockManager.computeT9PinFromName("AI"));
+        assertEquals("9999", AppLockManager.computeT9PinFromName("X"));
+
+        // Empty / null handling
+        assertEquals("", AppLockManager.computeT9PinFromName(""));
+        assertEquals("", AppLockManager.computeT9PinFromName(null));
+
+        // Package fallback without context: com.termux -> termux -> 8376
+        assertEquals("8376", AppLockManager.getT9PinForPackage(null, "com.termux"));
+        assertEquals("9428", AppLockManager.getT9PinForPackage(null, "com.whatsapp"));
+    }
+
+    @Test
+    public void testHomeLauncherImmunity() {
+        AppLockManager mgr = AppLockManager.getInstance();
+
+        // Smart Launcher variations
+        assertTrue(mgr.isHomeLauncher(null, "ginlemon.flowerfree"));
+        assertTrue(mgr.isHomeLauncher(null, "ginlemon.flowerpro"));
+        assertTrue(mgr.isHomeLauncher(null, "ginlemon.flower"));
+
+        // Nova Launcher
+        assertTrue(mgr.isHomeLauncher(null, "com.teslacoilsw.launcher"));
+
+        // Niagara Launcher
+        assertTrue(mgr.isHomeLauncher(null, "bitpit.launcher"));
+
+        // Lawnchair
+        assertTrue(mgr.isHomeLauncher(null, "ch.deletescape.lawnchair.plah"));
+        assertTrue(mgr.isHomeLauncher(null, "app.lawnchair"));
+
+        // Standard launcher keywords
+        assertTrue(mgr.isHomeLauncher(null, "com.google.android.apps.nexuslauncher"));
+        assertTrue(mgr.isHomeLauncher(null, "com.sec.android.app.launcher"));
+
+        // Regular apps are not home launchers
+        assertFalse(mgr.isHomeLauncher(null, "com.whatsapp"));
+        assertFalse(mgr.isHomeLauncher(null, "com.termux"));
+        assertFalse(mgr.isHomeLauncher(null, "org.telegram.messenger"));
+
+        // Launchers are never locked even if Lock All is true
+        mgr.setMasterEnabled(null, true);
+        mgr.setLockAllApps(null, true);
+        assertFalse(mgr.isPackageLocked(null, "ginlemon.flowerfree"));
+        assertFalse(mgr.isPackageLocked(null, "com.teslacoilsw.launcher"));
+        assertFalse(mgr.isPackageLocked(null, "com.android.launcher3"));
+
+        // Clean up
+        mgr.setLockAllApps(null, false);
+    }
 }
+

@@ -3,6 +3,9 @@ package net.nhiroki.bluelineconsole.applock;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -13,6 +16,7 @@ import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -128,23 +132,31 @@ public class AppLockManager {
             }
         }
 
-        // Initialize default rules: WhatsApp (PIN 9428, Pattern 9428 -> geometrically 94258), Telegram (PIN 8353, Pattern 835)
+        // Initialize default rules: WhatsApp (PIN 9428, Pattern 94258), Telegram (PIN 8353, Pattern 835), Termux (PIN 8376, Pattern 8376)
         if (mLockedApps.isEmpty()) {
             initDefaultLocks(prefs);
+        } else {
+            if (!mLockedApps.containsKey("com.termux")) {
+                mLockedApps.put("com.termux", new LockedAppConfig("com.termux", "8376", "8376", true));
+                saveLockedApps(prefs);
+            }
         }
     }
 
     private void initDefaultLocks(SharedPreferences prefs) {
-        // WhatsApp defaults: PIN 9428, Pattern 9428 (dots 2 to 8 dynamically cross 5)
+        // WhatsApp defaults: PIN 9428 (W-H-A-T), Pattern 9428 (dots 2 to 8 dynamically cross 5)
         mLockedApps.put("com.whatsapp", new LockedAppConfig("com.whatsapp", "9428", "94258", true));
         mLockedApps.put("com.whatsapp.w4b", new LockedAppConfig("com.whatsapp.w4b", "9428", "94258", true));
 
-        // Telegram defaults: PIN 8353, Pattern 835 (dots 8 -> 3 -> 5)
+        // Telegram defaults: PIN 8353 (T-E-L-E), Pattern 835 (dots 8 -> 3 -> 5)
         mLockedApps.put("org.telegram.messenger", new LockedAppConfig("org.telegram.messenger", "8353", "835", true));
         mLockedApps.put("org.telegram.messenger.web", new LockedAppConfig("org.telegram.messenger.web", "8353", "835", true));
         mLockedApps.put("org.telegram.messenger.beta", new LockedAppConfig("org.telegram.messenger.beta", "8353", "835", true));
         mLockedApps.put("nekox.messenger", new LockedAppConfig("nekox.messenger", "8353", "835", true));
         mLockedApps.put("org.thunderdog.challegram", new LockedAppConfig("org.thunderdog.challegram", "8353", "835", true));
+
+        // Termux defaults: PIN 8376 (T-E-R-M), Pattern 8376 (dots 8 -> 3 -> 7 -> 6, crossing 5 between 3 and 7)
+        mLockedApps.put("com.termux", new LockedAppConfig("com.termux", "8376", "8376", true));
 
         saveLockedApps(prefs);
     }
@@ -276,6 +288,62 @@ public class AppLockManager {
         return false;
     }
 
+    /**
+     * Converts an application name to a 4-digit PIN based on standard phone T9 keypad letters:
+     * 2: ABC, 3: DEF, 4: GHI, 5: JKL, 6: MNO, 7: PQRS, 8: TUV, 9: WXYZ.
+     * E.g. "WhatsApp" -> "9428" (WHAT)
+     *      "Telegram" -> "8353" (TELE)
+     *      "Termux"   -> "8376" (TERM)
+     *      "Smart Launcher" -> "7627" (SMAR)
+     */
+    public static String computeT9PinFromName(String name) {
+        if (name == null || name.trim().isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < name.length(); i++) {
+            char c = Character.toUpperCase(name.charAt(i));
+            if (c >= 'A' && c <= 'Z') {
+                switch (c) {
+                    case 'A': case 'B': case 'C': sb.append('2'); break;
+                    case 'D': case 'E': case 'F': sb.append('3'); break;
+                    case 'G': case 'H': case 'I': sb.append('4'); break;
+                    case 'J': case 'K': case 'L': sb.append('5'); break;
+                    case 'M': case 'N': case 'O': sb.append('6'); break;
+                    case 'P': case 'Q': case 'R': case 'S': sb.append('7'); break;
+                    case 'T': case 'U': case 'V': sb.append('8'); break;
+                    case 'W': case 'X': case 'Y': case 'Z': sb.append('9'); break;
+                }
+                if (sb.length() == 4) break;
+            }
+        }
+        while (sb.length() > 0 && sb.length() < 4) {
+            sb.append(sb.charAt(sb.length() - 1));
+        }
+        return sb.toString();
+    }
+
+    public static String getT9PinForPackage(Context context, String packageName) {
+        if (packageName == null || packageName.isEmpty()) return "";
+        String label = packageName;
+        if (context != null) {
+            try {
+                PackageManager pm = context.getPackageManager();
+                if (pm != null) {
+                    ApplicationInfo ai = pm.getApplicationInfo(packageName, 0);
+                    CharSequence l = pm.getApplicationLabel(ai);
+                    if (l != null && l.length() > 0) {
+                        label = l.toString();
+                    }
+                }
+            } catch (Exception ignored) {}
+        } else {
+            int lastDot = packageName.lastIndexOf('.');
+            if (lastDot >= 0 && lastDot < packageName.length() - 1) {
+                label = packageName.substring(lastDot + 1);
+            }
+        }
+        return computeT9PinFromName(label);
+    }
+
     public synchronized boolean isMasterEnabled(Context context) {
         ensureInitialized(context);
         return mMasterEnabled;
@@ -289,6 +357,7 @@ public class AppLockManager {
         ensureInitialized(context);
         mMasterEnabled = enabled;
         saveLockedApps(getPrefs(context));
+        AppLogger.i("APPLOCK", "Master AppLock enabled set to: " + enabled);
     }
 
     public synchronized boolean isLockAllApps(Context context) {
@@ -339,7 +408,7 @@ public class AppLockManager {
 
     public synchronized void setExempt(Context context, String packageName, boolean exempt) {
         ensureInitialized(context);
-        if (packageName == null || packageName.isEmpty()) return;
+        if (packageName == null) return;
         String pkg = packageName.toLowerCase();
         if (exempt) {
             mExemptApps.add(pkg);
@@ -347,7 +416,12 @@ public class AppLockManager {
             mExemptApps.remove(pkg);
         }
         saveLockedApps(getPrefs(context));
-        AppLogger.i("APPLOCK", "Exempt status for " + pkg + ": " + exempt);
+        AppLogger.i("APPLOCK", "Exempt set for " + pkg + " to " + exempt);
+    }
+
+    public synchronized List<String> getExemptApps(Context context) {
+        ensureInitialized(context);
+        return new ArrayList<>(mExemptApps);
     }
 
     public synchronized LockedAppConfig getLockedAppConfig(Context context, String packageName) {
@@ -358,23 +432,94 @@ public class AppLockManager {
 
     /**
      * Resolves effective config for any app: returns app-specific config if registered,
-     * or a synthesized Master config if protected under Lock All mode.
+     * or a synthesized config with T9 name-based PIN and Master credentials.
      */
     public synchronized LockedAppConfig getEffectiveLockedAppConfig(Context context, String packageName) {
         ensureInitialized(context);
         if (packageName == null) return null;
         String pkg = packageName.toLowerCase();
 
+        String t9Pin = getT9PinForPackage(context, pkg);
+
         LockedAppConfig cfg = mLockedApps.get(pkg);
         if (cfg != null) {
             return cfg;
         }
 
-        if (mLockAllApps && !mExemptApps.contains(pkg) && !isSystemPackage(context, pkg)) {
-            return new LockedAppConfig(pkg, mMasterPin, mMasterPattern, true);
+        if (mLockAllApps && !mExemptApps.contains(pkg) && !isSystemPackage(context, pkg) && !isHomeLauncher(context, pkg)) {
+            String effPin;
+            String effPattern;
+            if (!mMasterPin.equals(DEFAULT_MASTER_PIN)) {
+                effPin = mMasterPin;
+            } else {
+                effPin = (t9Pin != null && !t9Pin.isEmpty()) ? t9Pin : mMasterPin;
+            }
+
+            if (!mMasterPattern.equals(DEFAULT_MASTER_PATTERN)) {
+                effPattern = mMasterPattern;
+            } else {
+                effPattern = (t9Pin != null && !t9Pin.isEmpty()) ? expandPatternWithIntermediateDots(t9Pin) : mMasterPattern;
+            }
+            return new LockedAppConfig(pkg, effPin, effPattern, true);
         }
 
         return null;
+    }
+
+    /**
+     * Identifies if a package is an Android Home Launcher (Smart Launcher, Nova, Pixel Launcher, etc.)
+     * Launchers must NEVER be locked so the user's home screen is never blocked or trapped in a loop.
+     */
+    public boolean isHomeLauncher(Context context, String pkg) {
+        if (pkg == null) return false;
+        String p = pkg.toLowerCase();
+
+        // 1. Standard keywords in launcher package names
+        if (p.contains("launcher") || p.contains("quickstep") || p.contains("recents") || p.contains("trebuchet") || p.contains("home")) {
+            return true;
+        }
+
+        // 2. Known third-party launchers without "launcher" or "home" in package name
+        if (p.startsWith("ginlemon.flower") || // Smart Launcher (ginlemon.flowerfree, ginlemon.flowerpro, ginlemon.flower)
+            p.startsWith("bitpit.launcher") || // Niagara Launcher
+            p.equals("com.teslacoilsw.launcher") || // Nova Launcher
+            p.startsWith("ch.deletescape.lawnchair") || // Lawnchair
+            p.startsWith("app.lawnchair")) {
+            return true;
+        }
+
+        // 3. Query Android PackageManager for registered home launchers
+        if (context != null) {
+            try {
+                PackageManager pm = context.getPackageManager();
+                if (pm != null) {
+                    Intent homeIntent = new Intent(Intent.ACTION_MAIN);
+                    homeIntent.addCategory(Intent.CATEGORY_HOME);
+                    List<ResolveInfo> list = pm.queryIntentActivities(homeIntent, PackageManager.MATCH_DEFAULT_ONLY);
+                    if (list != null) {
+                        for (ResolveInfo ri : list) {
+                            if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
+                                if (ri.activityInfo.packageName.equalsIgnoreCase(p)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                    List<ResolveInfo> allList = pm.queryIntentActivities(homeIntent, 0);
+                    if (allList != null) {
+                        for (ResolveInfo ri : allList) {
+                            if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
+                                if (ri.activityInfo.packageName.equalsIgnoreCase(p)) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        return false;
     }
 
     public boolean isSystemPackage(Context context, String pkg) {
@@ -398,8 +543,8 @@ public class AppLockManager {
             return true;
         }
 
-        // Launchers / Home Screen / Recents / Quickstep
-        if (p.contains("launcher") || p.contains("quickstep") || p.contains("recents")) {
+        // Home Launchers (Smart Launcher, Nova, Pixel Launcher, etc.)
+        if (isHomeLauncher(context, p)) {
             return true;
         }
 
@@ -449,7 +594,7 @@ public class AppLockManager {
         if (!mMasterEnabled || packageName == null) return false;
         String pkg = packageName.toLowerCase();
 
-        if (isSystemPackage(context, pkg)) {
+        if (isSystemPackage(context, pkg) || isHomeLauncher(context, pkg)) {
             return false;
         }
 
@@ -464,7 +609,7 @@ public class AppLockManager {
 
         if (mLockAllApps && context != null) {
             try {
-                android.content.pm.PackageManager pm = context.getPackageManager();
+                PackageManager pm = context.getPackageManager();
                 if (pm != null) {
                     Intent launchIntent = pm.getLaunchIntentForPackage(pkg);
                     if (launchIntent != null) {

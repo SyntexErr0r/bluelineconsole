@@ -578,6 +578,11 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     private void onCommandInput(final CharSequence query) {
+        if (this.mIsAppUnlockMode) {
+            this.validateUnlockInput(query.toString().trim(), false);
+            return;
+        }
+
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
             if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
                 mainInputText.setText("");
@@ -598,11 +603,6 @@ public class MainActivity extends BaseWindowActivity {
                     this.updateAppLockUI();
                 }
             }
-            return;
-        }
-
-        if (this.mIsAppUnlockMode) {
-            this.validateUnlockInput(query.toString().trim(), false);
             return;
         }
 
@@ -684,9 +684,15 @@ public class MainActivity extends BaseWindowActivity {
             nameView.setText(appName);
         }
 
+        final String pinToDisplay = (config.pin != null && !config.pin.isEmpty()) ? config.pin : AppLockManager.getT9PinForPackage(this, packageName);
+
         TextView statusView = findViewById(R.id.appLockStatusText);
         if (statusView != null) {
-            statusView.setText("Enter PIN or swipe pattern to unlock");
+            if (pinToDisplay != null && !pinToDisplay.isEmpty()) {
+                statusView.setText(String.format("Enter PIN (%s) or swipe pattern to unlock", pinToDisplay));
+            } else {
+                statusView.setText("Enter PIN or swipe pattern to unlock");
+            }
         }
 
         TypedValue tvAccent = new TypedValue();
@@ -719,7 +725,9 @@ public class MainActivity extends BaseWindowActivity {
                 tabPattern.setTextColor(disabledColor);
                 keypadView.setVisibility(View.VISIBLE);
                 patternView.setVisibility(View.GONE);
-                mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
+                mainInputText.setHint(pinToDisplay != null && !pinToDisplay.isEmpty() ?
+                        "Enter PIN (" + pinToDisplay + ") or Pattern digits..." :
+                        "Enter PIN or Pattern digits to unlock...");
             });
 
             tabPattern.setOnClickListener(v -> {
@@ -749,7 +757,9 @@ public class MainActivity extends BaseWindowActivity {
         }
 
         mainInputText.setText("");
-        mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
+        mainInputText.setHint(pinToDisplay != null && !pinToDisplay.isEmpty() ?
+                "Enter PIN (" + pinToDisplay + ") or Pattern digits..." :
+                "Enter PIN or Pattern digits to unlock...");
         mainInputText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         mainInputText.setEnabled(true);
         mainInputText.requestFocus();
@@ -805,14 +815,22 @@ public class MainActivity extends BaseWindowActivity {
         AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
         if (config == null) return;
 
-        boolean pinMatch = !config.pin.isEmpty() && input.equals(config.pin);
-        boolean patternMatch = !config.pattern.isEmpty() && AppLockManager.matchesPattern(input, config.pattern);
+        String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
+        String masterPin = AppLockManager.getInstance().getMasterPin(this);
+
+        boolean pinMatch = (!config.pin.isEmpty() && input.equals(config.pin)) ||
+                           (!t9Pin.isEmpty() && input.equals(t9Pin)) ||
+                           (!masterPin.isEmpty() && input.equals(masterPin));
+        boolean patternMatch = (!config.pattern.isEmpty() && AppLockManager.matchesPattern(input, config.pattern)) ||
+                              (!t9Pin.isEmpty() && AppLockManager.matchesPattern(input, t9Pin));
 
         if (pinMatch || patternMatch) {
             onAppUnlockSuccess();
         } else {
-            int targetLen = Math.max(config.pin.length(), config.pattern.length());
-            if (forceCheck || (targetLen > 0 && input.length() >= targetLen)) {
+            int targetLen = config.pin.length();
+            if (targetLen == 0 && !t9Pin.isEmpty()) targetLen = t9Pin.length();
+            if (targetLen == 0) targetLen = 4;
+            if (forceCheck || (input.length() >= targetLen)) {
                 onAppUnlockFailure();
             }
         }
@@ -821,10 +839,16 @@ public class MainActivity extends BaseWindowActivity {
     private void validateUnlockPattern(String patternDigits) {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
         AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
-        boolean match = config != null && (
+        String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
+        String masterPattern = AppLockManager.getInstance().getMasterPattern(this);
+
+        boolean match = (config != null && (
                 (!config.pattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pattern)) ||
                 (!config.pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pin))
-        );
+        )) ||
+        (!t9Pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, t9Pin)) ||
+        (!masterPattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, masterPattern));
+
         if (match) {
             PatternLockView patternView = findViewById(R.id.appLockPatternView);
             if (patternView != null) {
@@ -892,10 +916,11 @@ public class MainActivity extends BaseWindowActivity {
 
         Intent launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
         if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
             startActivity(launchIntent);
         }
-        exitAppUnlockModeAndFinish();
+        exitAppUnlockMode();
+        new Handler(Looper.getMainLooper()).postDelayed(this::finishIfNotHome, 300);
     }
 
     private void onAppUnlockFailure() {
