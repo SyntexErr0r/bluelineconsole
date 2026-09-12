@@ -14,6 +14,7 @@
         <item name="bluelineconsoleDisabledTextColor">@color/disabledText</item>
         <item name="bluelineconsoleSelectedItemBackgroundColor">@color/selectedItemBackground</item>
         <item name="bluelineconsoleBackgroundColorOfCommand">@color/colorBackgroundOfCommand</item>
+        <item name="bluelineconsoleFrameColor">@color/bluelineconsoleColorFrame</item>
     </style>
 
     <style name="BaseAppThemeDark" parent="Theme.AppCompat.DayNight.NoActionBar">
@@ -29,6 +30,7 @@
         <item name="bluelineconsoleDisabledTextColor">@color/disabledTextDark</item>
         <item name="bluelineconsoleSelectedItemBackgroundColor">@color/selectedItemBackgroundDark</item>
         <item name="bluelineconsoleBackgroundColorOfCommand">@color/colorBackgroundOfCommandDark</item>
+        <item name="bluelineconsoleFrameColor">@color/bluelineconsoleColorFrameDark</item>
     </style>
 
     <style name="AppLockKeypadButton">
