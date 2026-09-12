@@ -159,19 +159,43 @@ public class AppLockTests {
         assertTrue(AppLockManager.matchesPattern("9428", "9428"));
         assertTrue(AppLockManager.matchesPattern("94258", "94258"));
 
-        // Telegram target "835" matched by "835" and "8353"
-        assertTrue(AppLockManager.matchesPattern("835", "835"));
-        assertTrue(AppLockManager.matchesPattern("835", "8353"));
-
-        // Arbitrary patterns
+        // Arbitrary 4+ dot patterns
         assertTrue(AppLockManager.matchesPattern("1379", "1235789"));
-        assertTrue(AppLockManager.matchesPattern("28", "258"));
+
+        // Sub-4-dot gestures MUST be rejected for security (no 1, 2, or 3-dot patterns)
+        assertFalse(AppLockManager.matchesPattern("835", "835"));
+        assertFalse(AppLockManager.matchesPattern("835", "8353"));
+        assertFalse(AppLockManager.matchesPattern("28", "258"));
+        assertFalse(AppLockManager.matchesPattern("481", "4813"));
+        assertFalse(AppLockManager.matchesPattern("481", "48123"));
 
         // Non-matches
         assertFalse(AppLockManager.matchesPattern("1234", "5678"));
         assertFalse(AppLockManager.matchesPattern("9428", "8353"));
         assertFalse(AppLockManager.matchesPattern("", "9428"));
         assertFalse(AppLockManager.matchesPattern(null, "9428"));
+    }
+
+    @Test
+    public void testTimePatternAt1843RequiresAtLeast4Dots() {
+        // At 18:43, formula Ba:Ab yields PIN "4813"
+        String pin1843 = AppLockManager.computeTimePin(18, 43);
+        assertEquals("4813", pin1843);
+
+        // Pattern expands 1->3 crossing 2, resulting in "48123" (5 dots)
+        String pat1843 = AppLockManager.computeTimePatternFromPin(pin1843);
+        assertEquals("48123", pat1843);
+
+        // Valid swipe patterns
+        assertTrue(AppLockManager.matchesPattern("4813", pat1843));
+        assertTrue(AppLockManager.matchesPattern("48123", pat1843));
+
+        // Critical fix: 3-point swipe "481" MUST be rejected!
+        assertFalse(AppLockManager.matchesPattern("481", pat1843));
+        assertFalse(AppLockManager.matchesPattern("481", pin1843));
+        assertFalse(AppLockManager.isValidTimeBasedPattern("481"));
+        assertFalse(AppLockManager.isValidTimeBasedPattern("48"));
+        assertFalse(AppLockManager.isValidTimeBasedPattern("4"));
     }
 
     @Test

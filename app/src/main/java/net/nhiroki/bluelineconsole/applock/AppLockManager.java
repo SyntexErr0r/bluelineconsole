@@ -320,19 +320,24 @@ public class AppLockManager {
         if (input == null || target == null) return false;
         String trimmedInput = input.trim();
         String trimmedTarget = target.trim();
-        if (trimmedInput.isEmpty() || trimmedTarget.isEmpty()) return false;
-
-        // Direct equality
-        if (trimmedInput.equals(trimmedTarget)) return true;
+        // A pattern lock gesture requires at least 4 connected dots
+        if (trimmedInput.length() < 4 || trimmedTarget.length() < 4) return false;
 
         // Expanded geometric match
         String expInput = expandPatternWithIntermediateDots(trimmedInput);
         String expTarget = expandPatternWithIntermediateDots(trimmedTarget);
+        if (expInput.length() < 4 || expTarget.length() < 4) return false;
+
+        // Direct equality
+        if (trimmedInput.equals(trimmedTarget)) return true;
+
         if (expInput.equals(expTarget)) return true;
 
-        // Match against deduplicated target (e.g. PIN "8353" swiped as pattern gesture "835")
+        // Match against deduplicated target ONLY if it retains at least 4 distinct dots
         String dedupTarget = deduplicatePatternDigits(trimmedTarget);
-        if (expInput.equals(expandPatternWithIntermediateDots(dedupTarget))) return true;
+        if (dedupTarget.length() >= 4 && expInput.equals(expandPatternWithIntermediateDots(dedupTarget))) {
+            return true;
+        }
 
         return false;
     }
@@ -505,14 +510,9 @@ public class AppLockManager {
     }
 
     public static boolean isValidTimeBasedPattern(String inputPattern) {
-        if (inputPattern == null || inputPattern.isEmpty()) return false;
+        if (inputPattern == null || inputPattern.trim().length() < 4) return false;
         for (String validPat : getAllValidTimeBasedPatterns()) {
             if (matchesPattern(inputPattern, validPat)) {
-                return true;
-            }
-        }
-        for (String validPin : getAllValidTimeBasedPins()) {
-            if (matchesPattern(inputPattern, validPin)) {
                 return true;
             }
         }

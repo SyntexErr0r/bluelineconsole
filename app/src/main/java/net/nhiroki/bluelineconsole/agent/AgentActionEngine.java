@@ -881,16 +881,20 @@ public class AgentActionEngine {
     public static void executeWhatsAppCall(Context context, String contact, boolean isVideo) {
         AppLogger.i("ACTION", "executeWhatsAppCall: contact='" + contact + "', isVideo=" + isVideo);
         if (contact == null || contact.trim().isEmpty()) {
+            AppLogger.w("ACTION", "executeWhatsAppCall: Empty contact provided, opening WhatsApp home");
             launchAppByName(context, "whatsapp");
             return;
         }
 
         // 1. Try direct WhatsApp VoIP Call Intent via ContactsContract.Data
+        AppLogger.i("ACTION", "executeWhatsAppCall: Attempting direct VoIP intent for '" + contact + "'");
         boolean launchedDirect = launchWhatsAppDirectCallIntent(context, contact, isVideo);
         if (launchedDirect) {
-            AppLogger.i("ACTION", "executeWhatsAppCall: launched directly via WhatsApp VoIP data URI");
+            AppLogger.i("ACTION", "executeWhatsAppCall: Direct WhatsApp VoIP intent launched successfully");
             return;
         }
+
+        AppLogger.i("ACTION", "executeWhatsAppCall: Direct VoIP intent not possible. Falling back to chat launch + auto-call clicker for '" + contact + "'");
 
         // 2. Resolve phone number and open chat + schedule call click
         String phone = null;
@@ -900,6 +904,7 @@ public class AgentActionEngine {
         } else {
             phone = findPhoneNumberForContact(context, contact);
         }
+        AppLogger.i("ACTION", "executeWhatsAppCall fallback: Resolved phone='" + phone + "' for contact='" + contact + "'");
 
         if (phone != null && !phone.isEmpty()) {
             Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(phone));
@@ -910,27 +915,37 @@ public class AgentActionEngine {
             boolean started = false;
             try {
                 net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
-                if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                int waCount = context.getPackageManager().queryIntentActivities(intent, 0).size();
+                AppLogger.d("ACTION", "executeWhatsAppCall fallback: com.whatsapp chat queryIntentActivities count=" + waCount);
+                if (waCount > 0) {
                     context.startActivity(intent);
                     started = true;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                AppLogger.e("ACTION", "executeWhatsAppCall fallback: Error launching com.whatsapp chat", e);
+            }
 
             if (!started) {
                 try {
                     net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                     intent.setPackage("com.whatsapp.w4b");
-                    if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                    int w4bCount = context.getPackageManager().queryIntentActivities(intent, 0).size();
+                    AppLogger.d("ACTION", "executeWhatsAppCall fallback: com.whatsapp.w4b chat queryIntentActivities count=" + w4bCount);
+                    if (w4bCount > 0) {
                         context.startActivity(intent);
                         started = true;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    AppLogger.e("ACTION", "executeWhatsAppCall fallback: Error launching com.whatsapp.w4b chat", e);
+                }
             }
 
             if (started) {
                 if (BlueLineAgentService.isServiceConnected()) {
+                    AppLogger.i("ACTION", "executeWhatsAppCall fallback: Chat started, scheduling accessibility auto-call clicker (350ms delay)");
                     BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(isVideo);
                 } else {
+                    AppLogger.w("ACTION", "executeWhatsAppCall fallback: Accessibility service not connected, prompting user to tap call button");
                     Toast.makeText(context, "Chat opened. Tap Call at top (or enable Accessibility for auto-call).", Toast.LENGTH_SHORT).show();
                 }
                 return;
@@ -938,19 +953,24 @@ public class AgentActionEngine {
         }
 
         // 3. Fallback: Launch WhatsApp and notify
+        AppLogger.w("ACTION", "executeWhatsAppCall fallback: Unable to resolve phone number or start chat for '" + contact + "', launching main WhatsApp UI");
         launchAppByName(context, "whatsapp");
         Toast.makeText(context, "Could not find contact '" + contact + "' for WhatsApp call.", Toast.LENGTH_SHORT).show();
     }
 
     public static boolean launchWhatsAppDirectCallIntent(Context context, String contactName, boolean isVideo) {
-        if (context == null || contactName == null || contactName.trim().isEmpty()) return false;
+        if (context == null || contactName == null || contactName.trim().isEmpty()) {
+            AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: Context or contactName is null/empty");
+            return false;
+        }
         if (!ContactsReader.appHasReadContactsPermission(context)) {
-            AppLogger.w("ACTION", "Contacts permission not granted for WhatsApp VoIP lookup");
+            AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: READ_CONTACTS permission NOT granted by user");
             return false;
         }
 
         String mimeType = isVideo ? "vnd.android.cursor.item/vnd.com.whatsapp.video.call"
                                   : "vnd.android.cursor.item/vnd.com.whatsapp.voip.call";
+        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Querying ContactsContract.Data for MIME='" + mimeType + "', target contact='" + contactName + "'");
 
         Cursor cursor = null;
         try {
@@ -966,69 +986,109 @@ public class AgentActionEngine {
                     null
             );
 
-            if (cursor != null) {
-                String q = contactName.trim().toLowerCase();
-                long matchedDataId = -1;
+            if (cursor == null) {
+                AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: ContactsContract query returned NULL cursor (ContactsProvider unavailable or denied)");
+                return false;
+            }
 
-                // Pass 1: exact match
+            int count = cursor.getCount();
+            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Found " + count + " total WhatsApp VoIP rows in Contacts database");
+            if (count == 0) {
+                AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: 0 rows found for MIME " + mimeType + 
+                        ". Note: WhatsApp Contact Sync must be enabled in Android Settings -> Passwords & Accounts -> WhatsApp -> Sync contacts.");
+                return false;
+            }
+
+            String q = contactName.trim().toLowerCase();
+            long matchedDataId = -1;
+            String matchedName = null;
+            int inspected = 0;
+
+            // Pass 1: exact match
+            while (cursor.moveToNext()) {
+                int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
+                if (nameCol != -1) {
+                    String name = cursor.getString(nameCol);
+                    if (inspected < 5) {
+                        int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
+                        String d1 = (dataCol != -1) ? cursor.getString(dataCol) : "";
+                        AppLogger.d("ACTION", "  VoIP row sample [" + inspected + "]: name='" + name + "', data1='" + d1 + "'");
+                        inspected++;
+                    }
+                    if (name != null && name.trim().equalsIgnoreCase(q)) {
+                        matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                        matchedName = name;
+                        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Exact match found! name='" + name + "', dataId=" + matchedDataId);
+                        break;
+                    }
+                }
+            }
+
+            // Pass 2: contains / substring match
+            if (matchedDataId == -1) {
+                AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: No exact match for '" + q + "', trying substring/number match across " + count + " rows...");
+                cursor.moveToPosition(-1);
                 while (cursor.moveToNext()) {
                     int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
+                    int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
                     if (nameCol != -1) {
                         String name = cursor.getString(nameCol);
-                        if (name != null && name.trim().equalsIgnoreCase(q)) {
+                        if (name != null && name.toLowerCase().contains(q)) {
                             matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                            matchedName = name;
+                            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Substring name match found! name='" + name + "', dataId=" + matchedDataId);
+                            break;
+                        }
+                    }
+                    if (dataCol != -1) {
+                        String d1 = cursor.getString(dataCol);
+                        if (d1 != null && d1.contains(q)) {
+                            matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                            matchedName = (nameCol != -1) ? cursor.getString(nameCol) : d1;
+                            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Substring data1 match found! data1='" + d1 + "', dataId=" + matchedDataId);
                             break;
                         }
                     }
                 }
+            }
 
-                // Pass 2: contains match
-                if (matchedDataId == -1) {
-                    cursor.moveToPosition(-1);
-                    while (cursor.moveToNext()) {
-                        int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
-                        int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
-                        if (nameCol != -1) {
-                            String name = cursor.getString(nameCol);
-                            if (name != null && name.toLowerCase().contains(q)) {
-                                matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                                break;
-                            }
-                        }
-                        if (dataCol != -1) {
-                            String d1 = cursor.getString(dataCol);
-                            if (d1 != null && d1.contains(q)) {
-                                matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                                break;
-                            }
-                        }
-                    }
-                }
+            if (matchedDataId == -1) {
+                AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: FAILED to match '" + contactName + "' among " + count + " WhatsApp contacts in ContactsContract");
+                return false;
+            }
 
-                if (matchedDataId != -1) {
-                    AppLogger.i("ACTION", "Found WhatsApp VoIP direct call Data ID: " + matchedDataId + " for '" + contactName + "'");
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setDataAndType(ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, matchedDataId), mimeType);
-                    intent.setPackage("com.whatsapp");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            Uri dataUri = ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, matchedDataId);
+            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Constructing direct VoIP intent with URI=" + dataUri + " (name='" + matchedName + "')");
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(dataUri, mimeType);
+            intent.setPackage("com.whatsapp");
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
-                    if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
-                        context.startActivity(intent);
-                        return true;
-                    }
+            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
+            int waActivities = context.getPackageManager().queryIntentActivities(intent, 0).size();
+            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: com.whatsapp queryIntentActivities count=" + waActivities);
+            if (waActivities > 0) {
+                context.startActivity(intent);
+                AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Successfully started direct VoIP activity for com.whatsapp");
+                return true;
+            } else {
+                AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: com.whatsapp cannot handle data URI directly (0 matching activities in package)");
+            }
 
-                    // Try WhatsApp Business
-                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                    intent.setPackage("com.whatsapp.w4b");
-                    if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
-                        context.startActivity(intent);
-                        return true;
-                    }
-                }
+            // Try WhatsApp Business
+            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
+            intent.setPackage("com.whatsapp.w4b");
+            int w4bActivities = context.getPackageManager().queryIntentActivities(intent, 0).size();
+            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: com.whatsapp.w4b queryIntentActivities count=" + w4bActivities);
+            if (w4bActivities > 0) {
+                context.startActivity(intent);
+                AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Successfully started direct VoIP activity for com.whatsapp.w4b");
+                return true;
+            } else {
+                AppLogger.w("ACTION", "launchWhatsAppDirectCallIntent: com.whatsapp.w4b cannot handle data URI directly (0 matching activities in package)");
             }
         } catch (Exception e) {
-            AppLogger.e("ACTION", "Error querying WhatsApp VoIP direct call: " + e.getMessage(), e);
+            AppLogger.e("ACTION", "Error executing WhatsApp VoIP direct call: " + e.getMessage(), e);
         } finally {
             if (cursor != null) {
                 cursor.close();

@@ -1015,6 +1015,15 @@ public class MainActivity extends BaseWindowActivity {
 
     private void validateUnlockPattern(String patternDigits) {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        if (patternDigits == null || patternDigits.trim().length() < 4) {
+            PatternLockView patternView = findViewById(R.id.appLockPatternView);
+            if (patternView != null) {
+                patternView.showError();
+            }
+            onAppUnlockFailure();
+            return;
+        }
+
         AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
         String masterPattern = AppLockManager.getInstance().getMasterPattern(this);
         boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
