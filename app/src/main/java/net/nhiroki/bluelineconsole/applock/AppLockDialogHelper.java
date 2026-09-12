@@ -169,4 +169,98 @@ public class AppLockDialogHelper {
         builder.setNegativeButton("Close", null);
         builder.show();
     }
+
+    public static void showGlobalSettingsDialog(Context context, Runnable onUpdated) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
+        View view = LayoutInflater.from(context).inflate(R.layout.dialog_applock_global_settings, null);
+        builder.setView(view);
+
+        final AlertDialog dialog = builder.create();
+        AppLockManager mgr = AppLockManager.getInstance();
+
+        android.widget.Switch swMaster = view.findViewById(R.id.dialogGlobalSwitchMasterEnable);
+        android.widget.Switch swLockAll = view.findViewById(R.id.dialogGlobalSwitchLockAll);
+        android.widget.Switch swTimeLock = view.findViewById(R.id.dialogGlobalSwitchTimeLock);
+
+        swMaster.setChecked(mgr.isMasterEnabled(context));
+        swLockAll.setChecked(mgr.isLockAllApps(context));
+        swTimeLock.setChecked(mgr.isTimeLockEnabled(context));
+
+        TextView tvPinInfo = view.findViewById(R.id.dialogMasterPinInfo);
+        TextView btnChangePin = view.findViewById(R.id.dialogBtnChangeMasterPin);
+        TextView btnResetPin = view.findViewById(R.id.dialogBtnResetMasterPin);
+
+        TextView tvPatInfo = view.findViewById(R.id.dialogMasterPatternInfo);
+        TextView btnDrawPat = view.findViewById(R.id.dialogBtnDrawMasterPattern);
+        TextView btnResetPat = view.findViewById(R.id.dialogBtnResetMasterPattern);
+
+        TextView btnDone = view.findViewById(R.id.dialogBtnGlobalDone);
+
+        Runnable refreshLabels = () -> {
+            boolean timeActive = mgr.isTimeLockEnabled(context);
+            String masterPin = mgr.getMasterPin(context);
+            tvPinInfo.setText(timeActive ? "Master PIN: Rolling Time (" + masterPin + ")" : "Master PIN: Custom (" + masterPin + ")");
+
+            String masterPat = mgr.getMasterPattern(context);
+            tvPatInfo.setText(timeActive ? "Master Pattern: Rolling Time" : "Master Pattern: Custom (" + masterPat + ")");
+        };
+
+        refreshLabels.run();
+
+        swMaster.setOnCheckedChangeListener((bv, isChecked) -> {
+            mgr.setMasterEnabled(context, isChecked);
+            Toast.makeText(context, "App Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
+            if (onUpdated != null) onUpdated.run();
+        });
+
+        swLockAll.setOnCheckedChangeListener((bv, isChecked) -> {
+            mgr.setLockAllApps(context, isChecked);
+            Toast.makeText(context, "Lock All Apps " + (isChecked ? "ACTIVE" : "OFF"), Toast.LENGTH_SHORT).show();
+            if (onUpdated != null) onUpdated.run();
+        });
+
+        swTimeLock.setOnCheckedChangeListener((bv, isChecked) -> {
+            mgr.setTimeLockEnabled(context, isChecked);
+            refreshLabels.run();
+            Toast.makeText(context, "Dynamic Time Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
+            if (onUpdated != null) onUpdated.run();
+        });
+
+        btnChangePin.setOnClickListener(v -> {
+            String cur = mgr.getMasterPin(context);
+            showPinDialog(context, "Set Master PIN", cur, pin -> {
+                mgr.setMasterPin(context, pin);
+                refreshLabels.run();
+                Toast.makeText(context, "Master PIN set to: " + pin, Toast.LENGTH_SHORT).show();
+                if (onUpdated != null) onUpdated.run();
+            });
+        });
+
+        btnResetPin.setOnClickListener(v -> {
+            mgr.setMasterPin(context, AppLockManager.DEFAULT_MASTER_PIN);
+            refreshLabels.run();
+            Toast.makeText(context, "Master PIN reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
+            if (onUpdated != null) onUpdated.run();
+        });
+
+        btnDrawPat.setOnClickListener(v -> {
+            showPatternDialog(context, "Draw Master Pattern", pattern -> {
+                mgr.setMasterPattern(context, pattern);
+                refreshLabels.run();
+                Toast.makeText(context, "Master Pattern saved", Toast.LENGTH_SHORT).show();
+                if (onUpdated != null) onUpdated.run();
+            });
+        });
+
+        btnResetPat.setOnClickListener(v -> {
+            mgr.setMasterPattern(context, AppLockManager.DEFAULT_MASTER_PATTERN);
+            refreshLabels.run();
+            Toast.makeText(context, "Master Pattern reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
+            if (onUpdated != null) onUpdated.run();
+        });
+
+        btnDone.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
 }

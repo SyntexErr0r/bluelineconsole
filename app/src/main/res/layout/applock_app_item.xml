@@ -4,16 +4,19 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="10dp"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="8dp"
     android:background="?attr/selectableItemBackground">
 
+    <!-- App Icon -->
     <ImageView
         android:id="@+id/appLockItemIcon"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginEnd="12dp"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:layout_marginEnd="10dp"
         android:scaleType="fitCenter" />
 
+    <!-- App Details -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -32,32 +35,47 @@
             android:ellipsize="end" />
 
         <TextView
-            android:id="@+id/appLockItemPackage"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#4d7a94"
-            android:textSize="11sp"
-            android:fontFamily="monospace"
-            android:singleLine="true"
-            android:ellipsize="end" />
-
-        <TextView
             android:id="@+id/appLockItemStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#00f0ff"
             android:textSize="11sp"
             android:fontFamily="monospace"
-            android:layout_marginTop="2dp" />
+            android:layout_marginTop="2dp"
+            android:singleLine="true"
+            android:ellipsize="end" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/appLockItemActionBtn"
+    <!-- Right Actions: Custom Icon & Lock/Unlock Toggle Icon -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="[Edit]"
-        android:textColor="#00f0ff"
-        android:textSize="12sp"
-        android:fontFamily="monospace"
-        android:padding="6dp" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Custom Icon Button (to customize locks: PIN, pattern, custom master code) -->
+        <ImageView
+            android:id="@+id/appLockItemBtnCustom"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_customize_cyber"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Customize Lock"
+            android:layout_marginEnd="4dp" />
+
+        <!-- Lock / Unlock Icon Button (to disable / enable lock) -->
+        <ImageView
+            android:id="@+id/appLockItemBtnLockToggle"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_lock_cyber"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Toggle Lock/Unlock" />
+    </LinearLayout>
 </LinearLayout>

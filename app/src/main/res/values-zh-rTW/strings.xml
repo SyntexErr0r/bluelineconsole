@@ -20,6 +20,7 @@
     <string name="result_search_query_on_engine_format">在 %2$s 搜尋 \"%1$s\"</string>
     <string name="result_static_webpage_format">存取 %1$s</string>
     <string name="result_config_summary">Blue Line Console 偏好設定</string>
+    <string name="result_app_lock_summary">應用鎖設定與保護</string>
 
     <!-- Themes -->
     <string name="theme_name_default">預設（淺色或深色，取決於系統設定）</string>

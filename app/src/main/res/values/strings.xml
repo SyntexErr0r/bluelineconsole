@@ -21,6 +21,7 @@
     <string name="result_search_query_on_engine_format">Search \"%1$s\" on %2$s</string>
     <string name="result_static_webpage_format">Access %1$s</string>
     <string name="result_config_summary">Preferences for Blue Line Console</string>
+    <string name="result_app_lock_summary" translatable="false">App Lock Settings &amp; Manager</string>
 
     <!-- Themes -->
     <string name="theme_name_default">Default (Light or Dark, according to system setting)</string>

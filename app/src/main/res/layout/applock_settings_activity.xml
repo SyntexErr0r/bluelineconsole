@@ -1,232 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="?android:colorBackground">
 
-    <!-- Global Controls Section -->
+    <!-- 1st Line: Header with Settings Icon at the Left & Status Summary -->
     <LinearLayout
+        android:id="@+id/appLockTopBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp"
-        android:background="#1a00f0ff"
-        android:layout_marginBottom="4dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp"
+        android:background="#1a00f0ff">
 
-        <TextView
+        <!-- Settings Icon Button at the Left of 1st Line -->
+        <LinearLayout
+            android:id="@+id/appLockBtnOpenSettings"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔒 SYSTEM PROTECTION SETTINGS"
-            android:textColor="#00f0ff"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:fontFamily="monospace"
-            android:layout_marginBottom="8dp" />
-
-        <!-- Switch 1: Master Enable -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="6dp">
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_settings_cyber"
+                android:layout_marginEnd="6dp" />
 
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Enable App Lock System"
-                android:textColor="#e6f9ff"
-                android:textSize="13sp"
-                android:fontFamily="monospace" />
-
-            <Switch
-                android:id="@+id/appLockSwitchMasterEnable"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-
-        <!-- Switch 2: Lock All Apps -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="6dp">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Lock All Downloaded Apps"
-                android:textColor="#e6f9ff"
-                android:textSize="13sp"
-                android:fontFamily="monospace" />
-
-            <Switch
-                android:id="@+id/appLockSwitchLockAll"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-
-        <!-- Switch 3: Dynamic Time Lock -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Dynamic Time Lock (Aa:Bb -> Ba:Ab)"
-                android:textColor="#e6f9ff"
-                android:textSize="13sp"
-                android:fontFamily="monospace" />
-
-            <Switch
-                android:id="@+id/appLockSwitchTimeLock"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Master Credentials Section -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp"
-        android:background="#1505101a"
-        android:layout_marginBottom="4dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🔑 MASTER CREDENTIALS"
-            android:textColor="#00f0ff"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:fontFamily="monospace"
-            android:layout_marginBottom="6dp" />
-
-        <!-- Master PIN Row -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="6dp">
-
-            <TextView
-                android:id="@+id/appLockMasterPinInfo"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Master PIN: Dynamic Time Lock"
-                android:textColor="#99d6ea"
-                android:textSize="12sp"
-                android:fontFamily="monospace" />
-
-            <TextView
-                android:id="@+id/appLockBtnChangeMasterPin"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="[Set PIN]"
+                android:text="SETTINGS"
                 android:textColor="#00f0ff"
                 android:textSize="12sp"
-                android:fontFamily="monospace"
-                android:padding="6dp"
-                android:layout_marginEnd="4dp" />
-
-            <TextView
-                android:id="@+id/appLockBtnResetMasterPin"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="[Reset]"
-                android:textColor="#ff5577"
-                android:textSize="12sp"
-                android:fontFamily="monospace"
-                android:padding="6dp" />
-        </LinearLayout>
-
-        <!-- Master Pattern Row -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/appLockMasterPatternInfo"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Master Pattern: Dynamic Time Lock"
-                android:textColor="#99d6ea"
-                android:textSize="12sp"
+                android:textStyle="bold"
                 android:fontFamily="monospace" />
-
-            <TextView
-                android:id="@+id/appLockBtnDrawMasterPattern"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="[Draw Pattern]"
-                android:textColor="#00f0ff"
-                android:textSize="12sp"
-                android:fontFamily="monospace"
-                android:padding="6dp"
-                android:layout_marginEnd="4dp" />
-
-            <TextView
-                android:id="@+id/appLockBtnResetMasterPattern"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="[Reset]"
-                android:textColor="#ff5577"
-                android:textSize="12sp"
-                android:fontFamily="monospace"
-                android:padding="6dp" />
         </LinearLayout>
+
+        <!-- Status Summary on 1st Line -->
+        <TextView
+            android:id="@+id/appLockTopStatusSummary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="System: ON | Time Lock: ON"
+            android:textColor="#99d6ea"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:gravity="end"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:layout_marginStart="8dp" />
     </LinearLayout>
 
-    <!-- App Search & List Header -->
+    <!-- Below 1st Line: Search Input Field -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="12dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="4dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📱 INSTALLED APPLICATIONS"
-            android:textColor="#00f0ff"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:fontFamily="monospace"
-            android:layout_marginBottom="6dp" />
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp">
 
         <EditText
             android:id="@+id/appLockSearchEdit"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="38dp"
             android:background="@drawable/cyber_glass_input_box"
-            android:hint="Filter apps by name..."
+            android:hint="🔍 Search apps to configure..."
             android:textColor="#00f0ff"
             android:textColorHint="#4d7a94"
             android:textSize="13sp"
             android:fontFamily="monospace"
-            android:padding="8dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
             android:singleLine="true" />
     </LinearLayout>
 
-    <!-- App List -->
+    <!-- Below Search: Complete List of Apps (Takes full remaining space) -->
     <ListView
         android:id="@+id/appLockAppListView"
         android:layout_width="match_parent"

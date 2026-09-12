@@ -20,6 +20,7 @@
     <string name="result_search_query_on_engine_format">%2$s で \"%1$s\" を検索</string>
     <string name="result_static_webpage_format">%1$s に接続</string>
     <string name="result_config_summary">Blue Line Console の設定</string>
+    <string name="result_app_lock_summary">アプリロック設定と保護</string>
 
     <!-- Themes -->
     <string name="theme_name_default">デフォルト（ライトまたはダーク、システム設定に従う）</string>

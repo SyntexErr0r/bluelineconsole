@@ -445,7 +445,7 @@ public class AppLockTests {
         List<CandidateEntry> settings = searcher.searchCandidateEntries("lock settings", null);
         assertEquals(1, settings.size());
         assertTrue(settings.get(0) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
-        assertTrue(settings.get(0).getTitle().contains("Settings"));
+        assertEquals("lock settings", settings.get(0).getTitle());
 
         List<CandidateEntry> manage = searcher.searchCandidateEntries("lock manage", null);
         assertEquals(1, manage.size());
@@ -463,19 +463,44 @@ public class AppLockTests {
         assertTrue(enterPin.get(0) instanceof AppLockCommandSearcher.AppLockEnterMasterPinCandidateEntry);
         assertTrue(enterPin.get(0).getTitle().contains("Set Master PIN"));
 
-        // 4. "lock" overview includes status, settings, draw pattern, enter pin, and list
+        // 4. "lock" / "/lock" / "/applock" opens settings cleanly just like "config"
         List<CandidateEntry> overview = searcher.searchCandidateEntries("lock", null);
-        assertTrue(overview.size() >= 4);
-        assertTrue(overview.get(0) instanceof AppLockCommandSearcher.AppLockStatusCandidateEntry);
-        assertTrue(overview.get(1) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
-        assertTrue(overview.get(2) instanceof AppLockCommandSearcher.AppLockDrawMasterPatternCandidateEntry);
-        assertTrue(overview.get(3) instanceof AppLockCommandSearcher.AppLockEnterMasterPinCandidateEntry);
+        assertEquals(1, overview.size());
+        assertTrue(overview.get(0) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
+        assertEquals("lock", overview.get(0).getTitle());
+
+        List<CandidateEntry> slashLock = searcher.searchCandidateEntries("/lock", null);
+        assertEquals(1, slashLock.size());
+        assertTrue(slashLock.get(0) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
+        assertEquals("/lock", slashLock.get(0).getTitle());
+
+        List<CandidateEntry> slashAppLock = searcher.searchCandidateEntries("/applock", null);
+        assertEquals(1, slashAppLock.size());
+        assertTrue(slashAppLock.get(0) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
+        assertEquals("/applock", slashAppLock.get(0).getTitle());
+
+        // "lock status" returns the status overview
+        List<CandidateEntry> status = searcher.searchCandidateEntries("lock status", null);
+        assertEquals(1, status.size());
+        assertTrue(status.get(0) instanceof AppLockCommandSearcher.AppLockStatusCandidateEntry);
 
         // 5. "lock whatsapp" returns interactive app action entry
         List<CandidateEntry> wa = searcher.searchCandidateEntries("lock whatsapp", null);
         assertEquals(1, wa.size());
         assertTrue(wa.get(0) instanceof AppLockCommandSearcher.AppLockAppActionCandidateEntry);
         assertTrue(wa.get(0).getTitle().contains("whatsapp"));
+    }
+
+    @Test
+    public void testApplicationCommandSearcherSlashPrefix() {
+        net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.ApplicationCommandSearcher appSearcher =
+                new net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.ApplicationCommandSearcher();
+        List<CandidateEntry> res = appSearcher.searchCandidateEntries("/lock", null);
+        assertTrue(res.isEmpty());
+        List<CandidateEntry> res2 = appSearcher.searchCandidateEntries("/applock", null);
+        assertTrue(res2.isEmpty());
+        List<CandidateEntry> res3 = appSearcher.searchCandidateEntries("/", null);
+        assertTrue(res3.isEmpty());
     }
 }
 

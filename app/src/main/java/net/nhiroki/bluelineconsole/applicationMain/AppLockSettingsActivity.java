@@ -15,7 +15,6 @@ import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,13 +44,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
         }
     }
 
-    private Switch mSwitchMasterEnable;
-    private Switch mSwitchLockAll;
-    private Switch mSwitchTimeLock;
-
-    private TextView mTvMasterPinInfo;
-    private TextView mTvMasterPatternInfo;
-
+    private TextView mTvTopStatusSummary;
     private EditText mSearchEdit;
     private ListView mAppListView;
     private AppListAdapter mAdapter;
@@ -86,10 +79,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        refreshMasterCredentials();
-        if (mAdapter != null) {
-            mAdapter.notifyDataSetChanged();
-        }
+        refreshTopSummary();
     }
 
     @Override
@@ -99,71 +89,10 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
     }
 
     private void initViews() {
-        final AppLockManager mgr = AppLockManager.getInstance();
+        View btnOpenSettings = findViewById(R.id.appLockBtnOpenSettings);
+        btnOpenSettings.setOnClickListener(v -> AppLockDialogHelper.showGlobalSettingsDialog(this, this::refreshTopSummary));
 
-        mSwitchMasterEnable = findViewById(R.id.appLockSwitchMasterEnable);
-        mSwitchLockAll = findViewById(R.id.appLockSwitchLockAll);
-        mSwitchTimeLock = findViewById(R.id.appLockSwitchTimeLock);
-
-        mSwitchMasterEnable.setChecked(mgr.isMasterEnabled(this));
-        mSwitchLockAll.setChecked(mgr.isLockAllApps(this));
-        mSwitchTimeLock.setChecked(mgr.isTimeLockEnabled(this));
-
-        mSwitchMasterEnable.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            mgr.setMasterEnabled(this, isChecked);
-            Toast.makeText(this, "App Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
-            if (mAdapter != null) mAdapter.notifyDataSetChanged();
-        });
-
-        mSwitchLockAll.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            mgr.setLockAllApps(this, isChecked);
-            Toast.makeText(this, "Lock All Apps " + (isChecked ? "ACTIVE" : "OFF"), Toast.LENGTH_SHORT).show();
-            if (mAdapter != null) mAdapter.notifyDataSetChanged();
-        });
-
-        mSwitchTimeLock.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            mgr.setTimeLockEnabled(this, isChecked);
-            refreshMasterCredentials();
-            Toast.makeText(this, "Dynamic Time Lock " + (isChecked ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
-            if (mAdapter != null) mAdapter.notifyDataSetChanged();
-        });
-
-        mTvMasterPinInfo = findViewById(R.id.appLockMasterPinInfo);
-        mTvMasterPatternInfo = findViewById(R.id.appLockMasterPatternInfo);
-
-        TextView btnChangeMasterPin = findViewById(R.id.appLockBtnChangeMasterPin);
-        TextView btnResetMasterPin = findViewById(R.id.appLockBtnResetMasterPin);
-        TextView btnDrawMasterPattern = findViewById(R.id.appLockBtnDrawMasterPattern);
-        TextView btnResetMasterPattern = findViewById(R.id.appLockBtnResetMasterPattern);
-
-        btnChangeMasterPin.setOnClickListener(v -> {
-            String current = mgr.getMasterPin(this);
-            AppLockDialogHelper.showPinDialog(this, "Set Custom Master PIN", current, pin -> {
-                mgr.setMasterPin(this, pin);
-                refreshMasterCredentials();
-                Toast.makeText(this, "Master PIN updated", Toast.LENGTH_SHORT).show();
-            });
-        });
-
-        btnResetMasterPin.setOnClickListener(v -> {
-            mgr.setMasterPin(this, AppLockManager.DEFAULT_MASTER_PIN);
-            refreshMasterCredentials();
-            Toast.makeText(this, "Master PIN reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
-        });
-
-        btnDrawMasterPattern.setOnClickListener(v -> {
-            AppLockDialogHelper.showPatternDialog(this, "Draw Custom Master Pattern", pattern -> {
-                mgr.setMasterPattern(this, pattern);
-                refreshMasterCredentials();
-                Toast.makeText(this, "Master Pattern updated", Toast.LENGTH_SHORT).show();
-            });
-        });
-
-        btnResetMasterPattern.setOnClickListener(v -> {
-            mgr.setMasterPattern(this, AppLockManager.DEFAULT_MASTER_PATTERN);
-            refreshMasterCredentials();
-            Toast.makeText(this, "Master Pattern reset to Dynamic Time Lock", Toast.LENGTH_SHORT).show();
-        });
+        mTvTopStatusSummary = findViewById(R.id.appLockTopStatusSummary);
 
         mSearchEdit = findViewById(R.id.appLockSearchEdit);
         mSearchEdit.addTextChangedListener(new TextWatcher() {
@@ -190,25 +119,22 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             });
         });
 
-        refreshMasterCredentials();
+        refreshTopSummary();
     }
 
-    private void refreshMasterCredentials() {
+    private void refreshTopSummary() {
         AppLockManager mgr = AppLockManager.getInstance();
-        boolean timeLock = mgr.isTimeLockEnabled(this);
+        boolean master = mgr.isMasterEnabled(this);
+        boolean lockAll = mgr.isLockAllApps(this);
+        boolean time = mgr.isTimeLockEnabled(this);
 
-        String masterPin = mgr.getMasterPin(this);
-        if (timeLock && masterPin.equals(mgr.getMasterPin(this))) {
-            mTvMasterPinInfo.setText("Master PIN: Rolling Time (" + masterPin + ")");
-        } else {
-            mTvMasterPinInfo.setText("Master PIN: Custom (" + masterPin + ")");
+        if (mTvTopStatusSummary != null) {
+            mTvTopStatusSummary.setText((master ? "Lock: ON" : "Lock: OFF") +
+                    " | " + (lockAll ? "All: ON" : "All: OFF") +
+                    " | " + (time ? "Time: ON" : "Time: OFF"));
         }
-
-        String masterPattern = mgr.getMasterPattern(this);
-        if (timeLock) {
-            mTvMasterPatternInfo.setText("Master Pattern: Rolling Time Lock");
-        } else {
-            mTvMasterPatternInfo.setText("Master Pattern: Custom (" + masterPattern + ")");
+        if (mAdapter != null) {
+            mAdapter.notifyDataSetChanged();
         }
     }
 
@@ -287,13 +213,12 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             AppEntry item = getItem(position);
             ImageView iconView = convertView.findViewById(R.id.appLockItemIcon);
             TextView titleView = convertView.findViewById(R.id.appLockItemTitle);
-            TextView pkgView = convertView.findViewById(R.id.appLockItemPackage);
             TextView statusView = convertView.findViewById(R.id.appLockItemStatus);
-            TextView actionBtn = convertView.findViewById(R.id.appLockItemActionBtn);
+            ImageView btnCustom = convertView.findViewById(R.id.appLockItemBtnCustom);
+            ImageView btnLockToggle = convertView.findViewById(R.id.appLockItemBtnLockToggle);
 
             iconView.setImageDrawable(item.icon);
             titleView.setText(item.appName);
-            pkgView.setText(item.packageName);
 
             AppLockManager mgr = AppLockManager.getInstance();
             AppLockManager.LockedAppConfig cfg = mgr.getLockedAppConfig(mContext, item.packageName);
@@ -301,27 +226,52 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             boolean isHome = mgr.isHomeLauncher(mContext, item.packageName);
             String t9Pin = AppLockManager.getT9PinForPackage(mContext, item.packageName);
 
+            boolean isLocked = !isHome && !isExempt;
+
             if (isHome) {
                 statusView.setText("🛡️ Home Launcher (Always Unlocked)");
                 statusView.setTextColor(0xFF4D7A94);
+                btnLockToggle.setImageResource(R.drawable.ic_unlock_cyber);
+                btnLockToggle.setEnabled(false);
             } else if (isExempt) {
-                statusView.setText("🔓 Whitelisted / Exempt from Lock");
+                statusView.setText("🔓 Unlocked (Exempt from Lock)");
                 statusView.setTextColor(0xFFFF5577);
+                btnLockToggle.setImageResource(R.drawable.ic_unlock_cyber);
+                btnLockToggle.setEnabled(true);
+                btnLockToggle.setOnClickListener(v -> {
+                    mgr.setExempt(mContext, item.packageName, false);
+                    Toast.makeText(mContext, item.appName + " is now LOCKED", Toast.LENGTH_SHORT).show();
+                    notifyDataSetChanged();
+                });
             } else if (cfg != null) {
-                StringBuilder sb = new StringBuilder("🔒 Custom Lock: ");
+                StringBuilder sb = new StringBuilder("🔒 Custom: ");
                 if (!cfg.pin.isEmpty()) sb.append("PIN: ").append(cfg.pin);
                 if (!cfg.pattern.isEmpty()) {
                     if (!cfg.pin.isEmpty()) sb.append(" | ");
-                    sb.append("Pattern: ").append(cfg.pattern);
+                    sb.append("Pattern Set");
                 }
                 statusView.setText(sb.toString());
                 statusView.setTextColor(0xFF00FF99);
+                btnLockToggle.setImageResource(R.drawable.ic_lock_cyber);
+                btnLockToggle.setEnabled(true);
+                btnLockToggle.setOnClickListener(v -> {
+                    mgr.setExempt(mContext, item.packageName, true);
+                    Toast.makeText(mContext, item.appName + " is now UNLOCKED (Exempt)", Toast.LENGTH_SHORT).show();
+                    notifyDataSetChanged();
+                });
             } else {
-                statusView.setText("🔒 T9 PIN: " + t9Pin + " (Universal Time Master active)");
+                statusView.setText("🔒 Locked (T9 PIN: " + t9Pin + ")");
                 statusView.setTextColor(0xFF00F0FF);
+                btnLockToggle.setImageResource(R.drawable.ic_lock_cyber);
+                btnLockToggle.setEnabled(true);
+                btnLockToggle.setOnClickListener(v -> {
+                    mgr.setExempt(mContext, item.packageName, true);
+                    Toast.makeText(mContext, item.appName + " is now UNLOCKED (Exempt)", Toast.LENGTH_SHORT).show();
+                    notifyDataSetChanged();
+                });
             }
 
-            actionBtn.setOnClickListener(v -> AppLockDialogHelper.showAppActionMenu(mContext, item.packageName, item.appName, this::notifyDataSetChanged));
+            btnCustom.setOnClickListener(v -> AppLockDialogHelper.showAppActionMenu(mContext, item.packageName, item.appName, this::notifyDataSetChanged));
 
             return convertView;
         }

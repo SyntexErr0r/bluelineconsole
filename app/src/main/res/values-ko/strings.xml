@@ -20,6 +20,7 @@
     <string name="result_search_query_on_engine_format">%2$s (으)로 \"%1$s\"을(를) 검색</string>
     <string name="result_static_webpage_format">%1$s을(를) 접근</string>
     <string name="result_config_summary">Blue Line Console 설정</string>
+    <string name="result_app_lock_summary">앱 잠금 설정 및 보호</string>
 
     <!-- Themes -->
     <string name="theme_name_default">디폴트 (라이트나 다크, 시스템 설정 기준)</string>

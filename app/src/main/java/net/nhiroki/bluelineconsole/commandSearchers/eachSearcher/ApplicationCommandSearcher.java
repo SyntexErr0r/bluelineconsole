@@ -56,6 +56,10 @@ public class ApplicationCommandSearcher implements CommandSearcher {
     @Override
     @NonNull
     public List<CandidateEntry> searchCandidateEntries(String query, Context context) {
+        if (query == null || query.startsWith("/")) {
+            return new ArrayList<>();
+        }
+
         List<CandidateEntry> candidates = new ArrayList<>();
 
         final boolean matchAllApplications = query.equalsIgnoreCase("all_apps");

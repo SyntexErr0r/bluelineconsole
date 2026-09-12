@@ -10,11 +10,15 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+
+import net.nhiroki.bluelineconsole.R;
 
 import net.nhiroki.bluelineconsole.applock.AppLockDialogHelper;
 import net.nhiroki.bluelineconsole.applock.AppLockManager;
@@ -52,7 +56,11 @@ public class AppLockCommandSearcher implements CommandSearcher {
         List<CandidateEntry> candidates = new ArrayList<>();
         if (query == null) return candidates;
 
-        String q = query.trim().toLowerCase();
+        String rawTrimmed = query.trim();
+        String q = rawTrimmed.toLowerCase();
+        if (q.startsWith("/")) {
+            q = q.substring(1).trim();
+        }
         if (!q.startsWith("lock") && !q.startsWith("applock")) {
             return candidates;
         }
@@ -61,12 +69,19 @@ public class AppLockCommandSearcher implements CommandSearcher {
         boolean enabled = mgr.isMasterEnabled(context);
         Map<String, AppLockManager.LockedAppConfig> lockedApps = mgr.getAllLockedApps(context);
 
-        // 1. "lock settings" / "lock manage" / "lock gui" / "lock preferences"
-        if (q.equals("lock settings") || q.equals("applock settings") ||
+        // 1. "lock", "applock", "lock settings", "lock manage", "lock gui", "lock preferences", "lock config"
+        if (q.equals("lock") || q.equals("applock") ||
+            q.equals("lock settings") || q.equals("applock settings") ||
             q.equals("lock manage") || q.equals("applock manage") ||
             q.equals("lock gui") || q.equals("applock gui") ||
             q.equals("lock config") || q.equals("applock config")) {
-            candidates.add(new AppLockSettingsCandidateEntry());
+            candidates.add(new AppLockSettingsCandidateEntry(rawTrimmed));
+            return candidates;
+        }
+
+        // 2. "lock status"
+        if (q.equals("lock status") || q.equals("applock status")) {
+            candidates.add(new AppLockStatusCandidateEntry(enabled, mgr.isLockAllApps(context), mgr.getMasterPin(context), mgr.getMasterPattern(context), lockedApps.size()));
             return candidates;
         }
 
@@ -203,13 +218,8 @@ public class AppLockCommandSearcher implements CommandSearcher {
             }
         }
 
-        // 15. Default overview for "lock" or "applock"
-        candidates.add(new AppLockStatusCandidateEntry(enabled, mgr.isLockAllApps(context), mgr.getMasterPin(context), mgr.getMasterPattern(context), lockedApps.size()));
-        candidates.add(new AppLockSettingsCandidateEntry());
-        candidates.add(new AppLockDrawMasterPatternCandidateEntry());
-        candidates.add(new AppLockEnterMasterPinCandidateEntry());
-        candidates.add(new AppLockListCandidateEntry(lockedApps, mgr.isLockAllApps(context)));
-
+        // 15. Default fallback: open visual settings UI
+        candidates.add(new AppLockSettingsCandidateEntry(rawTrimmed));
         return candidates;
     }
 
@@ -1118,50 +1128,50 @@ public class AppLockCommandSearcher implements CommandSearcher {
     }
 
     public static class AppLockSettingsCandidateEntry implements CandidateEntry {
+        private final String mTitle;
+
+        public AppLockSettingsCandidateEntry() {
+            this("lock");
+        }
+
+        public AppLockSettingsCandidateEntry(String title) {
+            this.mTitle = title;
+        }
+
+        @NonNull
         @Override
         public String getTitle() {
-            return "⚙️ App Lock Settings & Manager (Visual UI)";
+            return mTitle;
         }
 
         @Override
         public View getView(MainActivity mainActivity) {
-            LinearLayout layout = new LinearLayout(mainActivity);
-            layout.setOrientation(LinearLayout.VERTICAL);
-            layout.setPadding(0, 4, 0, 8);
-
-            TextView header = new TextView(mainActivity);
-            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            header.setTextColor(Color.parseColor("#00f0ff"));
-            header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-            header.setText("⚙️ APP LOCK DASHBOARD & MANAGER");
-
-            TextView body = new TextView(mainActivity);
-            body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            body.setTextColor(mainActivity.getAccentColor());
-            body.setTypeface(Typeface.MONOSPACE);
-            body.setText("▶ Tap or press Enter to launch visual App Lock configuration.\n" +
-                    "• Master System, Lock All, and Dynamic Time Lock switches\n" +
-                    "• Set Master PIN or draw Master Pattern on 9-dot grid\n" +
-                    "• Search and configure PIN/Pattern or whitelist for any installed app");
-
-            layout.addView(header);
-            layout.addView(body);
-            return layout;
+            TextView textView = new TextView(mainActivity);
+            textView.setText(mainActivity.getString(R.string.result_app_lock_summary));
+            textView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return textView;
         }
 
         @Override
         public EventLauncher getEventLauncher(Context context) {
-            return activity -> activity.startActivity(new Intent(activity, AppLockSettingsActivity.class));
+            return activity -> activity.startActivityForResult(new Intent(activity, AppLockSettingsActivity.class), MainActivity.REQUEST_CODE_FOR_COMING_BACK);
         }
 
         @Override
         public boolean hasLongView() { return false; }
+
         @Override
-        public Drawable getIcon(Context context) { return null; }
+        public Drawable getIcon(Context context) {
+            if (context == null) return null;
+            return ContextCompat.getDrawable(context, R.drawable.ic_lock_cyber);
+        }
+
         @Override
         public boolean hasEvent() { return true; }
+
         @Override
         public boolean isSubItem() { return false; }
+
         @Override
         public boolean viewIsRecyclable() { return true; }
     }
