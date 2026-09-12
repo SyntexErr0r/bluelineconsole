@@ -253,10 +253,10 @@ public class AppLockTests {
         assertEquals(1, exempt.size());
         assertTrue(exempt.get(0) instanceof AppLockCommandSearcher.AppLockExemptCandidateEntry);
 
-        // "lock instagram" (quick lock candidate)
+        // "lock instagram" (interactive app action candidate)
         List<CandidateEntry> quick = searcher.searchCandidateEntries("lock instagram", null);
         assertEquals(1, quick.size());
-        assertTrue(quick.get(0) instanceof AppLockCommandSearcher.AppLockQuickLockCandidateEntry);
+        assertTrue(quick.get(0) instanceof AppLockCommandSearcher.AppLockAppActionCandidateEntry);
     }
 
     @Test
@@ -435,6 +435,47 @@ public class AppLockTests {
 
         // Clean up
         mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
+    }
+
+    @Test
+    public void testAppLockInteractiveUXCandidates() {
+        AppLockCommandSearcher searcher = new AppLockCommandSearcher();
+
+        // 1. "lock settings" / "lock manage" returns settings candidate
+        List<CandidateEntry> settings = searcher.searchCandidateEntries("lock settings", null);
+        assertEquals(1, settings.size());
+        assertTrue(settings.get(0) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
+        assertTrue(settings.get(0).getTitle().contains("Settings"));
+
+        List<CandidateEntry> manage = searcher.searchCandidateEntries("lock manage", null);
+        assertEquals(1, manage.size());
+        assertTrue(manage.get(0) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
+
+        // 2. "lock master pattern" (no digits) returns interactive 9-dot draw candidate
+        List<CandidateEntry> drawPat = searcher.searchCandidateEntries("lock master pattern", null);
+        assertEquals(1, drawPat.size());
+        assertTrue(drawPat.get(0) instanceof AppLockCommandSearcher.AppLockDrawMasterPatternCandidateEntry);
+        assertTrue(drawPat.get(0).getTitle().contains("Draw Master Pattern"));
+
+        // 3. "lock master pin" (no digits) returns interactive pin modal candidate
+        List<CandidateEntry> enterPin = searcher.searchCandidateEntries("lock master pin", null);
+        assertEquals(1, enterPin.size());
+        assertTrue(enterPin.get(0) instanceof AppLockCommandSearcher.AppLockEnterMasterPinCandidateEntry);
+        assertTrue(enterPin.get(0).getTitle().contains("Set Master PIN"));
+
+        // 4. "lock" overview includes status, settings, draw pattern, enter pin, and list
+        List<CandidateEntry> overview = searcher.searchCandidateEntries("lock", null);
+        assertTrue(overview.size() >= 4);
+        assertTrue(overview.get(0) instanceof AppLockCommandSearcher.AppLockStatusCandidateEntry);
+        assertTrue(overview.get(1) instanceof AppLockCommandSearcher.AppLockSettingsCandidateEntry);
+        assertTrue(overview.get(2) instanceof AppLockCommandSearcher.AppLockDrawMasterPatternCandidateEntry);
+        assertTrue(overview.get(3) instanceof AppLockCommandSearcher.AppLockEnterMasterPinCandidateEntry);
+
+        // 5. "lock whatsapp" returns interactive app action entry
+        List<CandidateEntry> wa = searcher.searchCandidateEntries("lock whatsapp", null);
+        assertEquals(1, wa.size());
+        assertTrue(wa.get(0) instanceof AppLockCommandSearcher.AppLockAppActionCandidateEntry);
+        assertTrue(wa.get(0).getTitle().contains("whatsapp"));
     }
 }
 

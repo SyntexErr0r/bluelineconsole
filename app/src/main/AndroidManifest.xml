@@ -136,6 +136,11 @@
             android:exported="false"
             />
         <activity
+            android:name=".applicationMain.AppLockSettingsActivity"
+            android:theme="@style/AppThemeCyberGlass"
+            android:exported="false"
+            />
+        <activity
             android:name=".applicationMain.StartUpHelpActivity"
             android:theme="@style/AppThemeCyberGlass"
             android:exported="false"

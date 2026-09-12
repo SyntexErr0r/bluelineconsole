@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_horizontal"
+    android:background="@drawable/cyber_glass_dialog_background">
+
+    <TextView
+        android:id="@+id/dialogPatternTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔒 DRAW PATTERN LOCK"
+        android:textColor="#00f0ff"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/dialogPatternSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Connect at least 4 dots to set pattern"
+        android:textColor="#99d6ea"
+        android:textSize="12sp"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/dialogPatternStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pattern: (none recorded)"
+        android:textColor="#00f0ff"
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="12dp" />
+
+    <net.nhiroki.bluelineconsole.applock.PatternLockView
+        android:id="@+id/dialogPatternLockView"
+        android:layout_width="260dp"
+        android:layout_height="260dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <TextView
+            android:id="@+id/dialogPatternBtnClear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Clear]"
+            android:textColor="#ff5577"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/dialogPatternBtnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Cancel]"
+            android:textColor="#88aacc"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/dialogPatternBtnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Save Pattern]"
+            android:textColor="#00f0ff"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+</LinearLayout>

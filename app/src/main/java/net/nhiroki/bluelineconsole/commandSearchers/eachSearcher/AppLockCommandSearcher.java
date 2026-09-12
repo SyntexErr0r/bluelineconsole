@@ -1,8 +1,10 @@
 package net.nhiroki.bluelineconsole.commandSearchers.eachSearcher;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
@@ -14,7 +16,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
+import net.nhiroki.bluelineconsole.applock.AppLockDialogHelper;
 import net.nhiroki.bluelineconsole.applock.AppLockManager;
+import net.nhiroki.bluelineconsole.applicationMain.AppLockSettingsActivity;
 import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.interfaces.CommandSearcher;
@@ -57,13 +61,22 @@ public class AppLockCommandSearcher implements CommandSearcher {
         boolean enabled = mgr.isMasterEnabled(context);
         Map<String, AppLockManager.LockedAppConfig> lockedApps = mgr.getAllLockedApps(context);
 
-        // 1. "lock list"
+        // 1. "lock settings" / "lock manage" / "lock gui" / "lock preferences"
+        if (q.equals("lock settings") || q.equals("applock settings") ||
+            q.equals("lock manage") || q.equals("applock manage") ||
+            q.equals("lock gui") || q.equals("applock gui") ||
+            q.equals("lock config") || q.equals("applock config")) {
+            candidates.add(new AppLockSettingsCandidateEntry());
+            return candidates;
+        }
+
+        // 2. "lock list"
         if (q.equals("lock list") || q.equals("applock list")) {
             candidates.add(new AppLockListCandidateEntry(lockedApps, mgr.isLockAllApps(context)));
             return candidates;
         }
 
-        // 2. "lock all on" / "lock all off"
+        // 3. "lock all on" / "lock all off"
         if (q.equals("lock all on") || q.equals("applock all on")) {
             candidates.add(new AppLockToggleLockAllCandidateEntry(true));
             return candidates;
@@ -73,7 +86,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 3. "lock on" / "lock off"
+        // 4. "lock on" / "lock off"
         if (q.equals("lock on") || q.equals("applock on")) {
             candidates.add(new AppLockToggleCandidateEntry(true));
             return candidates;
@@ -83,7 +96,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 3b. "lock time on" / "lock time off" or "lock master time on" / "lock master time off"
+        // 5. "lock time on" / "lock time off" or "lock master time on" / "lock master time off"
         if (q.equals("lock time on") || q.equals("applock time on") || q.equals("lock master time on") || q.equals("applock master time on")) {
             candidates.add(new AppLockToggleTimeLockCandidateEntry(true));
             return candidates;
@@ -93,7 +106,19 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 4. "lock master pin <pin>" or "lock master <pin>"
+        // 6. "lock master pattern" or "lock pattern" (without digits -> launches 9-dot drawing dialog)
+        if (q.equals("lock master pattern") || q.equals("applock master pattern") || q.equals("lock pattern") || q.equals("applock pattern")) {
+            candidates.add(new AppLockDrawMasterPatternCandidateEntry());
+            return candidates;
+        }
+
+        // 7. "lock master pin" or "lock pin" (without digits -> launches PIN modal)
+        if (q.equals("lock master pin") || q.equals("applock master pin") || q.equals("lock pin") || q.equals("applock pin")) {
+            candidates.add(new AppLockEnterMasterPinCandidateEntry());
+            return candidates;
+        }
+
+        // 8. "lock master pin <pin>" or "lock master <pin>"
         Pattern pMasterPin = Pattern.compile("^(?:lock|applock)\\s+master(?:\\s+pin)?\\s+(\\d+)");
         Matcher mMasterPin = pMasterPin.matcher(q);
         if (mMasterPin.find()) {
@@ -102,7 +127,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 5. "lock master pattern <digits>"
+        // 9. "lock master pattern <digits>"
         Pattern pMasterPat = Pattern.compile("^(?:lock|applock)\\s+master\\s+pattern\\s+([1-9]+)");
         Matcher mMasterPat = pMasterPat.matcher(q);
         if (mMasterPat.find()) {
@@ -111,7 +136,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 6. "lock whitelist <app>" or "lock exempt <app>"
+        // 10. "lock whitelist <app>" or "lock exempt <app>"
         Pattern pExempt = Pattern.compile("^(?:lock|applock)\\s+(?:exempt|whitelist)\\s+([a-zA-Z0-9_.-]+)");
         Matcher mExempt = pExempt.matcher(q);
         if (mExempt.find()) {
@@ -121,7 +146,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 7. "lock <app> pin <pin>"
+        // 11. "lock <app> pin <pin>"
         Pattern pPin = Pattern.compile("^(?:lock|applock)\\s+([a-zA-Z0-9_.-]+)\\s+pin\\s+(\\d+)");
         Matcher mPin = pPin.matcher(q);
         if (mPin.find()) {
@@ -132,7 +157,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 8. "lock <app> pattern <digits>"
+        // 12. "lock <app> pattern <digits>"
         Pattern pPat = Pattern.compile("^(?:lock|applock)\\s+([a-zA-Z0-9_.-]+)\\s+pattern\\s+([1-9]+)");
         Matcher mPat = pPat.matcher(q);
         if (mPat.find()) {
@@ -143,7 +168,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 9. "lock <app> remove" or "lock <app> off"
+        // 13. "lock <app> remove" or "lock <app> off"
         Pattern pRemove = Pattern.compile("^(?:lock|applock)\\s+([a-zA-Z0-9_.-]+)\\s+(?:remove|off|delete|clear|exempt)");
         Matcher mRemove = pRemove.matcher(q);
         if (mRemove.find()) {
@@ -153,22 +178,36 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
-        // 10. "lock <app>" or "lock add <app>"
+        // 14. "lock <app>" or "lock add <app>"
         Pattern pQuick = Pattern.compile("^(?:lock|applock)\\s+(?:add\\s+)?([a-zA-Z0-9_.-]+)$");
         Matcher mQuick = pQuick.matcher(q);
         if (mQuick.find()) {
             String appName = mQuick.group(1);
             if (!appName.equals("on") && !appName.equals("off") && !appName.equals("all") &&
                 !appName.equals("master") && !appName.equals("list") && !appName.equals("status") &&
-                !appName.equals("help") && !appName.equals("exempt") && !appName.equals("whitelist")) {
+                !appName.equals("help") && !appName.equals("exempt") && !appName.equals("whitelist") &&
+                !appName.equals("settings") && !appName.equals("manage") && !appName.equals("gui") &&
+                !appName.equals("pin") && !appName.equals("pattern") && !appName.equals("time")) {
+
+                List<AppMatch> matches = findMatchingApps(context, appName);
+                if (!matches.isEmpty()) {
+                    for (AppMatch m : matches) {
+                        candidates.add(new AppLockAppActionCandidateEntry(m.packageName, m.appName, m.icon));
+                    }
+                    return candidates;
+                }
+
                 String resolvedPkg = resolvePackage(context, appName);
-                candidates.add(new AppLockQuickLockCandidateEntry(resolvedPkg, appName));
+                candidates.add(new AppLockAppActionCandidateEntry(resolvedPkg, appName, null));
                 return candidates;
             }
         }
 
-        // 11. Default overview for "lock" or "applock"
+        // 15. Default overview for "lock" or "applock"
         candidates.add(new AppLockStatusCandidateEntry(enabled, mgr.isLockAllApps(context), mgr.getMasterPin(context), mgr.getMasterPattern(context), lockedApps.size()));
+        candidates.add(new AppLockSettingsCandidateEntry());
+        candidates.add(new AppLockDrawMasterPatternCandidateEntry());
+        candidates.add(new AppLockEnterMasterPinCandidateEntry());
         candidates.add(new AppLockListCandidateEntry(lockedApps, mgr.isLockAllApps(context)));
 
         return candidates;
@@ -250,32 +289,118 @@ public class AppLockCommandSearcher implements CommandSearcher {
             header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
             header.setText("🔒 BLUELINE APP LOCK SYSTEM");
 
+            AppLockManager mgr = AppLockManager.getInstance();
+            boolean timeLock = mgr.isTimeLockEnabled(mainActivity);
+            String currentMasterPin = mgr.getMasterPin(mainActivity);
+            String currentMasterPattern = mgr.getMasterPattern(mainActivity);
+
             TextView body = new TextView(mainActivity);
             body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
             body.setTextColor(mainActivity.getAccentColor());
             body.setTypeface(Typeface.MONOSPACE);
             body.setText("• Master System: " + (mEnabled ? "ACTIVE" : "DISABLED") + "\n" +
-                    "• Lock All Mode: " + (mLockAllApps ? "ACTIVE (Downloaded & New Apps Locked)" : "OFF (Only Configured Apps)") + "\n" +
-                    "• Dynamic Time Lock (Aa:Bb -> Ba:Ab): " + (AppLockManager.getInstance().isTimeLockEnabled(mainActivity) ? "ON (Rolling Time PIN & Pattern Active)" : "OFF") + "\n" +
-                    "• Master PIN: " + mMasterPin + " | Master Pattern: " + mMasterPattern + "\n" +
-                    "• Configured Apps: " + mLockedCount + " (WhatsApp: 9428, Telegram: 8353)\n" +
-                    "• Commands:\n" +
-                    "  'lock time on/off' - Toggle dynamic time PIN & pattern\n" +
-                    "  'lock all on/off' - Secure all downloaded/new apps\n" +
-                    "  'lock master pin <pin>' - Set master PIN\n" +
-                    "  'lock master pattern <pat>' - Set master pattern\n" +
-                    "  'lock <app> pin <pin>' - Custom PIN for any app\n" +
-                    "  'lock <app> off' - Remove lock from app\n" +
-                    "  'lock list' - Show protected apps");
+                    "• Lock All Mode: " + (mLockAllApps ? "ACTIVE (All Apps Protected)" : "OFF (Only Configured Apps)") + "\n" +
+                    "• Dynamic Time Lock: " + (timeLock ? "ON (Rolling Aa:Bb -> Ba:Ab)" : "OFF") + "\n" +
+                    "• Master PIN: " + currentMasterPin + " | Pattern: " + currentMasterPattern + "\n" +
+                    "• Configured Apps: " + mLockedCount + " (Each app has 4-letter T9 lock by default)\n" +
+                    "▶ Tap this card or use buttons below:");
+
+            // Buttons row 1: System switches
+            LinearLayout btnRow1 = new LinearLayout(mainActivity);
+            btnRow1.setOrientation(LinearLayout.HORIZONTAL);
+            btnRow1.setPadding(0, 8, 0, 4);
+
+            TextView btnMaster = new TextView(mainActivity);
+            btnMaster.setText(mEnabled ? "[Disable Lock]" : "[Enable Lock]");
+            btnMaster.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnMaster.setTextColor(mEnabled ? Color.parseColor("#ff5577") : Color.parseColor("#00ff99"));
+            btnMaster.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            btnMaster.setPadding(0, 4, 16, 4);
+            btnMaster.setOnClickListener(v -> {
+                mgr.setMasterEnabled(mainActivity, !mEnabled);
+                Toast.makeText(mainActivity, "App Lock " + (!mEnabled ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock");
+            });
+
+            TextView btnLockAll = new TextView(mainActivity);
+            btnLockAll.setText(mLockAllApps ? "[Lock All: OFF]" : "[Lock All: ON]");
+            btnLockAll.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnLockAll.setTextColor(mLockAllApps ? Color.parseColor("#ffaa00") : Color.parseColor("#00f0ff"));
+            btnLockAll.setTypeface(Typeface.MONOSPACE);
+            btnLockAll.setPadding(0, 4, 16, 4);
+            btnLockAll.setOnClickListener(v -> {
+                mgr.setLockAllApps(mainActivity, !mLockAllApps);
+                Toast.makeText(mainActivity, "Lock All Apps " + (!mLockAllApps ? "ACTIVE" : "OFF"), Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock");
+            });
+
+            TextView btnTimeLock = new TextView(mainActivity);
+            btnTimeLock.setText(timeLock ? "[Time Lock: OFF]" : "[Time Lock: ON]");
+            btnTimeLock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnTimeLock.setTextColor(timeLock ? Color.parseColor("#ff5577") : Color.parseColor("#00f0ff"));
+            btnTimeLock.setTypeface(Typeface.MONOSPACE);
+            btnTimeLock.setPadding(0, 4, 0, 4);
+            btnTimeLock.setOnClickListener(v -> {
+                mgr.setTimeLockEnabled(mainActivity, !timeLock);
+                Toast.makeText(mainActivity, "Dynamic Time Lock " + (!timeLock ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock");
+            });
+
+            btnRow1.addView(btnMaster);
+            btnRow1.addView(btnLockAll);
+            btnRow1.addView(btnTimeLock);
+
+            // Buttons row 2: Settings & Master Dialogs
+            LinearLayout btnRow2 = new LinearLayout(mainActivity);
+            btnRow2.setOrientation(LinearLayout.HORIZONTAL);
+            btnRow2.setPadding(0, 4, 0, 0);
+
+            TextView btnSettings = new TextView(mainActivity);
+            btnSettings.setText("[⚙ Manage Apps]");
+            btnSettings.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnSettings.setTextColor(Color.parseColor("#00f0ff"));
+            btnSettings.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            btnSettings.setPadding(0, 4, 16, 4);
+            btnSettings.setOnClickListener(v -> mainActivity.startActivity(new Intent(mainActivity, AppLockSettingsActivity.class)));
+
+            TextView btnSetMasterPin = new TextView(mainActivity);
+            btnSetMasterPin.setText("[Set Master PIN]");
+            btnSetMasterPin.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnSetMasterPin.setTextColor(Color.parseColor("#99d6ea"));
+            btnSetMasterPin.setTypeface(Typeface.MONOSPACE);
+            btnSetMasterPin.setPadding(0, 4, 16, 4);
+            btnSetMasterPin.setOnClickListener(v -> AppLockDialogHelper.showPinDialog(mainActivity, "Set Master PIN", currentMasterPin, pin -> {
+                mgr.setMasterPin(mainActivity, pin);
+                Toast.makeText(mainActivity, "Master PIN set to: " + pin, Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock");
+            }));
+
+            TextView btnDrawMasterPat = new TextView(mainActivity);
+            btnDrawMasterPat.setText("[Draw Pattern]");
+            btnDrawMasterPat.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnDrawMasterPat.setTextColor(Color.parseColor("#99d6ea"));
+            btnDrawMasterPat.setTypeface(Typeface.MONOSPACE);
+            btnDrawMasterPat.setPadding(0, 4, 0, 4);
+            btnDrawMasterPat.setOnClickListener(v -> AppLockDialogHelper.showPatternDialog(mainActivity, "Draw Master Pattern", pat -> {
+                mgr.setMasterPattern(mainActivity, pat);
+                Toast.makeText(mainActivity, "Master Pattern saved", Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock");
+            }));
+
+            btnRow2.addView(btnSettings);
+            btnRow2.addView(btnSetMasterPin);
+            btnRow2.addView(btnDrawMasterPat);
 
             layout.addView(header);
             layout.addView(body);
+            layout.addView(btnRow1);
+            layout.addView(btnRow2);
             return layout;
         }
 
         @Override
         public EventLauncher getEventLauncher(Context context) {
-            return activity -> Toast.makeText(activity, "App Lock: " + (mEnabled ? "ACTIVE" : "DISABLED") + " (Lock All: " + (mLockAllApps ? "ON" : "OFF") + ")", Toast.LENGTH_SHORT).show();
+            return activity -> activity.startActivity(new Intent(activity, AppLockSettingsActivity.class));
         }
 
         @Override
@@ -937,6 +1062,356 @@ public class AppLockCommandSearcher implements CommandSearcher {
         public boolean hasLongView() { return false; }
         @Override
         public Drawable getIcon(Context context) { return null; }
+        @Override
+        public boolean hasEvent() { return true; }
+        @Override
+        public boolean isSubItem() { return false; }
+        @Override
+        public boolean viewIsRecyclable() { return true; }
+    }
+
+    public static class AppMatch {
+        public final String packageName;
+        public final String appName;
+        public final Drawable icon;
+
+        public AppMatch(String packageName, String appName, Drawable icon) {
+            this.packageName = packageName;
+            this.appName = appName;
+            this.icon = icon;
+        }
+    }
+
+    public static List<AppMatch> findMatchingApps(Context context, String query) {
+        List<AppMatch> matches = new ArrayList<>();
+        if (context == null || query == null || query.trim().isEmpty()) return matches;
+        String q = query.trim().toLowerCase();
+
+        try {
+            PackageManager pm = context.getPackageManager();
+            Intent intent = new Intent(Intent.ACTION_MAIN, null);
+            intent.addCategory(Intent.CATEGORY_LAUNCHER);
+            List<ResolveInfo> resolveInfos = pm.queryIntentActivities(intent, 0);
+
+            for (ResolveInfo ri : resolveInfos) {
+                if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
+                    String pkg = ri.activityInfo.packageName;
+                    String label = ri.loadLabel(pm).toString();
+                    if (label.toLowerCase().contains(q) || pkg.toLowerCase().contains(q)) {
+                        boolean already = false;
+                        for (AppMatch m : matches) {
+                            if (m.packageName.equalsIgnoreCase(pkg)) {
+                                already = true;
+                                break;
+                            }
+                        }
+                        if (!already) {
+                            matches.add(new AppMatch(pkg, label, ri.loadIcon(pm)));
+                        }
+                        if (matches.size() >= 5) break;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return matches;
+    }
+
+    public static class AppLockSettingsCandidateEntry implements CandidateEntry {
+        @Override
+        public String getTitle() {
+            return "⚙️ App Lock Settings & Manager (Visual UI)";
+        }
+
+        @Override
+        public View getView(MainActivity mainActivity) {
+            LinearLayout layout = new LinearLayout(mainActivity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(0, 4, 0, 8);
+
+            TextView header = new TextView(mainActivity);
+            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            header.setTextColor(Color.parseColor("#00f0ff"));
+            header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            header.setText("⚙️ APP LOCK DASHBOARD & MANAGER");
+
+            TextView body = new TextView(mainActivity);
+            body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            body.setTextColor(mainActivity.getAccentColor());
+            body.setTypeface(Typeface.MONOSPACE);
+            body.setText("▶ Tap or press Enter to launch visual App Lock configuration.\n" +
+                    "• Master System, Lock All, and Dynamic Time Lock switches\n" +
+                    "• Set Master PIN or draw Master Pattern on 9-dot grid\n" +
+                    "• Search and configure PIN/Pattern or whitelist for any installed app");
+
+            layout.addView(header);
+            layout.addView(body);
+            return layout;
+        }
+
+        @Override
+        public EventLauncher getEventLauncher(Context context) {
+            return activity -> activity.startActivity(new Intent(activity, AppLockSettingsActivity.class));
+        }
+
+        @Override
+        public boolean hasLongView() { return false; }
+        @Override
+        public Drawable getIcon(Context context) { return null; }
+        @Override
+        public boolean hasEvent() { return true; }
+        @Override
+        public boolean isSubItem() { return false; }
+        @Override
+        public boolean viewIsRecyclable() { return true; }
+    }
+
+    public static class AppLockDrawMasterPatternCandidateEntry implements CandidateEntry {
+        @Override
+        public String getTitle() {
+            return "🔲 Draw Master Pattern (9-Dot Grid)";
+        }
+
+        @Override
+        public View getView(MainActivity mainActivity) {
+            LinearLayout layout = new LinearLayout(mainActivity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(0, 4, 0, 8);
+
+            TextView header = new TextView(mainActivity);
+            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            header.setTextColor(Color.parseColor("#00f0ff"));
+            header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            header.setText("🔲 DRAW MASTER PATTERN");
+
+            TextView body = new TextView(mainActivity);
+            body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            body.setTextColor(mainActivity.getAccentColor());
+            body.setTypeface(Typeface.MONOSPACE);
+            body.setText("▶ Tap or press Enter to record Master Pattern using swipe gestures on the 9-dot grid.");
+
+            layout.addView(header);
+            layout.addView(body);
+            return layout;
+        }
+
+        @Override
+        public EventLauncher getEventLauncher(Context context) {
+            return activity -> AppLockDialogHelper.showPatternDialog(activity, "Draw Master Pattern", pattern -> {
+                AppLockManager.getInstance().setMasterPattern(activity, pattern);
+                Toast.makeText(activity, "Master Pattern updated", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        @Override
+        public boolean hasLongView() { return false; }
+        @Override
+        public Drawable getIcon(Context context) { return null; }
+        @Override
+        public boolean hasEvent() { return true; }
+        @Override
+        public boolean isSubItem() { return false; }
+        @Override
+        public boolean viewIsRecyclable() { return true; }
+    }
+
+    public static class AppLockEnterMasterPinCandidateEntry implements CandidateEntry {
+        @Override
+        public String getTitle() {
+            return "🔢 Set Master PIN (Numeric Modal)";
+        }
+
+        @Override
+        public View getView(MainActivity mainActivity) {
+            LinearLayout layout = new LinearLayout(mainActivity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(0, 4, 0, 8);
+
+            TextView header = new TextView(mainActivity);
+            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            header.setTextColor(Color.parseColor("#00f0ff"));
+            header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            header.setText("🔢 SET MASTER PIN");
+
+            TextView body = new TextView(mainActivity);
+            body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            body.setTextColor(mainActivity.getAccentColor());
+            body.setTypeface(Typeface.MONOSPACE);
+            body.setText("▶ Tap or press Enter to set custom Master PIN via numeric modal.");
+
+            layout.addView(header);
+            layout.addView(body);
+            return layout;
+        }
+
+        @Override
+        public EventLauncher getEventLauncher(Context context) {
+            return activity -> AppLockDialogHelper.showPinDialog(activity, "Set Master PIN", AppLockManager.getInstance().getMasterPin(activity), pin -> {
+                AppLockManager.getInstance().setMasterPin(activity, pin);
+                Toast.makeText(activity, "Master PIN updated to: " + pin, Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        @Override
+        public boolean hasLongView() { return false; }
+        @Override
+        public Drawable getIcon(Context context) { return null; }
+        @Override
+        public boolean hasEvent() { return true; }
+        @Override
+        public boolean isSubItem() { return false; }
+        @Override
+        public boolean viewIsRecyclable() { return true; }
+    }
+
+    public static class AppLockAppActionCandidateEntry implements CandidateEntry {
+        private final String mPackageName;
+        private final String mAppName;
+        private final Drawable mIcon;
+
+        public AppLockAppActionCandidateEntry(String pkg, String appName, Drawable icon) {
+            this.mPackageName = pkg;
+            this.mAppName = appName;
+            this.mIcon = icon;
+        }
+
+        @Override
+        public String getTitle() {
+            AppLockManager mgr = AppLockManager.getInstance();
+            boolean isExempt = mgr.isExempt(null, mPackageName);
+            AppLockManager.LockedAppConfig cfg = mgr.getLockedAppConfig(null, mPackageName);
+            String status = isExempt ? "Exempt" : (cfg != null ? "Custom Lock" : "T9 Protected");
+            return "🔒 " + mAppName + " [" + status + "]";
+        }
+
+        @Override
+        public View getView(MainActivity mainActivity) {
+            LinearLayout layout = new LinearLayout(mainActivity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(0, 4, 0, 8);
+
+            TextView header = new TextView(mainActivity);
+            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            header.setTextColor(Color.parseColor("#00f0ff"));
+            header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            header.setText("🔒 APP SECURITY: " + mAppName.toUpperCase());
+
+            AppLockManager mgr = AppLockManager.getInstance();
+            AppLockManager.LockedAppConfig cfg = mgr.getLockedAppConfig(mainActivity, mPackageName);
+            boolean isExempt = mgr.isExempt(mainActivity, mPackageName);
+            String t9Pin = AppLockManager.getT9PinForPackage(mainActivity, mPackageName);
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("• Package: ").append(mPackageName).append("\n");
+            if (isExempt) {
+                sb.append("• Status: WHITELISTED / EXEMPT (Bypasses Lock All)\n");
+            } else if (cfg != null) {
+                sb.append("• Status: CUSTOM LOCK ACTIVE\n");
+                if (!cfg.pin.isEmpty()) sb.append("  PIN: ").append(cfg.pin).append("\n");
+                if (!cfg.pattern.isEmpty()) sb.append("  Pattern: ").append(cfg.pattern).append("\n");
+            } else {
+                sb.append("• Status: PROTECTED (T9 PIN: ").append(t9Pin).append(")\n");
+                sb.append("  Master Rolling Time Lock also valid.\n");
+            }
+
+            TextView body = new TextView(mainActivity);
+            body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            body.setTextColor(mainActivity.getAccentColor());
+            body.setTypeface(Typeface.MONOSPACE);
+            body.setText(sb.toString().trim());
+
+            // Interactive action buttons row
+            LinearLayout buttonRow = new LinearLayout(mainActivity);
+            buttonRow.setOrientation(LinearLayout.HORIZONTAL);
+            buttonRow.setPadding(0, 6, 0, 0);
+
+            TextView btnPin = new TextView(mainActivity);
+            btnPin.setText("[🔢 Set PIN]");
+            btnPin.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnPin.setTextColor(Color.parseColor("#00f0ff"));
+            btnPin.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            btnPin.setPadding(0, 4, 16, 4);
+            btnPin.setOnClickListener(v -> {
+                String existingPin = (cfg != null) ? cfg.pin : "";
+                AppLockDialogHelper.showPinDialog(mainActivity, "Set PIN for " + mAppName, existingPin, pin -> {
+                    String pat = (cfg != null) ? cfg.pattern : "";
+                    mgr.setAppLock(mainActivity, mPackageName, pin, pat);
+                    Toast.makeText(mainActivity, "Locked " + mAppName + " with PIN: " + pin, Toast.LENGTH_SHORT).show();
+                    mainActivity.changeInputText("lock " + mAppName);
+                });
+            });
+
+            TextView btnPat = new TextView(mainActivity);
+            btnPat.setText("[🔲 Draw Pattern]");
+            btnPat.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnPat.setTextColor(Color.parseColor("#00f0ff"));
+            btnPat.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            btnPat.setPadding(0, 4, 16, 4);
+            btnPat.setOnClickListener(v -> {
+                AppLockDialogHelper.showPatternDialog(mainActivity, "Draw Pattern for " + mAppName, pattern -> {
+                    String existingPin = (cfg != null) ? cfg.pin : "";
+                    mgr.setAppLock(mainActivity, mPackageName, existingPin, pattern);
+                    Toast.makeText(mainActivity, "Pattern saved for " + mAppName, Toast.LENGTH_SHORT).show();
+                    mainActivity.changeInputText("lock " + mAppName);
+                });
+            });
+
+            TextView btnReset = new TextView(mainActivity);
+            btnReset.setText("[🔄 Reset T9]");
+            btnReset.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnReset.setTextColor(Color.parseColor("#ffaa00"));
+            btnReset.setTypeface(Typeface.MONOSPACE);
+            btnReset.setPadding(0, 4, 16, 4);
+            btnReset.setOnClickListener(v -> {
+                mgr.removeAppLock(mainActivity, mPackageName);
+                Toast.makeText(mainActivity, "Reset " + mAppName + " to T9 default", Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock " + mAppName);
+            });
+
+            TextView btnExempt = new TextView(mainActivity);
+            btnExempt.setText(isExempt ? "[🛡️ Protect]" : "[🔓 Exempt]");
+            btnExempt.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            btnExempt.setTextColor(isExempt ? Color.parseColor("#00ff99") : Color.parseColor("#ff5577"));
+            btnExempt.setTypeface(Typeface.MONOSPACE);
+            btnExempt.setPadding(0, 4, 0, 4);
+            btnExempt.setOnClickListener(v -> {
+                mgr.setExempt(mainActivity, mPackageName, !isExempt);
+                Toast.makeText(mainActivity, (!isExempt ? "Exempted " : "Protected ") + mAppName, Toast.LENGTH_SHORT).show();
+                mainActivity.changeInputText("lock " + mAppName);
+            });
+
+            buttonRow.addView(btnPin);
+            buttonRow.addView(btnPat);
+            buttonRow.addView(btnReset);
+            buttonRow.addView(btnExempt);
+
+            layout.addView(header);
+            layout.addView(body);
+            layout.addView(buttonRow);
+            return layout;
+        }
+
+        @Override
+        public EventLauncher getEventLauncher(Context context) {
+            return activity -> AppLockDialogHelper.showAppActionMenu(activity, mPackageName, mAppName, () -> {
+                if (activity instanceof MainActivity) {
+                    ((MainActivity) activity).changeInputText("lock " + mAppName);
+                }
+            });
+        }
+
+        @Override
+        public boolean hasLongView() { return false; }
+        @Override
+        public Drawable getIcon(Context context) {
+            if (mIcon != null) return mIcon;
+            if (context != null) {
+                try {
+                    return context.getPackageManager().getApplicationIcon(mPackageName);
+                } catch (Exception ignored) {}
+            }
+            return null;
+        }
         @Override
         public boolean hasEvent() { return true; }
         @Override

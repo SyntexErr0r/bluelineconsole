@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/cyber_glass_dialog_background">
+
+    <TextView
+        android:id="@+id/dialogPinTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔒 SET PIN LOCK"
+        android:textColor="#00f0ff"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/dialogPinSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enter numeric PIN (at least 4 digits)"
+        android:textColor="#99d6ea"
+        android:textSize="12sp"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/dialogPinEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/cyber_glass_input_box"
+        android:inputType="numberPassword"
+        android:textColor="#00f0ff"
+        android:textColorHint="#4d7a94"
+        android:hint="Enter 4-digit PIN"
+        android:fontFamily="monospace"
+        android:textSize="18sp"
+        android:letterSpacing="0.2"
+        android:padding="12dp"
+        android:gravity="center"
+        android:maxLength="8"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <TextView
+            android:id="@+id/dialogPinBtnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Cancel]"
+            android:textColor="#88aacc"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/dialogPinBtnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Save PIN]"
+            android:textColor="#00f0ff"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+</LinearLayout>
