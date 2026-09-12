@@ -194,12 +194,18 @@ public class AppLockTests {
         mgr.setExempt(null, "com.exempt.app", true);
         assertTrue(mgr.isExempt(null, "com.exempt.app"));
 
-        // Effective config resolution for non-exempt app under Lock All
+        // Effective config resolution for non-exempt app under Lock All uses app's T9 PIN as primary
         AppLockManager.LockedAppConfig effective = mgr.getEffectiveLockedAppConfig(null, "com.arbitrary.newapp");
         assertNotNull(effective);
-        assertEquals("5432", effective.pin);
-        assertEquals("12369", effective.pattern);
+        assertEquals("6392", effective.pin); // T9 for "newapp" (6-3-9-2)
+        assertEquals("6392", effective.pattern);
         assertTrue(effective.enabled);
+
+        // App without letters falls back to Master PIN / Pattern
+        AppLockManager.LockedAppConfig numericApp = mgr.getEffectiveLockedAppConfig(null, "1234");
+        assertNotNull(numericApp);
+        assertEquals("5432", numericApp.pin);
+        assertEquals("12369", numericApp.pattern);
 
         // Effective config for exempt app is null
         assertNull(mgr.getEffectiveLockedAppConfig(null, "com.exempt.app"));
@@ -378,6 +384,57 @@ public class AppLockTests {
         assertEquals(1, timeOff.size());
         assertTrue(timeOff.get(0) instanceof AppLockCommandSearcher.AppLockToggleTimeLockCandidateEntry);
         assertTrue(timeOff.get(0).getTitle().contains("OFF"));
+    }
+
+    @Test
+    public void testStrict4DigitPinLengthRequirement() {
+        // WhatsApp T9 PIN is 9428; prefixes like 942 must not match
+        String waPin = AppLockManager.computeT9PinFromName("WhatsApp");
+        assertEquals("9428", waPin);
+        assertFalse("942".equals(waPin));
+        assertTrue("9428".equals(waPin));
+
+        // Termux T9 PIN is 8376; prefixes like 837 must not match
+        String termuxPin = AppLockManager.computeT9PinFromName("Termux");
+        assertEquals("8376", termuxPin);
+        assertFalse("837".equals(termuxPin));
+        assertTrue("8376".equals(termuxPin));
+
+        // Time-based PIN (e.g. 03:31 -> 3301); prefixes like 330 must not match
+        String timePin = AppLockManager.computeTimePin(3, 31);
+        assertEquals("3301", timePin);
+        assertFalse("330".equals(timePin));
+        assertTrue("3301".equals(timePin));
+        assertFalse(AppLockManager.isValidTimeBasedPin("330"));
+        assertFalse(AppLockManager.isValidTimeBasedPin("837"));
+        assertFalse(AppLockManager.isValidTimeBasedPin("942"));
+    }
+
+    @Test
+    public void testMasterTimeLockIntegration() {
+        AppLockManager mgr = AppLockManager.getInstance();
+
+        // When time lock is enabled and default master credentials are set,
+        // getMasterPin and getMasterPattern dynamically return the current rolling time credentials
+        mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
+        mgr.setMasterPattern(null, AppLockManager.DEFAULT_MASTER_PATTERN);
+        mgr.setTimeLockEnabled(null, true);
+
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        int h = now.get(java.util.Calendar.HOUR_OF_DAY);
+        int m = now.get(java.util.Calendar.MINUTE);
+        String expectedTimePin = AppLockManager.computeTimePin(h, m);
+        String expectedTimePattern = AppLockManager.computeTimePatternFromPin(expectedTimePin);
+
+        assertEquals(expectedTimePin, mgr.getMasterPin(null));
+        assertEquals(expectedTimePattern, mgr.getMasterPattern(null));
+
+        // When custom master PIN is set, it overrides the time lock
+        mgr.setMasterPin(null, "8888");
+        assertEquals("8888", mgr.getMasterPin(null));
+
+        // Clean up
+        mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
     }
 }
 

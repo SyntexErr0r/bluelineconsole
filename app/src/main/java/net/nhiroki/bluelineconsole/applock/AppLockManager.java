@@ -517,6 +517,15 @@ public class AppLockManager {
 
     public synchronized String getMasterPin(Context context) {
         ensureInitialized(context);
+        if (!mMasterPin.equals(DEFAULT_MASTER_PIN)) {
+            return mMasterPin;
+        }
+        if (mTimeLockEnabled) {
+            Calendar cal = Calendar.getInstance();
+            int h = cal.get(Calendar.HOUR_OF_DAY);
+            int m = cal.get(Calendar.MINUTE);
+            return computeTimePin(h, m);
+        }
         return mMasterPin;
     }
 
@@ -531,6 +540,16 @@ public class AppLockManager {
 
     public synchronized String getMasterPattern(Context context) {
         ensureInitialized(context);
+        if (!mMasterPattern.equals(DEFAULT_MASTER_PATTERN)) {
+            return mMasterPattern;
+        }
+        if (mTimeLockEnabled) {
+            Calendar cal = Calendar.getInstance();
+            int h = cal.get(Calendar.HOUR_OF_DAY);
+            int m = cal.get(Calendar.MINUTE);
+            String pin = computeTimePin(h, m);
+            return computeTimePatternFromPin(pin);
+        }
         return mMasterPattern;
     }
 
@@ -590,19 +609,8 @@ public class AppLockManager {
         }
 
         if (mLockAllApps && !mExemptApps.contains(pkg) && !isSystemPackage(context, pkg) && !isHomeLauncher(context, pkg)) {
-            String effPin;
-            String effPattern;
-            if (!mMasterPin.equals(DEFAULT_MASTER_PIN)) {
-                effPin = mMasterPin;
-            } else {
-                effPin = (t9Pin != null && !t9Pin.isEmpty()) ? t9Pin : mMasterPin;
-            }
-
-            if (!mMasterPattern.equals(DEFAULT_MASTER_PATTERN)) {
-                effPattern = mMasterPattern;
-            } else {
-                effPattern = (t9Pin != null && !t9Pin.isEmpty()) ? expandPatternWithIntermediateDots(t9Pin) : mMasterPattern;
-            }
+            String effPin = (t9Pin != null && !t9Pin.isEmpty()) ? t9Pin : getMasterPin(context);
+            String effPattern = (t9Pin != null && !t9Pin.isEmpty()) ? expandPatternWithIntermediateDots(t9Pin) : getMasterPattern(context);
             return new LockedAppConfig(pkg, effPin, effPattern, true);
         }
 

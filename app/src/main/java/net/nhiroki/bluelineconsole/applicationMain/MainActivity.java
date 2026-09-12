@@ -810,13 +810,15 @@ public class MainActivity extends BaseWindowActivity {
 
         boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
 
+        // Strict exact PIN matches (requires all 4 digits for T9 and Time Lock)
         boolean pinMatch = (!config.pin.isEmpty() && input.equals(config.pin)) ||
                            (!t9Pin.isEmpty() && input.equals(t9Pin)) ||
-                           (!masterPin.isEmpty() && input.equals(masterPin)) ||
+                           (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
                            (timeLockActive && AppLockManager.isValidTimeBasedPin(input));
-        boolean patternMatch = (!config.pattern.isEmpty() && AppLockManager.matchesPattern(input, config.pattern)) ||
-                              (!t9Pin.isEmpty() && AppLockManager.matchesPattern(input, t9Pin)) ||
-                              (timeLockActive && AppLockManager.isValidTimeBasedPattern(input));
+
+        // Exact pattern string match if typed directly
+        boolean patternMatch = (!config.pattern.isEmpty() && input.equals(config.pattern)) ||
+                              (!t9Pin.isEmpty() && input.equals(t9Pin));
 
         if (pinMatch || patternMatch) {
             onAppUnlockSuccess();
@@ -842,7 +844,7 @@ public class MainActivity extends BaseWindowActivity {
                 (!config.pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pin))
         )) ||
         (!t9Pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, t9Pin)) ||
-        (!masterPattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, masterPattern)) ||
+        (!masterPattern.equals(AppLockManager.DEFAULT_MASTER_PATTERN) && AppLockManager.matchesPattern(patternDigits, masterPattern)) ||
         (timeLockActive && AppLockManager.isValidTimeBasedPattern(patternDigits));
 
         if (match) {
