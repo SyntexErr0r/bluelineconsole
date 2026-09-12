@@ -40,12 +40,25 @@ public class AppLockState {
         }
     }
 
+    public static boolean hasActiveConsoleLockKey(Context context) {
+        if (context == null) return false;
+        String pin = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_pin", "").trim();
+        if (!pin.isEmpty()) {
+            return true;
+        }
+        net.nhiroki.bluelineconsole.applock.AppLockManager mgr = net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance();
+        if (mgr.isTimeLockEnabled(context)) {
+            return true;
+        }
+        String masterPin = mgr.getMasterPin(context);
+        return !masterPin.equals(net.nhiroki.bluelineconsole.applock.AppLockManager.DEFAULT_MASTER_PIN);
+    }
+
     public static boolean isLocked(Context context) {
         ensureReceiverRegistered(context);
 
         boolean enabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_enabled", false);
-        String pin = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_pin", "").trim();
-        if (!enabled || pin.isEmpty()) {
+        if (!enabled || !hasActiveConsoleLockKey(context)) {
             return false;
         }
 
@@ -70,8 +83,7 @@ public class AppLockState {
 
     public static void onAppExit(Context context) {
         boolean enabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_enabled", false);
-        String pin = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_pin", "").trim();
-        if (!enabled || pin.isEmpty()) {
+        if (!enabled || !hasActiveConsoleLockKey(context)) {
             return;
         }
 
@@ -99,8 +111,7 @@ public class AppLockState {
         ensureReceiverRegistered(context);
 
         boolean enabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_enabled", false);
-        String pin = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_pin", "").trim();
-        if (!enabled || pin.isEmpty()) {
+        if (!enabled || !hasActiveConsoleLockKey(context)) {
             sLastExitTime = 0;
             return;
         }

@@ -169,6 +169,10 @@ public class MainActivity extends BaseWindowActivity {
                 validateUnlockInput(mainInputText.getText().toString().trim(), true);
                 return true;
             }
+            if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
+                validateConsoleLockInput(mainInputText.getText().toString().trim(), true);
+                return true;
+            }
             if (resultCandidateListAdapter.isEmpty()) {
                 return false;
             }
@@ -344,7 +348,12 @@ public class MainActivity extends BaseWindowActivity {
                 if (failed > 0) {
                     mainInputText.setHint(String.format(getString(R.string.app_lock_incorrect_pin), failed, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getMaxFailedAttempts()));
                 } else {
-                    mainInputText.setHint("Enter PIN...");
+                    boolean timeLockActive = net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().isTimeLockEnabled(this);
+                    if (timeLockActive) {
+                        mainInputText.setHint("Enter PIN or Time Lock (HHmm)...");
+                    } else {
+                        mainInputText.setHint("Enter PIN...");
+                    }
                 }
                 mainInputText.setText("");
             }
@@ -584,25 +593,7 @@ public class MainActivity extends BaseWindowActivity {
         }
 
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) {
-            if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
-                mainInputText.setText("");
-                return;
-            }
-            String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "").trim();
-            if (!storedPin.isEmpty()) {
-                if (query.toString().equals(storedPin)) {
-                    mainInputText.setText("");
-                    net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
-                    this.enableBaseWindowAnimation();
-                    this.updateAppLockUI();
-                    this.completeResumeSetup();
-                } else if (query.length() >= storedPin.length()) {
-                    triggerShakeAnimation();
-                    net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
-                    mainInputText.setText("");
-                    this.updateAppLockUI();
-                }
-            }
+            this.validateConsoleLockInput(query.toString().trim(), false);
             return;
         }
 
@@ -797,6 +788,39 @@ public class MainActivity extends BaseWindowActivity {
                     validateUnlockInput(text.toString().trim(), true);
                 }
             });
+        }
+    }
+
+    private void validateConsoleLockInput(String input, boolean forceCheck) {
+        if (!net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) return;
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
+            mainInputText.setText("");
+            return;
+        }
+
+        String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "").trim();
+        net.nhiroki.bluelineconsole.applock.AppLockManager appLockManager = net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance();
+        String masterPin = appLockManager.getMasterPin(this);
+        boolean timeLockActive = appLockManager.isTimeLockEnabled(this);
+
+        boolean match = (!storedPin.isEmpty() && input.equals(storedPin)) ||
+                        (!masterPin.equals(net.nhiroki.bluelineconsole.applock.AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
+                        (timeLockActive && net.nhiroki.bluelineconsole.applock.AppLockManager.isValidTimeBasedPin(input));
+
+        if (match) {
+            mainInputText.setText("");
+            net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
+            this.enableBaseWindowAnimation();
+            this.updateAppLockUI();
+            this.completeResumeSetup();
+        } else {
+            int targetLen = storedPin.isEmpty() ? 4 : storedPin.length();
+            if (forceCheck || input.length() >= Math.max(4, targetLen)) {
+                triggerShakeAnimation();
+                net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
+                mainInputText.setText("");
+                this.updateAppLockUI();
+            }
         }
     }
 

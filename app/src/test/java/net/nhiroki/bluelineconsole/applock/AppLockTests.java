@@ -502,5 +502,25 @@ public class AppLockTests {
         List<CandidateEntry> res3 = appSearcher.searchCandidateEntries("/", null);
         assertTrue(res3.isEmpty());
     }
+
+    @Test
+    public void testConsoleLockMasterTimeLockSupport() {
+        AppLockManager mgr = AppLockManager.getInstance();
+        mgr.setTimeLockEnabled(null, true);
+        mgr.setMasterPin(null, "1234");
+
+        // 1. Time Lock PIN is accepted as master code for Console Lock
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int h = cal.get(java.util.Calendar.HOUR_OF_DAY);
+        int m = cal.get(java.util.Calendar.MINUTE);
+        String currentPin = AppLockManager.computeTimePin(h, m);
+        assertTrue(AppLockManager.isValidTimeBasedPin(currentPin));
+
+        // 2. Custom Master PIN is accepted
+        assertEquals("1234", mgr.getMasterPin(null));
+
+        // 3. Reset back to defaults
+        mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
+    }
 }
 
