@@ -11,8 +11,8 @@ import androidx.biometric.BiometricManager;
 import androidx.preference.PreferenceManager;
 
 public class AppLockState {
-    private static final int MAX_FAILED_ATTEMPTS = 5;
-    private static final long LOCKOUT_DURATION_MS = 30000L;
+    private static final int MAX_FAILED_ATTEMPTS = 3;
+    private static final long LOCKOUT_DURATION_MS = 10000L;
 
     private static boolean sIsLocked = true;
     private static long sLastExitTime = 0;
@@ -81,24 +81,43 @@ public class AppLockState {
         return sIsLocked;
     }
 
+    public static long getGracePeriodDurationMs(Context context) {
+        net.nhiroki.bluelineconsole.applock.AppLockManager mgr = net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance();
+        String mode = mgr.getGracePeriodMode(context);
+        if (net.nhiroki.bluelineconsole.applock.AppLockManager.GRACE_30_SEC.equals(mode)) {
+            return 30 * 1000L;
+        } else if (net.nhiroki.bluelineconsole.applock.AppLockManager.GRACE_2_MIN.equals(mode)) {
+            return 2 * 60 * 1000L;
+        } else if (net.nhiroki.bluelineconsole.applock.AppLockManager.GRACE_5_MIN.equals(mode)) {
+            return 5 * 60 * 1000L;
+        } else if (net.nhiroki.bluelineconsole.applock.AppLockManager.GRACE_CUSTOM.equals(mode)) {
+            return Math.max(1, mgr.getCustomGracePeriodSeconds(context)) * 1000L;
+        } else if (net.nhiroki.bluelineconsole.applock.AppLockManager.GRACE_UNTIL_LOCKED.equals(mode)) {
+            return Long.MAX_VALUE;
+        }
+
+        if (context != null) {
+            boolean screenOffOnly = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_screen_off_only", false);
+            if (screenOffOnly) {
+                return Long.MAX_VALUE;
+            }
+
+            String delayStr = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_delay", "0").trim();
+            try {
+                return Math.max(0, Long.parseLong(delayStr) * 1000L);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        return 0;
+    }
+
     public static void onAppExit(Context context) {
         boolean enabled = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_enabled", false);
         if (!enabled || !hasActiveConsoleLockKey(context)) {
             return;
         }
 
-        boolean screenOffOnly = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_screen_off_only", false);
-        if (screenOffOnly) {
-            sLastExitTime = 0;
-            return;
-        }
-
-        String delayStr = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_delay", "0").trim();
-        long delayMs = 0;
-        try {
-            delayMs = Math.max(0, Long.parseLong(delayStr) * 1000L);
-        } catch (NumberFormatException ignored) {}
-
+        long delayMs = getGracePeriodDurationMs(context);
         if (delayMs <= 0) {
             sIsLocked = true;
             sLastExitTime = 0;
@@ -128,20 +147,11 @@ public class AppLockState {
             return;
         }
 
-        boolean screenOffOnly = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("pref_app_lock_screen_off_only", false);
-        if (screenOffOnly) {
-            sLastExitTime = 0;
-            return;
-        }
-
-        String delayStr = PreferenceManager.getDefaultSharedPreferences(context).getString("pref_app_lock_delay", "0").trim();
-        long delayMs = 0;
-        try {
-            delayMs = Math.max(0, Long.parseLong(delayStr) * 1000L);
-        } catch (NumberFormatException ignored) {}
-
-        if (sLastExitTime > 0 && (System.currentTimeMillis() - sLastExitTime > delayMs)) {
-            sIsLocked = true;
+        long delayMs = getGracePeriodDurationMs(context);
+        if (delayMs != Long.MAX_VALUE) {
+            if (sLastExitTime > 0 && (System.currentTimeMillis() - sLastExitTime > delayMs)) {
+                sIsLocked = true;
+            }
         }
         sLastExitTime = 0;
     }

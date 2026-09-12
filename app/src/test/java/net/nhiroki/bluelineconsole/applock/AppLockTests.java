@@ -614,5 +614,56 @@ public class AppLockTests {
         // Reset
         mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
     }
+
+    @Test
+    public void testConsoleLockCooldownAndGracePeriod() {
+        AppLockManager mgr = AppLockManager.getInstance();
+        net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.resetFailedAttempts();
+
+        // 1. Max failed attempts is 3
+        assertEquals(3, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getMaxFailedAttempts());
+
+        // 2. Lockout triggers after 3 failed attempts
+        assertFalse(net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut());
+        net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
+        assertEquals(1, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getFailedAttempts());
+        assertFalse(net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut());
+
+        net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
+        assertEquals(2, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getFailedAttempts());
+        assertFalse(net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut());
+
+        net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.recordFailedAttempt();
+        assertEquals(3, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getFailedAttempts());
+        assertTrue(net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut());
+
+        // 3. Lockout duration is 10 seconds
+        long remainingSec = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getRemainingLockoutSeconds();
+        assertTrue(remainingSec > 0 && remainingSec <= 10);
+
+        // Reset lockout
+        net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.resetFailedAttempts();
+        assertFalse(net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut());
+
+        // 4. Grace period duration matches AppLockManager setting
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_30_SEC);
+        assertEquals(30000L, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getGracePeriodDurationMs(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_2_MIN);
+        assertEquals(120000L, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getGracePeriodDurationMs(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_5_MIN);
+        assertEquals(300000L, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getGracePeriodDurationMs(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_UNTIL_LOCKED);
+        assertEquals(Long.MAX_VALUE, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getGracePeriodDurationMs(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_CUSTOM);
+        mgr.setCustomGracePeriodSeconds(null, 75);
+        assertEquals(75000L, net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getGracePeriodDurationMs(null));
+
+        // Reset
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_UNTIL_LOCKED);
+    }
 }
 

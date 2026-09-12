@@ -340,10 +340,9 @@ public class MainActivity extends BaseWindowActivity {
             mainInputText.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
 
             if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
-                mainInputText.setEnabled(false);
+                mainInputText.setEnabled(true);
                 long remaining = net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.getRemainingLockoutSeconds();
                 mainInputText.setHint(String.format(getString(R.string.app_lock_locked_out), remaining));
-                mainInputText.setText("");
 
                 lockoutRunnable = new Runnable() {
                     @Override
@@ -808,19 +807,33 @@ public class MainActivity extends BaseWindowActivity {
 
     private void validateConsoleLockInput(String input, boolean forceCheck) {
         if (!net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLocked(this)) return;
-        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
-            mainInputText.setText("");
-            return;
-        }
 
         String storedPin = PreferenceManager.getDefaultSharedPreferences(this).getString("pref_app_lock_pin", "").trim();
         net.nhiroki.bluelineconsole.applock.AppLockManager appLockManager = net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance();
         String masterPin = appLockManager.getMasterPin(this);
         boolean timeLockActive = appLockManager.isTimeLockEnabled(this);
 
-        boolean match = (!storedPin.isEmpty() && input.equals(storedPin)) ||
-                        (!masterPin.equals(net.nhiroki.bluelineconsole.applock.AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
-                        (timeLockActive && net.nhiroki.bluelineconsole.applock.AppLockManager.isValidTimeBasedPin(input));
+        boolean isMasterCode = (!masterPin.equals(net.nhiroki.bluelineconsole.applock.AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
+                               (timeLockActive && net.nhiroki.bluelineconsole.applock.AppLockManager.isValidTimeBasedPin(input));
+
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isLockedOut()) {
+            if (isMasterCode) {
+                mainInputText.setText("");
+                net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.resetFailedAttempts();
+                net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.setLocked(false);
+                this.enableBaseWindowAnimation();
+                this.updateAppLockUI();
+                this.completeResumeSetup();
+                return;
+            }
+            if (forceCheck || input.length() >= 4) {
+                triggerShakeAnimation();
+                mainInputText.setText("");
+            }
+            return;
+        }
+
+        boolean match = (!storedPin.isEmpty() && input.equals(storedPin)) || isMasterCode;
 
         if (match) {
             mainInputText.setText("");
