@@ -89,10 +89,16 @@ public class BlueLineAgentService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (event != null && event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            CharSequence pkgChar = event.getPackageName();
-            if (pkgChar != null) {
-                net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().onWindowStateChanged(this, pkgChar.toString());
+        if (event != null) {
+            int eventType = event.getEventType();
+            if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+                eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED ||
+                eventType == AccessibilityEvent.TYPE_VIEW_CLICKED ||
+                eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+                CharSequence pkgChar = event.getPackageName();
+                if (pkgChar != null) {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().onWindowStateChanged(this, pkgChar.toString());
+                }
             }
         }
 

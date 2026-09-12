@@ -31,6 +31,12 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.annotation.SuppressLint;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.widget.FrameLayout;
 
 import net.nhiroki.bluelineconsole.agent.BlueLineAgentService;
 import net.nhiroki.bluelineconsole.applock.AppLockManager;
@@ -53,6 +59,7 @@ public class MainActivity extends BaseWindowActivity {
     private CandidateListAdapter resultCandidateListAdapter;
     private CommandSearchAggregator commandSearchAggregator = null;
     private ExecutorService threadPool = null;
+    private WebView mAppLockGlobeWebView = null;
 
     public static final int REQUEST_CODE_FOR_COMING_BACK = 1;
     public static final int REQUEST_CODE_FOR_SCREEN_CAPTURE = 99;
@@ -205,6 +212,8 @@ public class MainActivity extends BaseWindowActivity {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
             this.changeBaseWindowElementSizeForAnimation(true);
+        } else if (this.mIsAppUnlockMode) {
+            this.exitAppUnlockModeAndFinish();
         }
     }
 
@@ -215,6 +224,13 @@ public class MainActivity extends BaseWindowActivity {
         }
         if (!this.iAmHomeActivity) {
             MainActivity.myActiveInstance = null;
+        }
+        if (this.mIsAppUnlockMode) {
+            this.exitAppUnlockModeAndFinish();
+        }
+        if (this.mAppLockGlobeWebView != null) {
+            this.mAppLockGlobeWebView.destroy();
+            this.mAppLockGlobeWebView = null;
         }
 
         super.onDestroy();
@@ -417,6 +433,9 @@ public class MainActivity extends BaseWindowActivity {
         if (threadPool != null) {
             threadPool.shutdownNow();
             threadPool = null;
+        }
+        if (this.mIsAppUnlockMode) {
+            this.exitAppUnlockModeAndFinish();
         }
         super.onPause();
     }
@@ -761,6 +780,7 @@ public class MainActivity extends BaseWindowActivity {
 
         this.setWholeLayout();
         this.enableBaseWindowAnimation();
+        this.showAppLockGlobeBackdrop();
 
         if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) {
             new Handler(Looper.getMainLooper()).postDelayed(this::tryTriggerBiometricForAppUnlock, 300);
@@ -1089,6 +1109,7 @@ public class MainActivity extends BaseWindowActivity {
         mainInputText.setHint(null);
         mainInputText.setText("");
         setWholeLayout();
+        hideAppLockGlobeBackdrop();
     }
 
     private void exitAppUnlockModeAndFinish() {
@@ -1097,6 +1118,66 @@ public class MainActivity extends BaseWindowActivity {
         BlueLineAgentService service = BlueLineAgentService.getInstance();
         if (service != null) {
             service.pressBack();
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private void showAppLockGlobeBackdrop() {
+        ViewGroup contentRoot = findViewById(android.R.id.content);
+        if (contentRoot == null) return;
+
+        if (mAppLockGlobeWebView == null) {
+            mAppLockGlobeWebView = new WebView(this);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+            );
+            mAppLockGlobeWebView.setLayoutParams(lp);
+            mAppLockGlobeWebView.setBackgroundColor(Color.parseColor("#020208"));
+
+            WebSettings ws = mAppLockGlobeWebView.getSettings();
+            ws.setJavaScriptEnabled(true);
+            ws.setDomStorageEnabled(true);
+            ws.setAllowFileAccess(true);
+
+            mAppLockGlobeWebView.loadUrl("file:///android_asset/cyber_globe.html");
+            contentRoot.addView(mAppLockGlobeWebView, 0);
+        } else {
+            mAppLockGlobeWebView.setVisibility(View.VISIBLE);
+            mAppLockGlobeWebView.onResume();
+        }
+
+        View root = findViewById(R.id.baseWindowMainLayoutRoot);
+        if (root != null) {
+            root.setOnTouchListener((v, event) -> {
+                if (mAppLockGlobeWebView != null && mAppLockGlobeWebView.getVisibility() == View.VISIBLE) {
+                    mAppLockGlobeWebView.dispatchTouchEvent(event);
+                    return true;
+                }
+                return false;
+            });
+            root.setClickable(true);
+        }
+
+        this.setFinishOnTouchOutside(false);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+    }
+
+    private void hideAppLockGlobeBackdrop() {
+        if (mAppLockGlobeWebView != null) {
+            mAppLockGlobeWebView.setVisibility(View.GONE);
+            mAppLockGlobeWebView.onPause();
+        }
+
+        View root = findViewById(R.id.baseWindowMainLayoutRoot);
+        if (root != null) {
+            root.setOnTouchListener(null);
+            if (!this.iAmHomeActivity) {
+                root.setOnClickListener(v -> finish());
+            } else {
+                root.setOnClickListener(null);
+            }
         }
     }
 

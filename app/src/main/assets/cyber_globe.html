@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Cybernetic Security Shield</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #020208; font-family: monospace; }
+    canvas { width: 100vw; height: 100vh; display: block; touch-action: none; }
+    #ui {
+      position: absolute; top: 18px; left: 18px; z-index: 5;
+      color: #00f0ff; pointer-events: none; text-shadow: 0 0 6px #00f0ff;
+      font-size: 11px; opacity: 0.75; letter-spacing: 1.5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div>SYSTEM: CYBERNETIC SECURITY SHIELD</div>
+    <div>TOUCH / DRAG: FLUID ROTATION &amp; BEND</div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl2', { alpha: false, antialias: true });
+
+    if (!gl) {
+      console.error('WebGL 2.0 is not supported.');
+    }
+
+    // --- Shaders ---
+    const vsSource = `#version 300 es
+      in vec3 aPosition;
+
+      uniform float uHighPitchAmp;
+      uniform vec2 uTouch;
+      uniform float uTouchActive;
+      uniform float uTouchTime;
+      
+      // Dynamic Impact Points
+      uniform vec3 uImpacts[3];
+      uniform float uImpactTimes[3];
+
+      uniform vec2 uResolution;
+      uniform vec2 uRotation;
+
+      out vec3 vPos;
+
+      void main() {
+        vec3 pos = aPosition;
+
+        // Manual Drag & Idle Rotation
+        float rx = uRotation.x;
+        mat3 rotX = mat3(1, 0, 0, 0, cos(rx), -sin(rx), 0, sin(rx), cos(rx));
+        float ry = uRotation.y;
+        mat3 rotY = mat3(cos(ry), 0, sin(ry), 0, 1, 0, -sin(ry), 0, cos(ry));
+        pos = rotY * rotX * pos;
+
+        float aspect = uResolution.x / uResolution.y;
+
+        // 1. Manual Touch / Pointer Ripple
+        if (uTouchActive > 0.5) {
+          vec2 projPos = pos.xy;
+          projPos.x /= aspect;
+          vec2 normTouch = (uTouch / uResolution) * 2.0 - 1.0;
+          normTouch.y *= -1.0;
+
+          float d = distance(projPos, normTouch);
+          float waveRadius = 0.65;
+
+          if (d < waveRadius) {
+            float waterBend = sin((d / waveRadius) * 12.0 - uTouchTime * 6.0) * 0.08;
+            float damping = (1.0 - d / waveRadius);
+            pos += normalize(pos) * waterBend * damping;
+          }
+        }
+
+        // 2. Ambient & Impact Concentric Waves Across Sphere
+        float audioDisplacement = 0.0;
+        for (int i = 0; i < 3; i++) {
+          float t = uImpactTimes[i];
+          if (t > 0.0 && t < 1.6) {
+            float dist = distance(aPosition, uImpacts[i]);
+            
+            float waveFront = t * 2.0;
+            float waveDist = abs(dist - waveFront);
+
+            if (waveDist < 0.45) {
+              float ripple = sin(waveDist * 15.0 - t * 8.0) * (0.16 * uHighPitchAmp);
+              float fade = (1.0 - (t / 1.6)) * (1.0 - waveDist / 0.45);
+              audioDisplacement += ripple * fade;
+            }
+          }
+        }
+
+        pos += normalize(pos) * audioDisplacement;
+
+        vPos = pos;
+        
+        float fov = 2.4;
+        float zOffset = pos.z + 3.5;
+        gl_Position = vec4(pos.x / (zOffset / fov * aspect), pos.y / (zOffset / fov), pos.z / 10.0, 1.0);
+        gl_PointSize = 3.6 * (fov / zOffset);
+      }
+    `;
+
+    const fsSource = `#version 300 es
+      precision highp float;
+      in vec3 vPos;
+      out vec4 fragColor;
+
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+
+        vec3 cyan = vec3(0.0, 0.94, 1.0);
+        vec3 deepBlue = vec3(0.08, 0.04, 0.85);
+        vec3 magenta = vec3(1.0, 0.0, 0.55);
+
+        float mixFactor = sin(vPos.z * 2.5) * 0.5 + 0.5;
+        vec3 color = mix(cyan, deepBlue, mixFactor);
+        color = mix(color, magenta, sin(vPos.x * 2.0) * 0.5 + 0.5);
+
+        float alpha = (1.0 - d * 2.0) * 0.88;
+
+        fragColor = vec4(color, alpha);
+      }
+    `;
+
+    function createShader(glCtx, type, source) {
+      const shader = glCtx.createShader(type);
+      glCtx.shaderSource(shader, source);
+      glCtx.compileShader(shader);
+      if (!glCtx.getShaderParameter(shader, glCtx.COMPILE_STATUS)) {
+        console.error(glCtx.getShaderInfoLog(shader));
+        glCtx.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    if (gl) {
+      const program = gl.createProgram();
+      gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+      gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+      gl.linkProgram(program);
+      gl.useProgram(program);
+
+      // --- Fibonacci Sphere Setup ---
+      const count = 38000;
+      const sphereData = new Float32Array(count * 3);
+      const radius = 1.15;
+      const goldenRatio = (1.0 + Math.sqrt(5.0)) / 2.0;
+
+      for (let i = 0; i < count; i++) {
+        const theta = 2.0 * Math.PI * i / goldenRatio;
+        const y = 1.0 - (i / (count - 1.0)) * 2.0;
+        const radiusAtY = Math.sqrt(Math.max(0.0, 1.0 - y * y));
+
+        const x = Math.cos(theta) * radiusAtY;
+        const z = Math.sin(theta) * radiusAtY;
+
+        sphereData[i * 3]     = x * radius;
+        sphereData[i * 3 + 1] = y * radius;
+        sphereData[i * 3 + 2] = z * radius;
+      }
+
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, sphereData, gl.STATIC_DRAW);
+
+      const aPosLoc = gl.getAttribLocation(program, 'aPosition');
+      gl.enableVertexAttribArray(aPosLoc);
+      gl.vertexAttribPointer(aPosLoc, 3, gl.FLOAT, false, 0, 0);
+
+      const uHighPitchAmpLoc = gl.getUniformLocation(program, 'uHighPitchAmp');
+      const uTouchLoc = gl.getUniformLocation(program, 'uTouch');
+      const uTouchActiveLoc = gl.getUniformLocation(program, 'uTouchActive');
+      const uTouchTimeLoc = gl.getUniformLocation(program, 'uTouchTime');
+      const uResLoc = gl.getUniformLocation(program, 'uResolution');
+      const uRotLoc = gl.getUniformLocation(program, 'uRotation');
+
+      const uImpactsLoc = gl.getUniformLocation(program, 'uImpacts');
+      const uImpactTimesLoc = gl.getUniformLocation(program, 'uImpactTimes');
+
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.uniform2f(uResLoc, canvas.width, canvas.height);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      // --- Interaction ---
+      let touchX = -999, touchY = -999, touchActive = 0;
+      let isDragging = false, lastMouseX = 0, lastMouseY = 0;
+      let rotX = 0.2, rotY = 0.5;
+      let touchStartTime = 0;
+
+      window.addEventListener('pointerdown', e => {
+        isDragging = true;
+        lastMouseX = e.clientX; lastMouseY = e.clientY;
+        touchX = e.clientX; touchY = e.clientY;
+        touchActive = 1;
+        touchStartTime = performance.now();
+        triggerPulseRipple(touchX, touchY);
+      });
+
+      window.addEventListener('pointermove', e => {
+        if (isDragging) {
+          rotY += (e.clientX - lastMouseX) * 0.006;
+          rotX += (e.clientY - lastMouseY) * 0.006;
+          lastMouseX = e.clientX; lastMouseY = e.clientY;
+        }
+        touchX = e.clientX; touchY = e.clientY;
+      });
+
+      window.addEventListener('pointerup', () => {
+        isDragging = false; touchActive = 0;
+        touchX = -999; touchY = -999;
+      });
+
+      // --- Ambient Pulse / Ripple System ---
+      let impacts = [0,0,0, 0,0,0, 0,0,0];
+      let impactTimes = [-1, -1, -1];
+      let impactIndex = 0;
+      let highPitchAmpVal = 0.8;
+      let lastAutoPulseTime = performance.now();
+
+      function triggerPulseRipple(clientX, clientY) {
+        let x, y, z;
+        if (clientX !== undefined && clientY !== undefined) {
+          const normX = (clientX / canvas.width) * 2 - 1;
+          const normY = -((clientY / canvas.height) * 2 - 1);
+          const rSq = normX * normX + normY * normY;
+          if (rSq < 1.0) {
+            z = Math.sqrt(1.0 - rSq) * radius;
+            x = normX * radius;
+            y = normY * radius;
+          } else {
+            x = (normX / Math.sqrt(rSq)) * radius;
+            y = (normY / Math.sqrt(rSq)) * radius;
+            z = 0;
+          }
+        } else {
+          const phi = Math.random() * Math.PI * 2;
+          const costheta = Math.random() * 2 - 1;
+          const theta = Math.acos(costheta);
+          x = radius * Math.sin(theta) * Math.cos(phi);
+          y = radius * Math.sin(theta) * Math.sin(phi);
+          z = radius * Math.cos(theta);
+        }
+
+        impacts[impactIndex * 3]     = x;
+        impacts[impactIndex * 3 + 1] = y;
+        impacts[impactIndex * 3 + 2] = z;
+
+        impactTimes[impactIndex] = 0.0;
+        impactIndex = (impactIndex + 1) % 3;
+        highPitchAmpVal = 1.0;
+      }
+
+      // --- Render Loop ---
+      let lastFrameTime = performance.now();
+
+      function render() {
+        const currentTime = performance.now();
+        const deltaTime = Math.min((currentTime - lastFrameTime) * 0.001, 0.1);
+        lastFrameTime = currentTime;
+
+        // Idle Auto-Rotation
+        if (!isDragging) {
+          rotY += 0.0025;
+          rotX += Math.sin(currentTime * 0.0008) * 0.0006;
+        }
+
+        // Periodic Ambient Energy Pulse
+        if (currentTime - lastAutoPulseTime > 2200) {
+          triggerPulseRipple();
+          lastAutoPulseTime = currentTime;
+        }
+
+        const touchTime = (currentTime - touchStartTime) * 0.001;
+
+        // Update impact timers
+        for (let i = 0; i < 3; i++) {
+          if (impactTimes[i] >= 0.0) {
+            impactTimes[i] += deltaTime;
+            if (impactTimes[i] > 1.6) impactTimes[i] = -1.0;
+          }
+        }
+
+        gl.clearColor(0.008, 0.008, 0.02, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.uniform1f(uHighPitchAmpLoc, highPitchAmpVal);
+        gl.uniform2f(uTouchLoc, touchX, touchY);
+        gl.uniform1f(uTouchActiveLoc, touchActive);
+        gl.uniform1f(uTouchTimeLoc, touchTime);
+        gl.uniform2f(uRotLoc, rotX, rotY);
+
+        gl.uniform3fv(uImpactsLoc, impacts);
+        gl.uniform1fv(uImpactTimesLoc, impactTimes);
+
+        gl.drawArrays(gl.POINTS, 0, count);
+        requestAnimationFrame(render);
+      }
+
+      render();
+    }
+  </script>
+</body>
+</html>
