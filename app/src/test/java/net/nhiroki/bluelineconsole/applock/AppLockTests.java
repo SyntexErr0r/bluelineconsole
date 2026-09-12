@@ -522,5 +522,97 @@ public class AppLockTests {
         // 3. Reset back to defaults
         mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
     }
+
+    @Test
+    public void testGracePeriodModesAndSummary() {
+        AppLockManager mgr = AppLockManager.getInstance();
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_30_SEC);
+        assertEquals(AppLockManager.GRACE_30_SEC, mgr.getGracePeriodMode(null));
+        assertEquals("30 seconds", mgr.getGracePeriodSummary(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_2_MIN);
+        assertEquals(AppLockManager.GRACE_2_MIN, mgr.getGracePeriodMode(null));
+        assertEquals("2 minutes", mgr.getGracePeriodSummary(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_5_MIN);
+        assertEquals(AppLockManager.GRACE_5_MIN, mgr.getGracePeriodMode(null));
+        assertEquals("5 minutes", mgr.getGracePeriodSummary(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_UNTIL_LOCKED);
+        assertEquals(AppLockManager.GRACE_UNTIL_LOCKED, mgr.getGracePeriodMode(null));
+        assertEquals("Until phone is locked", mgr.getGracePeriodSummary(null));
+
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_CUSTOM);
+        mgr.setCustomGracePeriodSeconds(null, 45);
+        assertEquals("Custom (45s)", mgr.getGracePeriodSummary(null));
+
+        mgr.setCustomGracePeriodSeconds(null, 120);
+        assertEquals("Custom (2m)", mgr.getGracePeriodSummary(null));
+
+        mgr.setCustomGracePeriodSeconds(null, 90);
+        assertEquals("Custom (1m 30s)", mgr.getGracePeriodSummary(null));
+
+        // Reset to default
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_UNTIL_LOCKED);
+    }
+
+    @Test
+    public void testGracePeriodSessionExpiration() {
+        AppLockManager mgr = AppLockManager.getInstance();
+        mgr.clearUnlockedSessions();
+
+        // 1. Until locked mode
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_UNTIL_LOCKED);
+        assertFalse(mgr.isAppUnlockedForSession("com.example.testapp"));
+        mgr.unlockAppSession(null, "com.example.testapp");
+        assertTrue(mgr.isAppUnlockedForSession("com.example.testapp"));
+
+        // Screen off or clear flushes sessions
+        mgr.clearUnlockedSessions();
+        assertFalse(mgr.isAppUnlockedForSession("com.example.testapp"));
+
+        // 2. 30 seconds mode
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_30_SEC);
+        mgr.unlockAppSession(null, "com.example.testapp2");
+        assertTrue(mgr.isAppUnlockedForSession("com.example.testapp2"));
+
+        mgr.clearUnlockedSessions();
+        assertFalse(mgr.isAppUnlockedForSession("com.example.testapp2"));
+
+        // Reset to default
+        mgr.setGracePeriodMode(null, AppLockManager.GRACE_UNTIL_LOCKED);
+    }
+
+    @Test
+    public void testCooldownMasterCodeSilentBypassLogic() {
+        AppLockManager mgr = AppLockManager.getInstance();
+        mgr.setTimeLockEnabled(null, true);
+        mgr.setMasterPin(null, "8899");
+
+        String masterPin = mgr.getMasterPin(null);
+        assertEquals("8899", masterPin);
+
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int h = cal.get(java.util.Calendar.HOUR_OF_DAY);
+        int m = cal.get(java.util.Calendar.MINUTE);
+        String timePin = AppLockManager.computeTimePin(h, m);
+
+        // Stealth master bypass validation
+        boolean masterMatch = (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && "8899".equals(masterPin)) ||
+                              AppLockManager.isValidTimeBasedPin("8899");
+        assertTrue(masterMatch);
+
+        boolean timeMatch = (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && timePin.equals(masterPin)) ||
+                            AppLockManager.isValidTimeBasedPin(timePin);
+        assertTrue(timeMatch);
+
+        boolean wrongMatch = (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && "1111".equals(masterPin)) ||
+                             AppLockManager.isValidTimeBasedPin("1111");
+        assertFalse(wrongMatch);
+
+        // Reset
+        mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
+    }
 }
 

@@ -1,11 +1,14 @@
 package net.nhiroki.bluelineconsole.applock;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -36,6 +39,15 @@ public class AppLockManager {
     public static final String KEY_MASTER_PIN = "pref_app_lock_master_pin";
     public static final String KEY_MASTER_PATTERN = "pref_app_lock_master_pattern";
     public static final String KEY_EXEMPT_APPS = "pref_app_lock_exempt_apps";
+
+    public static final String KEY_GRACE_PERIOD_MODE = "pref_app_lock_grace_period_mode";
+    public static final String KEY_GRACE_PERIOD_CUSTOM_SEC = "pref_app_lock_grace_period_custom_sec";
+
+    public static final String GRACE_UNTIL_LOCKED = "until_locked";
+    public static final String GRACE_30_SEC = "30s";
+    public static final String GRACE_2_MIN = "2m";
+    public static final String GRACE_5_MIN = "5m";
+    public static final String GRACE_CUSTOM = "custom";
 
     public static final String DEFAULT_MASTER_PIN = "0000";
     public static final String DEFAULT_MASTER_PATTERN = "1258";
@@ -86,8 +98,12 @@ public class AppLockManager {
     private final Map<String, LockedAppConfig> mLockedApps = new HashMap<>();
 
     // In-memory runtime session states
+    private String mGracePeriodMode = GRACE_UNTIL_LOCKED;
+    private int mGracePeriodCustomSec = 60;
     private final Set<String> mUnlockedSessions = Collections.synchronizedSet(new HashSet<>());
+    private final Map<String, Long> mUnlockedSessionsUntil = new ConcurrentHashMap<>();
     private final Map<String, Long> mConsoleAuthorizedUntil = new ConcurrentHashMap<>();
+    private static BroadcastReceiver sScreenOffReceiver = null;
     private volatile String mLastForegroundPackage = null;
     private volatile long mLastLockTriggerTime = 0;
 
@@ -112,6 +128,27 @@ public class AppLockManager {
         mTimeLockEnabled = prefs.getBoolean(KEY_TIME_LOCK_ENABLED, true);
         mMasterPin = prefs.getString(KEY_MASTER_PIN, DEFAULT_MASTER_PIN);
         mMasterPattern = prefs.getString(KEY_MASTER_PATTERN, DEFAULT_MASTER_PATTERN);
+        mGracePeriodMode = prefs.getString(KEY_GRACE_PERIOD_MODE, GRACE_UNTIL_LOCKED);
+        mGracePeriodCustomSec = prefs.getInt(KEY_GRACE_PERIOD_CUSTOM_SEC, 60);
+
+        if (sScreenOffReceiver == null) {
+            sScreenOffReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context ctx, Intent intent) {
+                    if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                        clearUnlockedSessions();
+                        AppLogger.i("APPLOCK", "Screen off detected; all unlocked app sessions cleared.");
+                    }
+                }
+            };
+            IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+            Context appContext = context.getApplicationContext();
+            if (Build.VERSION.SDK_INT >= 33) {
+                appContext.registerReceiver(sScreenOffReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                appContext.registerReceiver(sScreenOffReceiver, filter);
+            }
+        }
 
         Set<String> exemptSet = prefs.getStringSet(KEY_EXEMPT_APPS, null);
         if (exemptSet != null) {
@@ -565,6 +602,58 @@ public class AppLockManager {
         }
     }
 
+    public synchronized String getGracePeriodMode(Context context) {
+        if (context != null) ensureInitialized(context);
+        return mGracePeriodMode;
+    }
+
+    public synchronized void setGracePeriodMode(Context context, String mode) {
+        if (context != null) ensureInitialized(context);
+        if (mode != null) {
+            mGracePeriodMode = mode;
+            if (context != null) {
+                getPrefs(context).edit().putString(KEY_GRACE_PERIOD_MODE, mode).apply();
+            }
+            AppLogger.i("APPLOCK", "Grace period mode updated to: " + mode);
+        }
+    }
+
+    public synchronized int getCustomGracePeriodSeconds(Context context) {
+        if (context != null) ensureInitialized(context);
+        return mGracePeriodCustomSec;
+    }
+
+    public synchronized void setCustomGracePeriodSeconds(Context context, int seconds) {
+        if (context != null) ensureInitialized(context);
+        if (seconds > 0) {
+            mGracePeriodCustomSec = seconds;
+            if (context != null) {
+                getPrefs(context).edit().putInt(KEY_GRACE_PERIOD_CUSTOM_SEC, seconds).apply();
+            }
+            AppLogger.i("APPLOCK", "Custom grace period updated to: " + seconds + "s");
+        }
+    }
+
+    public synchronized String getGracePeriodSummary(Context context) {
+        if (context != null) ensureInitialized(context);
+        if (GRACE_30_SEC.equals(mGracePeriodMode)) {
+            return "30 seconds";
+        } else if (GRACE_2_MIN.equals(mGracePeriodMode)) {
+            return "2 minutes";
+        } else if (GRACE_5_MIN.equals(mGracePeriodMode)) {
+            return "5 minutes";
+        } else if (GRACE_CUSTOM.equals(mGracePeriodMode)) {
+            if (mGracePeriodCustomSec < 60) {
+                return "Custom (" + mGracePeriodCustomSec + "s)";
+            } else if (mGracePeriodCustomSec % 60 == 0) {
+                return "Custom (" + (mGracePeriodCustomSec / 60) + "m)";
+            } else {
+                return "Custom (" + (mGracePeriodCustomSec / 60) + "m " + (mGracePeriodCustomSec % 60) + "s)";
+            }
+        }
+        return "Until phone is locked";
+    }
+
     public synchronized boolean isExempt(Context context, String packageName) {
         ensureInitialized(context);
         if (packageName == null) return false;
@@ -826,17 +915,56 @@ public class AppLockManager {
     }
 
     /**
-     * Grants an unlocked session for the current active app run.
+     * Grants an unlocked session for the current active app run based on configured Grace Period.
      */
     public void unlockAppSession(String packageName) {
+        unlockAppSession(null, packageName);
+    }
+
+    public void unlockAppSession(Context context, String packageName) {
         if (packageName == null) return;
-        mUnlockedSessions.add(packageName.toLowerCase());
-        AppLogger.i("APPLOCK", "App unlocked for session: " + packageName);
+        String pkg = packageName.toLowerCase();
+        if (context != null) {
+            ensureInitialized(context);
+        }
+        long durationMs;
+        if (GRACE_30_SEC.equals(mGracePeriodMode)) {
+            durationMs = 30 * 1000L;
+        } else if (GRACE_2_MIN.equals(mGracePeriodMode)) {
+            durationMs = 2 * 60 * 1000L;
+        } else if (GRACE_5_MIN.equals(mGracePeriodMode)) {
+            durationMs = 5 * 60 * 1000L;
+        } else if (GRACE_CUSTOM.equals(mGracePeriodMode)) {
+            durationMs = Math.max(1, mGracePeriodCustomSec) * 1000L;
+        } else {
+            durationMs = Long.MAX_VALUE;
+        }
+
+        long expiry = (durationMs == Long.MAX_VALUE) ? Long.MAX_VALUE : (System.currentTimeMillis() + durationMs);
+        mUnlockedSessionsUntil.put(pkg, expiry);
+        mUnlockedSessions.add(pkg);
+        AppLogger.i("APPLOCK", "App unlocked for session: " + pkg + " (grace=" + mGracePeriodMode + ", expires=" + expiry + ")");
+    }
+
+    public void clearUnlockedSessions() {
+        mUnlockedSessionsUntil.clear();
+        mUnlockedSessions.clear();
     }
 
     public boolean isAppUnlockedForSession(String packageName) {
         if (packageName == null) return false;
-        return mUnlockedSessions.contains(packageName.toLowerCase());
+        String pkg = packageName.toLowerCase();
+        Long expiry = mUnlockedSessionsUntil.get(pkg);
+        if (expiry == null) {
+            return mUnlockedSessions.contains(pkg);
+        }
+        if (expiry != Long.MAX_VALUE && System.currentTimeMillis() > expiry) {
+            mUnlockedSessionsUntil.remove(pkg);
+            mUnlockedSessions.remove(pkg);
+            AppLogger.i("APPLOCK", "Grace period expired for: " + pkg);
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -855,13 +983,8 @@ public class AppLockManager {
             return;
         }
 
-        // 2. Detect app switching to re-lock previous apps
-        if (mLastForegroundPackage != null && !mLastForegroundPackage.equals(pkg)) {
-            if (mUnlockedSessions.contains(mLastForegroundPackage)) {
-                mUnlockedSessions.remove(mLastForegroundPackage);
-                AppLogger.i("APPLOCK", "Switched from " + mLastForegroundPackage + " to " + pkg + "; session re-locked.");
-            }
-        }
+        // 2. Track foreground package without prematurely wiping unlocked sessions
+        // (Grace periods and screen-off events manage session expiration instead)
         mLastForegroundPackage = pkg;
 
         // 3. Determine if this package is locked (explicit rule or Lock All mode)
@@ -874,7 +997,7 @@ public class AppLockManager {
         if (authTime != null) {
             if (System.currentTimeMillis() <= authTime) {
                 mConsoleAuthorizedUntil.remove(pkg);
-                mUnlockedSessions.add(pkg);
+                unlockAppSession(context, pkg);
                 AppLogger.i("APPLOCK", "Bypassed lock for console-authorized launch: " + pkg);
                 return;
             } else {
@@ -882,8 +1005,8 @@ public class AppLockManager {
             }
         }
 
-        // Check if already unlocked in active session
-        if (mUnlockedSessions.contains(pkg)) {
+        // Check if already unlocked in active session / grace period
+        if (isAppUnlockedForSession(pkg)) {
             return;
         }
 
@@ -894,16 +1017,10 @@ public class AppLockManager {
         }
         mLastLockTriggerTime = now;
 
-        AppLogger.i("APPLOCK", "Unauthorized access to " + pkg + ". Closing app and opening BlueLine Console unlock.");
+        AppLogger.i("APPLOCK", "Unauthorized access to " + pkg + ". Opening BlueLine Console unlock overlay.");
 
-        // 1. Immediately close the unauthorized app by pressing Home
-        if (context instanceof BlueLineAgentService) {
-            ((BlueLineAgentService) context).pressHome();
-        } else if (BlueLineAgentService.getInstance() != null) {
-            BlueLineAgentService.getInstance().pressHome();
-        }
-
-        // 2. Launch BlueLine Console MainActivity in App Unlock mode
+        // Launch BlueLine Console MainActivity in App Unlock mode directly over the locked app
+        // (Do NOT call pressHome() to keep split-screen and multi-window environments intact)
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             try {
                 Intent lockIntent = new Intent(context, MainActivity.class);

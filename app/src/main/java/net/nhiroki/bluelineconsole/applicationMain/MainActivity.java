@@ -87,6 +87,9 @@ public class MainActivity extends BaseWindowActivity {
     private String mTargetLockedAppName = null;
     private boolean mIsAppUnlockMode = false;
     private int mAppUnlockFailedAttempts = 0;
+    private long mAppUnlockCooldownUntil = 0;
+    private final Handler mCooldownHandler = new Handler(Looper.getMainLooper());
+    private Runnable mCooldownTickRunnable = null;
 
     public MainActivity() {
         super(R.layout.main_activity_body, true);
@@ -653,6 +656,7 @@ public class MainActivity extends BaseWindowActivity {
         this.mTargetLockedPackage = packageName;
         this.mIsAppUnlockMode = true;
         this.mAppUnlockFailedAttempts = 0;
+        cancelAppUnlockCooldown();
 
         String appName = packageName;
         Drawable appIcon = null;
@@ -840,16 +844,33 @@ public class MainActivity extends BaseWindowActivity {
         AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
         if (config == null) return;
 
-        String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
         String masterPin = AppLockManager.getInstance().getMasterPin(this);
-
         boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
+
+        boolean isMasterCode = (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
+                               (timeLockActive && AppLockManager.isValidTimeBasedPin(input));
+
+        // Cooldown active: only silent master code can unlock immediately
+        boolean inCooldown = System.currentTimeMillis() < this.mAppUnlockCooldownUntil;
+        if (inCooldown) {
+            if (isMasterCode) {
+                cancelAppUnlockCooldown();
+                onAppUnlockSuccess();
+                return;
+            }
+            if (forceCheck || input.length() >= 4) {
+                triggerShakeAnimation();
+                mainInputText.setText("");
+            }
+            return;
+        }
+
+        String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
 
         // Strict exact PIN matches (requires all 4 digits for T9 and Time Lock)
         boolean pinMatch = (!config.pin.isEmpty() && input.equals(config.pin)) ||
                            (!t9Pin.isEmpty() && input.equals(t9Pin)) ||
-                           (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
-                           (timeLockActive && AppLockManager.isValidTimeBasedPin(input));
+                           isMasterCode;
 
         if (pinMatch) {
             onAppUnlockSuccess();
@@ -866,17 +887,38 @@ public class MainActivity extends BaseWindowActivity {
     private void validateUnlockPattern(String patternDigits) {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
         AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
-        String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
         String masterPattern = AppLockManager.getInstance().getMasterPattern(this);
         boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
+
+        boolean isMasterPattern = (!masterPattern.equals(AppLockManager.DEFAULT_MASTER_PATTERN) && AppLockManager.matchesPattern(patternDigits, masterPattern)) ||
+                                  (timeLockActive && AppLockManager.isValidTimeBasedPattern(patternDigits));
+
+        // Cooldown active: only silent master pattern can unlock immediately
+        boolean inCooldown = System.currentTimeMillis() < this.mAppUnlockCooldownUntil;
+        if (inCooldown) {
+            PatternLockView patternView = findViewById(R.id.appLockPatternView);
+            if (isMasterPattern) {
+                cancelAppUnlockCooldown();
+                if (patternView != null) {
+                    patternView.showSuccess();
+                }
+                new Handler(Looper.getMainLooper()).postDelayed(this::onAppUnlockSuccess, 200);
+            } else {
+                if (patternView != null) {
+                    patternView.showError();
+                }
+            }
+            return;
+        }
+
+        String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
 
         boolean match = (config != null && (
                 (!config.pattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pattern)) ||
                 (!config.pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pin))
         )) ||
         (!t9Pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, t9Pin)) ||
-        (!masterPattern.equals(AppLockManager.DEFAULT_MASTER_PATTERN) && AppLockManager.matchesPattern(patternDigits, masterPattern)) ||
-        (timeLockActive && AppLockManager.isValidTimeBasedPattern(patternDigits));
+        isMasterPattern;
 
         if (match) {
             PatternLockView patternView = findViewById(R.id.appLockPatternView);
@@ -895,6 +937,7 @@ public class MainActivity extends BaseWindowActivity {
 
     private void tryTriggerBiometricForAppUnlock() {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        if (System.currentTimeMillis() < this.mAppUnlockCooldownUntil) return;
         if (!net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) return;
         if (this.biometricPromptShowing) return;
 
@@ -935,10 +978,11 @@ public class MainActivity extends BaseWindowActivity {
 
     private void onAppUnlockSuccess() {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        cancelAppUnlockCooldown();
         String pkg = this.mTargetLockedPackage;
         String appName = this.mTargetLockedAppName != null ? this.mTargetLockedAppName : pkg;
 
-        AppLockManager.getInstance().unlockAppSession(pkg);
+        AppLockManager.getInstance().unlockAppSession(this, pkg);
         AppLockManager.getInstance().notifyAppLaunchedFromConsole(pkg);
 
         Toast.makeText(this, "Unlocked " + appName, Toast.LENGTH_SHORT).show();
@@ -952,25 +996,57 @@ public class MainActivity extends BaseWindowActivity {
         new Handler(Looper.getMainLooper()).postDelayed(this::finishIfNotHome, 300);
     }
 
+    private void startAppUnlockCooldown() {
+        this.mAppUnlockCooldownUntil = System.currentTimeMillis() + 10000;
+        updateCooldownStatus();
+
+        if (mCooldownTickRunnable != null) {
+            mCooldownHandler.removeCallbacks(mCooldownTickRunnable);
+        }
+
+        mCooldownTickRunnable = new Runnable() {
+            @Override
+            public void run() {
+                long remainingMs = mAppUnlockCooldownUntil - System.currentTimeMillis();
+                if (remainingMs <= 0) {
+                    cancelAppUnlockCooldown();
+                    mAppUnlockFailedAttempts = 0;
+                    TextView status = findViewById(R.id.appLockStatusText);
+                    if (status != null) {
+                        status.setText("Enter PIN or Pattern to unlock");
+                    }
+                } else {
+                    updateCooldownStatus();
+                    mCooldownHandler.postDelayed(this, 500);
+                }
+            }
+        };
+        mCooldownHandler.postDelayed(mCooldownTickRunnable, 500);
+    }
+
+    private void updateCooldownStatus() {
+        long remainingMs = mAppUnlockCooldownUntil - System.currentTimeMillis();
+        int seconds = (int) Math.max(1, (remainingMs + 999) / 1000);
+        TextView status = findViewById(R.id.appLockStatusText);
+        if (status != null) {
+            status.setText(String.format("Too many failed attempts. Try again in %ds...", seconds));
+        }
+    }
+
+    private void cancelAppUnlockCooldown() {
+        this.mAppUnlockCooldownUntil = 0;
+        if (mCooldownTickRunnable != null) {
+            mCooldownHandler.removeCallbacks(mCooldownTickRunnable);
+            mCooldownTickRunnable = null;
+        }
+    }
+
     private void onAppUnlockFailure() {
         this.mAppUnlockFailedAttempts++;
         triggerShakeAnimation();
         mainInputText.setText("");
         if (this.mAppUnlockFailedAttempts >= 3) {
-            Toast.makeText(this, "Access denied: 3 failed attempts.", Toast.LENGTH_SHORT).show();
-            if (this.mTargetLockedPackage != null) {
-                try {
-                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-                    if (am != null) {
-                        am.killBackgroundProcesses(this.mTargetLockedPackage);
-                    }
-                } catch (Exception ignored) {}
-            }
-            exitAppUnlockModeAndFinish();
-            BlueLineAgentService service = BlueLineAgentService.getInstance();
-            if (service != null) {
-                service.pressHome();
-            }
+            startAppUnlockCooldown();
         } else {
             TextView status = findViewById(R.id.appLockStatusText);
             if (status != null) {
@@ -980,6 +1056,7 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     private void exitAppUnlockMode() {
+        cancelAppUnlockCooldown();
         this.mIsAppUnlockMode = false;
         this.mTargetLockedPackage = null;
         this.mTargetLockedAppName = null;
@@ -1004,6 +1081,10 @@ public class MainActivity extends BaseWindowActivity {
     private void exitAppUnlockModeAndFinish() {
         exitAppUnlockMode();
         finishIfNotHome();
+        BlueLineAgentService service = BlueLineAgentService.getInstance();
+        if (service != null) {
+            service.pressBack();
+        }
     }
 
     private class MainInputTextListener implements TextWatcher {

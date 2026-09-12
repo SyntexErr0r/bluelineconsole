@@ -179,6 +179,52 @@
             android:padding="6dp" />
     </LinearLayout>
 
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#2600f0ff"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="⏳ UNLOCK GRACE PERIOD"
+        android:textColor="#00f0ff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Grace Period Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/dialogGracePeriodInfo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Grace Period: Until phone is locked"
+            android:textColor="#99d6ea"
+            android:textSize="12sp"
+            android:fontFamily="monospace" />
+
+        <TextView
+            android:id="@+id/dialogBtnChangeGracePeriod"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Change]"
+            android:textColor="#00f0ff"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:padding="6dp" />
+    </LinearLayout>
+
     <!-- Close Button -->
     <LinearLayout
         android:layout_width="match_parent"

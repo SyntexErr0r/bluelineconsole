@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.DialogInterface;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
@@ -220,6 +221,9 @@ public class AppLockDialogHelper {
         TextView btnDrawPat = view.findViewById(R.id.dialogBtnDrawMasterPattern);
         TextView btnResetPat = view.findViewById(R.id.dialogBtnResetMasterPattern);
 
+        TextView tvGraceInfo = view.findViewById(R.id.dialogGracePeriodInfo);
+        TextView btnChangeGrace = view.findViewById(R.id.dialogBtnChangeGracePeriod);
+
         TextView btnDone = view.findViewById(R.id.dialogBtnGlobalDone);
 
         Runnable refreshLabels = () -> {
@@ -232,6 +236,10 @@ public class AppLockDialogHelper {
             String masterPat = mgr.getMasterPattern(context);
             if (tvPatInfo != null) {
                 tvPatInfo.setText(timeActive ? "Master Pattern: Rolling Time" : "Master Pattern: Custom (" + masterPat + ")");
+            }
+
+            if (tvGraceInfo != null) {
+                tvGraceInfo.setText("Grace Period: " + mgr.getGracePeriodSummary(context));
             }
         };
 
@@ -303,6 +311,64 @@ public class AppLockDialogHelper {
             });
         }
 
+        if (btnChangeGrace != null) {
+            btnChangeGrace.setOnClickListener(v -> {
+                String[] options = new String[] {
+                    "30 seconds",
+                    "2 minutes",
+                    "5 minutes",
+                    "Until phone is locked",
+                    "Custom duration..."
+                };
+                String currentMode = mgr.getGracePeriodMode(context);
+                int checkedItem = 3;
+                if (AppLockManager.GRACE_30_SEC.equals(currentMode)) checkedItem = 0;
+                else if (AppLockManager.GRACE_2_MIN.equals(currentMode)) checkedItem = 1;
+                else if (AppLockManager.GRACE_5_MIN.equals(currentMode)) checkedItem = 2;
+                else if (AppLockManager.GRACE_UNTIL_LOCKED.equals(currentMode)) checkedItem = 3;
+                else if (AppLockManager.GRACE_CUSTOM.equals(currentMode)) checkedItem = 4;
+
+                AlertDialog.Builder graceBuilder = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
+                graceBuilder.setTitle("⏳ UNLOCK GRACE PERIOD");
+                graceBuilder.setSingleChoiceItems(options, checkedItem, (d, which) -> {
+                    d.dismiss();
+                    if (which == 0) {
+                        mgr.setGracePeriodMode(context, AppLockManager.GRACE_30_SEC);
+                        refreshLabels.run();
+                        Toast.makeText(context, "Grace period: 30 seconds", Toast.LENGTH_SHORT).show();
+                        if (onUpdated != null) onUpdated.run();
+                    } else if (which == 1) {
+                        mgr.setGracePeriodMode(context, AppLockManager.GRACE_2_MIN);
+                        refreshLabels.run();
+                        Toast.makeText(context, "Grace period: 2 minutes", Toast.LENGTH_SHORT).show();
+                        if (onUpdated != null) onUpdated.run();
+                    } else if (which == 2) {
+                        mgr.setGracePeriodMode(context, AppLockManager.GRACE_5_MIN);
+                        refreshLabels.run();
+                        Toast.makeText(context, "Grace period: 5 minutes", Toast.LENGTH_SHORT).show();
+                        if (onUpdated != null) onUpdated.run();
+                    } else if (which == 3) {
+                        mgr.setGracePeriodMode(context, AppLockManager.GRACE_UNTIL_LOCKED);
+                        refreshLabels.run();
+                        Toast.makeText(context, "Grace period: Until phone is locked", Toast.LENGTH_SHORT).show();
+                        if (onUpdated != null) onUpdated.run();
+                    } else if (which == 4) {
+                        showCustomGraceDialog(context, mgr, () -> {
+                            refreshLabels.run();
+                            if (onUpdated != null) onUpdated.run();
+                        });
+                    }
+                });
+                graceBuilder.setNegativeButton("Cancel", null);
+                AlertDialog graceDialog = graceBuilder.create();
+                graceDialog.show();
+                Activity a = getActivityFromContext(context);
+                if (a != null) {
+                    ThemedDialogHelper.styleDialog(graceDialog, a);
+                }
+            });
+        }
+
         if (btnDone != null) {
             btnDone.setOnClickListener(v -> dialog.dismiss());
         }
@@ -311,6 +377,46 @@ public class AppLockDialogHelper {
         Activity act = getActivityFromContext(context);
         if (act != null) {
             ThemedDialogHelper.styleDialog(dialog, act);
+        }
+    }
+
+    private static void showCustomGraceDialog(Context context, AppLockManager mgr, Runnable onSaved) {
+        AlertDialog.Builder b = new AlertDialog.Builder(context, R.style.CyberGlassAlertDialogTheme);
+        b.setTitle("⚙️ CUSTOM GRACE PERIOD");
+
+        final EditText input = new EditText(context);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setHint("Seconds (e.g. 45, 90, 600)");
+        input.setTextColor(0xffe6f9ff);
+        input.setHintTextColor(0x8899d6ea);
+        input.setText(String.valueOf(mgr.getCustomGracePeriodSeconds(context)));
+        input.setSelection(input.getText().length());
+        input.setPadding(40, 30, 40, 30);
+        b.setView(input);
+
+        b.setPositiveButton("SAVE", (d, w) -> {
+            String val = input.getText().toString().trim();
+            try {
+                int sec = Integer.parseInt(val);
+                if (sec > 0) {
+                    mgr.setCustomGracePeriodSeconds(context, sec);
+                    mgr.setGracePeriodMode(context, AppLockManager.GRACE_CUSTOM);
+                    Toast.makeText(context, "Custom grace period set to: " + sec + "s", Toast.LENGTH_SHORT).show();
+                    if (onSaved != null) onSaved.run();
+                } else {
+                    Toast.makeText(context, "Invalid duration", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(context, "Invalid duration number", Toast.LENGTH_SHORT).show();
+            }
+        });
+        b.setNegativeButton("CANCEL", null);
+
+        AlertDialog d = b.create();
+        d.show();
+        Activity a = getActivityFromContext(context);
+        if (a != null) {
+            ThemedDialogHelper.styleDialog(d, a);
         }
     }
 }
