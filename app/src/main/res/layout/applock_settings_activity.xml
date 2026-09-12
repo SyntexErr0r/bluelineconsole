@@ -83,11 +83,51 @@
             android:singleLine="true" />
     </LinearLayout>
 
-    <!-- Below Search: Complete List of Apps with Strict-Boundary Cyber Fast Scroller -->
+    <!-- Below Search: Complete List of Apps with Strict-Boundary Cyber Fast Scroller & Loading State -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
+
+        <!-- Cyber Loading State -->
+        <LinearLayout
+            android:id="@+id/appLockLoadingContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="visible">
+
+            <ProgressBar
+                android:id="@+id/appLockLoadingProgress"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#00f0ff"
+                android:indeterminateTintMode="src_in" />
+
+            <TextView
+                android:id="@+id/appLockLoadingText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="[ SCANNING INSTALLED APPS... ]"
+                android:textColor="#00f0ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.05" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Configuring Cyber AppLock..."
+                android:textColor="#4d7a94"
+                android:textSize="11sp"
+                android:fontFamily="monospace" />
+        </LinearLayout>
 
         <ListView
             android:id="@+id/appLockAppListView"
@@ -95,7 +135,8 @@
             android:layout_height="match_parent"
             android:divider="#2000f0ff"
             android:dividerHeight="1dp"
-            android:scrollbars="none" />
+            android:scrollbars="none"
+            android:visibility="gone" />
 
         <!-- Cyber Fast Scroller Overlay (Strict 14dp boundary at far right edge) -->
         <FrameLayout

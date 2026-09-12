@@ -18,6 +18,10 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.content.res.ColorStateList;
+import android.graphics.PorterDuff;
+import android.os.Build;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -52,6 +56,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
     private AppListAdapter mAdapter;
     private View mFastScrollContainer;
     private View mFastScrollThumb;
+    private View mLoadingContainer;
     private boolean mIsDraggingFastScroll = false;
 
     private final List<AppEntry> mAllApps = new ArrayList<>();
@@ -105,6 +110,13 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
 
         mTvTopStatusSummary = findViewById(R.id.appLockTopStatusSummary);
 
+        mLoadingContainer = findViewById(R.id.appLockLoadingContainer);
+        ProgressBar pb = findViewById(R.id.appLockLoadingProgress);
+        if (pb != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            pb.setIndeterminateTintList(ColorStateList.valueOf(0xff00f0ff));
+            pb.setIndeterminateTintMode(PorterDuff.Mode.SRC_IN);
+        }
+
         mSearchEdit = findViewById(R.id.appLockSearchEdit);
         mSearchEdit.addTextChangedListener(new TextWatcher() {
             @Override
@@ -151,6 +163,19 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
                 return false;
             });
 
+            // Layout listener to ensure thumb updates immediately on layout settlement or window expansion
+            mFastScrollContainer.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                if (bottom - top > 0 && !mAllApps.isEmpty()) {
+                    refreshFastScrollState();
+                }
+            });
+
+            mAppListView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                if (bottom - top > 0 && !mAllApps.isEmpty()) {
+                    refreshFastScrollState();
+                }
+            });
+
             mAppListView.setOnScrollListener(new AbsListView.OnScrollListener() {
                 @Override
                 public void onScrollStateChanged(AbsListView view, int scrollState) {}
@@ -190,7 +215,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
         if (mFastScrollContainer == null || mFastScrollThumb == null) return;
 
         // Keep hidden while apps are loading in background or if empty
-        if (totalItemCount == 0 || mAllApps.isEmpty()) {
+        if (totalItemCount == 0 || mAllApps.isEmpty() || (mLoadingContainer != null && mLoadingContainer.getVisibility() == View.VISIBLE)) {
             mFastScrollContainer.setVisibility(View.GONE);
             return;
         }
@@ -236,7 +261,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
         int totalCount = mAdapter.getCount();
 
         // Keep hidden while apps are loading in background or if empty
-        if (totalCount == 0 || mAllApps.isEmpty()) {
+        if (totalCount == 0 || mAllApps.isEmpty() || (mLoadingContainer != null && mLoadingContainer.getVisibility() == View.VISIBLE)) {
             mFastScrollContainer.setVisibility(View.GONE);
             return;
         }
@@ -292,6 +317,12 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             Collections.sort(list, Comparator.comparing(a -> a.appName.toLowerCase()));
 
             runOnUiThread(() -> {
+                if (mLoadingContainer != null) {
+                    mLoadingContainer.setVisibility(View.GONE);
+                }
+                if (mAppListView != null) {
+                    mAppListView.setVisibility(View.VISIBLE);
+                }
                 mAllApps.clear();
                 mAllApps.addAll(list);
                 filterApps(mSearchEdit.getText().toString());
@@ -309,6 +340,7 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
         }
         if (mAdapter != null) {
             mAdapter.notifyDataSetChanged();
+            refreshFastScrollState();
             if (mAppListView != null) {
                 mAppListView.post(this::refreshFastScrollState);
             }
