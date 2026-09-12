@@ -83,13 +83,41 @@
             android:singleLine="true" />
     </LinearLayout>
 
-    <!-- Below Search: Complete List of Apps (Takes full remaining space) -->
-    <ListView
-        android:id="@+id/appLockAppListView"
+    <!-- Below Search: Complete List of Apps with Strict-Boundary Cyber Fast Scroller -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:divider="#2000f0ff"
-        android:dividerHeight="1dp"
-        android:fastScrollEnabled="true" />
+        android:layout_weight="1">
+
+        <ListView
+            android:id="@+id/appLockAppListView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="#2000f0ff"
+            android:dividerHeight="1dp"
+            android:scrollbars="none" />
+
+        <!-- Cyber Fast Scroller Overlay (Strict 14dp boundary at far right edge) -->
+        <FrameLayout
+            android:id="@+id/appLockFastScrollContainer"
+            android:layout_width="14dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end">
+
+            <!-- Subtle Track -->
+            <View
+                android:layout_width="2dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_horizontal"
+                android:background="#2600f0ff" />
+
+            <!-- Cyber Draggable Thumb -->
+            <View
+                android:id="@+id/appLockFastScrollThumb"
+                android:layout_width="8dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/cyber_fast_scroll_thumb" />
+        </FrameLayout>
+    </FrameLayout>
 </LinearLayout>

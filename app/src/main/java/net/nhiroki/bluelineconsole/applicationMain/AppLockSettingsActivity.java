@@ -9,8 +9,10 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AbsListView;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -48,6 +50,9 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
     private EditText mSearchEdit;
     private ListView mAppListView;
     private AppListAdapter mAdapter;
+    private View mFastScrollContainer;
+    private View mFastScrollThumb;
+    private boolean mIsDraggingFastScroll = false;
 
     private final List<AppEntry> mAllApps = new ArrayList<>();
     private final List<AppEntry> mFilteredApps = new ArrayList<>();
@@ -119,7 +124,81 @@ public class AppLockSettingsActivity extends BaseWindowActivity {
             });
         });
 
+        mFastScrollContainer = findViewById(R.id.appLockFastScrollContainer);
+        mFastScrollThumb = findViewById(R.id.appLockFastScrollThumb);
+
+        if (mFastScrollContainer != null && mFastScrollThumb != null) {
+            mFastScrollContainer.setOnTouchListener((v, event) -> {
+                int action = event.getActionMasked();
+                switch (action) {
+                    case MotionEvent.ACTION_DOWN:
+                    case MotionEvent.ACTION_MOVE:
+                        mIsDraggingFastScroll = true;
+                        v.getParent().requestDisallowInterceptTouchEvent(true);
+                        handleFastScrollDrag(event.getY());
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        mIsDraggingFastScroll = false;
+                        return true;
+                }
+                return false;
+            });
+
+            mAppListView.setOnScrollListener(new AbsListView.OnScrollListener() {
+                @Override
+                public void onScrollStateChanged(AbsListView view, int scrollState) {}
+
+                @Override
+                public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+                    if (!mIsDraggingFastScroll) {
+                        updateFastScrollThumbPosition(firstVisibleItem, visibleItemCount, totalItemCount);
+                    }
+                }
+            });
+        }
+
         refreshTopSummary();
+    }
+
+    private void handleFastScrollDrag(float touchY) {
+        if (mAdapter == null || mAdapter.getCount() == 0 || mFastScrollContainer == null || mFastScrollThumb == null) return;
+        int containerHeight = mFastScrollContainer.getHeight();
+        int thumbHeight = mFastScrollThumb.getHeight();
+        if (thumbHeight <= 0) {
+            thumbHeight = (int) (44 * getResources().getDisplayMetrics().density);
+        }
+        if (containerHeight <= thumbHeight) return;
+
+        float maxTranslation = containerHeight - thumbHeight;
+        float clampedY = Math.max(0, Math.min(touchY - (thumbHeight / 2f), maxTranslation));
+        mFastScrollThumb.setTranslationY(clampedY);
+
+        float fraction = clampedY / maxTranslation;
+        int targetPosition = (int) (fraction * (mAdapter.getCount() - 1));
+        targetPosition = Math.max(0, Math.min(targetPosition, mAdapter.getCount() - 1));
+        mAppListView.setSelectionFromTop(targetPosition, 0);
+    }
+
+    private void updateFastScrollThumbPosition(int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+        if (mFastScrollContainer == null || mFastScrollThumb == null) return;
+        if (totalItemCount <= visibleItemCount || totalItemCount == 0) {
+            mFastScrollContainer.setVisibility(View.GONE);
+            return;
+        }
+        mFastScrollContainer.setVisibility(View.VISIBLE);
+
+        int containerHeight = mFastScrollContainer.getHeight();
+        int thumbHeight = mFastScrollThumb.getHeight();
+        if (thumbHeight <= 0) {
+            thumbHeight = (int) (44 * getResources().getDisplayMetrics().density);
+        }
+        if (containerHeight <= thumbHeight) return;
+
+        float maxTranslation = containerHeight - thumbHeight;
+        float fraction = (float) firstVisibleItem / Math.max(1, totalItemCount - visibleItemCount);
+        fraction = Math.max(0f, Math.min(1f, fraction));
+        mFastScrollThumb.setTranslationY(fraction * maxTranslation);
     }
 
     private void refreshTopSummary() {
