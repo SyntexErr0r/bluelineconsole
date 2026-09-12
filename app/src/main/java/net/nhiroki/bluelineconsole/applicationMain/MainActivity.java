@@ -1107,18 +1107,25 @@ public class MainActivity extends BaseWindowActivity {
 
         Toast.makeText(this, "Unlocked " + appName, Toast.LENGTH_SHORT).show();
 
-        Intent launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
-        if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-            startActivity(launchIntent);
-        } else if (AppLockManager.getInstance().isHomeLauncher(this, pkg)) {
-            Intent home = new Intent(Intent.ACTION_MAIN);
-            home.addCategory(Intent.CATEGORY_HOME);
-            home.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-            startActivity(home);
-        }
+        boolean isLauncher = AppLockManager.getInstance().isHomeLauncher(this, pkg);
         exitAppUnlockMode();
-        new Handler(Looper.getMainLooper()).postDelayed(this::finishIfNotHome, 300);
+
+        if (isLauncher) {
+            if (!this.iAmHomeActivity) {
+                // Return to home launcher
+                finish();
+            }
+        } else {
+            // Unlocking an external app (e.g. WhatsApp, Telegram, Gallery):
+            // The locked app's activity was already in the foreground when AppLock intercepted it.
+            // Finishing this unlock overlay allows Android to resume the underlying activity directly,
+            // preserving pending Share (ACTION_SEND) intents, deep links, and active state without resetting.
+            if (!this.iAmHomeActivity) {
+                finish();
+            } else {
+                moveTaskToBack(true);
+            }
+        }
     }
 
     private void startAppUnlockCooldown() {

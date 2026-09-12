@@ -13,10 +13,13 @@ import net.nhiroki.bluelineconsole.wrapperForAndroid.ContactsReader;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import net.nhiroki.bluelineconsole.agent.BlueLineAgentService;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -266,6 +269,73 @@ public class ContactManager {
         return mGlobalMsgMethod;
     }
 
+    public synchronized String getEffectiveCallMethod(Context context, String contactNameOrNumber) {
+        ensureInitialized(context);
+        ContactsReader.Contact c = findContact(context, contactNameOrNumber);
+        if (c != null) {
+            return getEffectiveCallMethod(context, c);
+        }
+        return mGlobalCallMethod;
+    }
+
+    public synchronized String getEffectiveMsgMethod(Context context, String contactNameOrNumber) {
+        ensureInitialized(context);
+        ContactsReader.Contact c = findContact(context, contactNameOrNumber);
+        if (c != null) {
+            return getEffectiveMsgMethod(context, c);
+        }
+        return mGlobalMsgMethod;
+    }
+
+    public ContactsReader.Contact findContact(Context context, String query) {
+        if (context == null || query == null || query.trim().isEmpty()) return null;
+        if (!ContactsReader.appHasReadContactsPermission(context)) return null;
+
+        String q = query.trim().toLowerCase();
+        try {
+            List<ContactsReader.Contact> contacts = ContactsReader.fetchAllContacts(context);
+            if (contacts == null || contacts.isEmpty()) return null;
+
+            // Pass 1: exact name match
+            for (ContactsReader.Contact c : contacts) {
+                if (c.displayName != null && c.displayName.trim().equalsIgnoreCase(q)) {
+                    return c;
+                }
+            }
+
+            // Pass 2: starts with match
+            for (ContactsReader.Contact c : contacts) {
+                if (c.displayName != null && c.displayName.toLowerCase().startsWith(q)) {
+                    return c;
+                }
+            }
+
+            // Pass 3: contains match
+            for (ContactsReader.Contact c : contacts) {
+                if (c.displayName != null && c.displayName.toLowerCase().contains(q)) {
+                    return c;
+                }
+            }
+
+            // Pass 4: phone number match
+            String cleanQ = cleanPhoneNumber(q);
+            if (!cleanQ.isEmpty() && cleanQ.length() >= 3) {
+                for (ContactsReader.Contact c : contacts) {
+                    if (c.phoneNumbers != null) {
+                        for (String phone : c.phoneNumbers) {
+                            if (cleanPhoneNumber(phone).endsWith(cleanQ)) {
+                                return c;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            AppLogger.e("CONTACTS", "Error finding contact: " + query, e);
+        }
+        return null;
+    }
+
     public static String cleanPhoneNumber(String raw) {
         if (raw == null) return "";
         return raw.replaceAll("[^0-9+]", "");
@@ -299,7 +369,11 @@ public class ContactManager {
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     try {
                         context.startActivity(intent);
-                        Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                        if (BlueLineAgentService.isServiceConnected()) {
+                            BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(false);
+                        } else {
+                            Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                        }
                     } catch (Exception e) {
                         launchDialer(context, phone);
                     }
@@ -317,7 +391,11 @@ public class ContactManager {
                     intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     try {
                         context.startActivity(intent);
-                        Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                        if (BlueLineAgentService.isServiceConnected()) {
+                            BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(true);
+                        } else {
+                            Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                        }
                     } catch (Exception e) {
                         launchDialer(context, phone);
                     }

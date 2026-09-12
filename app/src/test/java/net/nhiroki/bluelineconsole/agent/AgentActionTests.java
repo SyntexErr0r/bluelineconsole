@@ -123,6 +123,25 @@ public class AgentActionTests {
         assertEquals("whatsapp", a12.appName.toLowerCase());
         assertEquals("faridul", a12.target);
 
+        AgentActionEngine.Action aCallTg = AICommandSearcher.parseDirectAction("call faridul on telegram");
+        assertNotNull(aCallTg);
+        assertEquals("CALL_APP", aCallTg.type);
+        assertEquals("telegram", aCallTg.appName.toLowerCase());
+        assertEquals("faridul", aCallTg.target);
+
+        AgentActionEngine.Action aCallPhone = AICommandSearcher.parseDirectAction("call faridul on phone");
+        assertNotNull(aCallPhone);
+        assertEquals("CALL_APP", aCallPhone.type);
+        assertEquals("phone", aCallPhone.appName.toLowerCase());
+        assertEquals("faridul", aCallPhone.target);
+
+        AgentActionEngine.Action aVidCall = AICommandSearcher.parseDirectAction("video call faridul");
+        assertNotNull(aVidCall);
+        assertEquals("CALL_APP", aVidCall.type);
+        assertEquals("whatsapp", aVidCall.appName.toLowerCase());
+        assertEquals("faridul", aVidCall.target);
+        assertEquals("video", aVidCall.query);
+
         // WhatsApp group messaging and opening
         AgentActionEngine.Action a13 = AICommandSearcher.parseDirectAction("whatsapp group Devs send update ready");
         assertNotNull(a13);

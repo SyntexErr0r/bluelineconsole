@@ -16,9 +16,11 @@ import android.graphics.Typeface;
 import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
 import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
+import net.nhiroki.bluelineconsole.contacts.ContactManager;
 import net.nhiroki.bluelineconsole.interfaces.CandidateEntry;
 import net.nhiroki.bluelineconsole.interfaces.CommandSearcher;
 import net.nhiroki.bluelineconsole.interfaces.EventLauncher;
+import net.nhiroki.bluelineconsole.wrapperForAndroid.ContactsReader;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +49,7 @@ public class AICommandSearcher implements CommandSearcher {
         String lower = targetQuery.toLowerCase();
 
         // 1. Check for direct agent action (e.g. "open youtube and search lofi", "search lofi on youtube", "ai open camera")
-        AgentActionEngine.Action directAction = parseDirectAction(targetQuery);
+        AgentActionEngine.Action directAction = parseDirectAction(targetQuery, context);
         if (directAction != null) {
             AppLogger.i("AGENT", "Direct action candidate created: " + directAction.type + " " + (directAction.appName != null ? directAction.appName : directAction.target));
             candidates.add(new AgentActionCandidateEntry(directAction));
@@ -102,6 +104,10 @@ public class AICommandSearcher implements CommandSearcher {
     }
 
     public static AgentActionEngine.Action parseDirectAction(String rawQuery) {
+        return parseDirectAction(rawQuery, null);
+    }
+
+    public static AgentActionEngine.Action parseDirectAction(String rawQuery, Context context) {
         if (rawQuery == null) return null;
         String q = rawQuery.trim();
         String low = q.toLowerCase();
@@ -183,6 +189,36 @@ public class AICommandSearcher implements CommandSearcher {
             }
         }
 
+        // Direct "call <contact> on/via telegram", "video call <contact> on/via telegram"
+        if ((low.startsWith("call ") || low.startsWith("video call ")) &&
+            (low.contains(" on telegram") || low.contains(" via telegram") || low.contains(" on tg") || low.contains(" via tg"))) {
+            String sub = low.startsWith("video call ") ? q.substring("video call ".length()).trim() : q.substring("call ".length()).trim();
+            String lowSub = sub.toLowerCase();
+            int idx = lowSub.lastIndexOf(" on telegram");
+            if (idx == -1) idx = lowSub.lastIndexOf(" via telegram");
+            if (idx == -1) idx = lowSub.lastIndexOf(" on tg");
+            if (idx == -1) idx = lowSub.lastIndexOf(" via tg");
+            String contact = sub.substring(0, idx).trim();
+            if (!contact.isEmpty()) {
+                return new AgentActionEngine.Action("CALL_APP", "telegram", contact, "call");
+            }
+        }
+
+        // Direct "call <contact> on/via phone" or "on/via dialer"
+        if ((low.startsWith("call ") || low.startsWith("dial ")) &&
+            (low.contains(" on phone") || low.contains(" via phone") || low.contains(" on dialer") || low.contains(" via dialer"))) {
+            String sub = low.startsWith("dial ") ? q.substring("dial ".length()).trim() : q.substring("call ".length()).trim();
+            String lowSub = sub.toLowerCase();
+            int idx = lowSub.lastIndexOf(" on phone");
+            if (idx == -1) idx = lowSub.lastIndexOf(" via phone");
+            if (idx == -1) idx = lowSub.lastIndexOf(" on dialer");
+            if (idx == -1) idx = lowSub.lastIndexOf(" via dialer");
+            String contact = sub.substring(0, idx).trim();
+            if (!contact.isEmpty()) {
+                return new AgentActionEngine.Action("CALL_APP", "phone", contact, "voice");
+            }
+        }
+
         // WhatsApp Group shortcuts: "whatsapp group <name> ...", "wa group <name> ..."
         if (low.startsWith("whatsapp group ") || low.startsWith("wa group ")) {
             int prefixLen = low.startsWith("wa group ") ? 9 : 15;
@@ -230,21 +266,25 @@ public class AICommandSearcher implements CommandSearcher {
         // 6. Direct "send <msg> to <contact> [on <app>]"
         if (low.startsWith("send ") && low.contains(" to ")) {
             String app = "whatsapp";
+            boolean explicitApp = false;
             String content = q;
             if (low.contains(" on whatsapp") || low.contains(" via whatsapp") || low.contains(" in whatsapp")) {
                 app = "whatsapp";
+                explicitApp = true;
                 int idx = low.lastIndexOf(" on whatsapp");
                 if (idx == -1) idx = low.lastIndexOf(" via whatsapp");
                 if (idx == -1) idx = low.lastIndexOf(" in whatsapp");
                 content = q.substring(0, idx).trim();
             } else if (low.contains(" on telegram") || low.contains(" via telegram") || low.contains(" in telegram")) {
                 app = "telegram";
+                explicitApp = true;
                 int idx = low.lastIndexOf(" on telegram");
                 if (idx == -1) idx = low.lastIndexOf(" via telegram");
                 if (idx == -1) idx = low.lastIndexOf(" in telegram");
                 content = q.substring(0, idx).trim();
             } else if (low.contains(" on sms") || low.contains(" via sms")) {
                 app = "sms";
+                explicitApp = true;
                 int idx = low.lastIndexOf(" on sms");
                 if (idx == -1) idx = low.lastIndexOf(" via sms");
                 content = q.substring(0, idx).trim();
@@ -252,6 +292,17 @@ public class AICommandSearcher implements CommandSearcher {
             AgentActionEngine.MessageDetails details = AgentActionEngine.parseMessageDetails(content);
             if (details.recipient.toLowerCase().startsWith("group ")) {
                 return new AgentActionEngine.Action("SEND_MESSAGE", "whatsapp_group", details.recipient.substring(6).trim(), details.message);
+            }
+            if (!explicitApp && context != null) {
+                ContactManager mgr = ContactManager.getInstance();
+                String effMsg = mgr.getEffectiveMsgMethod(context, details.recipient);
+                if (ContactManager.MSG_METHOD_SMS.equals(effMsg)) {
+                    app = "sms";
+                } else if (ContactManager.MSG_METHOD_TELEGRAM.equals(effMsg)) {
+                    app = "telegram";
+                } else {
+                    app = "whatsapp";
+                }
             }
             return new AgentActionEngine.Action("SEND_MESSAGE", app, details.recipient, details.message);
         }
@@ -399,11 +450,45 @@ public class AICommandSearcher implements CommandSearcher {
             }
         }
 
-        // 14. "call <contact>" direct shortcut (defaults to WhatsApp)
-        if (low.startsWith("call ")) {
-            String contact = q.substring(5).trim();
+        // 14. "video call <contact>" shortcut
+        if (low.startsWith("video call ")) {
+            String contact = q.substring("video call ".length()).trim();
             if (!contact.isEmpty()) {
-                return new AgentActionEngine.Action("CALL_APP", "whatsapp", contact, "voice");
+                return new AgentActionEngine.Action("CALL_APP", "whatsapp", contact, "video");
+            }
+        }
+
+        // 15. "call <contact>" or "dial <contact>" direct shortcut (respects ContactManager preferred call method)
+        if (low.startsWith("call ") || low.startsWith("dial ")) {
+            int prefixLen = low.startsWith("dial ") ? 5 : 5;
+            String contact = q.substring(prefixLen).trim();
+            if (!contact.isEmpty()) {
+                String targetApp = "whatsapp";
+                String mode = "voice";
+
+                if (context != null) {
+                    ContactManager mgr = ContactManager.getInstance();
+                    ContactsReader.Contact c = mgr.findContact(context, contact);
+                    String effMethod = (c != null) ? mgr.getEffectiveCallMethod(context, c) : mgr.getGlobalCallMethod(context);
+
+                    if (ContactManager.CALL_METHOD_PHONE.equals(effMethod)) {
+                        targetApp = "phone";
+                        mode = "voice";
+                    } else if (ContactManager.CALL_METHOD_TELEGRAM.equals(effMethod)) {
+                        targetApp = "telegram";
+                        mode = "call";
+                    } else if (ContactManager.CALL_METHOD_WHATSAPP_VIDEO.equals(effMethod)) {
+                        targetApp = "whatsapp";
+                        mode = "video";
+                    } else { // CALL_METHOD_WHATSAPP_VOICE or default
+                        targetApp = "whatsapp";
+                        mode = "voice";
+                    }
+                    if (c != null && c.displayName != null && !c.displayName.isEmpty()) {
+                        contact = c.displayName;
+                    }
+                }
+                return new AgentActionEngine.Action("CALL_APP", targetApp, contact, mode);
             }
         }
 
@@ -459,8 +544,17 @@ public class AICommandSearcher implements CommandSearcher {
                 return "⚡ Agent: Message on " + app;
             } else if ("CALL_APP".equalsIgnoreCase(action.type)) {
                 String app = capitalize(action.appName);
-                String mode = "video".equalsIgnoreCase(action.query) ? "Video call" : "Voice call";
                 String target = action.target != null ? action.target : "";
+                if ("whatsapp".equalsIgnoreCase(app) && "video".equalsIgnoreCase(action.query)) {
+                    return "⚡ Agent: Video call " + target + " on WhatsApp";
+                } else if ("whatsapp".equalsIgnoreCase(app)) {
+                    return "⚡ Agent: Voice call " + target + " on WhatsApp";
+                } else if ("telegram".equalsIgnoreCase(app)) {
+                    return "⚡ Agent: Call " + target + " on Telegram";
+                } else if ("phone".equalsIgnoreCase(app)) {
+                    return "⚡ Agent: Call " + target + " on Phone";
+                }
+                String mode = "video".equalsIgnoreCase(action.query) ? "Video call" : "Voice call";
                 return "⚡ Agent: " + mode + " " + target + " on " + app;
             } else if ("CLICK".equalsIgnoreCase(action.type)) {
                 return "⚡ Agent: Click \"" + action.target + "\"";
@@ -504,9 +598,18 @@ public class AICommandSearcher implements CommandSearcher {
                 }
             } else if ("CALL_APP".equalsIgnoreCase(action.type)) {
                 String app = capitalize(action.appName);
-                String mode = "video".equalsIgnoreCase(action.query) ? "video call" : "call";
                 String target = action.target != null ? action.target : "";
-                tv.setText("▶ Tap or Enter to " + mode + " " + target + " via " + app);
+                if ("telegram".equalsIgnoreCase(app)) {
+                    tv.setText("▶ Tap or Enter to call " + target + " via Telegram");
+                } else if ("phone".equalsIgnoreCase(app)) {
+                    tv.setText("▶ Tap or Enter to call " + target + " via Phone");
+                } else if ("whatsapp".equalsIgnoreCase(app)) {
+                    String mode = "video".equalsIgnoreCase(action.query) ? "video call" : "voice call";
+                    tv.setText("▶ Tap or Enter to " + mode + " " + target + " via WhatsApp");
+                } else {
+                    String mode = "video".equalsIgnoreCase(action.query) ? "video call" : "call";
+                    tv.setText("▶ Tap or Enter to " + mode + " " + target + " via " + app);
+                }
             } else if ("OPEN_APP".equalsIgnoreCase(action.type)) {
                 if ("whatsapp_group".equalsIgnoreCase(action.appName)) {
                     String group = action.target != null ? action.target : action.query;

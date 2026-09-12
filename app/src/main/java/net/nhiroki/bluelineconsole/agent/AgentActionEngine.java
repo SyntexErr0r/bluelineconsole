@@ -20,6 +20,7 @@ import android.widget.Toast;
 import androidx.preference.PreferenceManager;
 
 import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
+import net.nhiroki.bluelineconsole.contacts.ContactManager;
 import net.nhiroki.bluelineconsole.wrapperForAndroid.ContactsReader;
 
 import java.util.HashMap;
@@ -842,11 +843,51 @@ public class AgentActionEngine {
         String contact = action.target != null ? action.target.trim() : (action.query != null ? action.query.trim() : "");
         boolean isVideo = "video".equalsIgnoreCase(action.query) || (action.appName != null && action.appName.toLowerCase().contains("video"));
 
-        if (app.contains("whatsapp") || app.equals("wa")) {
+        // If contact exists in phonebook, route through ContactManager for unified handling
+        ContactsReader.Contact c = ContactManager.getInstance().findContact(context, contact);
+        if (c != null) {
+            String method;
+            if (app.contains("telegram") || app.equals("tg")) {
+                method = ContactManager.CALL_METHOD_TELEGRAM;
+            } else if (app.contains("whatsapp") || app.equals("wa")) {
+                method = isVideo ? ContactManager.CALL_METHOD_WHATSAPP_VIDEO : ContactManager.CALL_METHOD_WHATSAPP_VOICE;
+            } else if (app.contains("phone") || app.equals("dialer")) {
+                method = ContactManager.CALL_METHOD_PHONE;
+            } else {
+                method = ContactManager.getInstance().getEffectiveCallMethod(context, c);
+            }
+            ContactManager.getInstance().executeCallWithMethod(context, c, method);
+            return;
+        }
+
+        // Contact not in address book (e.g. raw phone number or direct username)
+        if (app.contains("telegram") || app.equals("tg")) {
+            executeTelegramCall(context, contact);
+        } else if (app.contains("whatsapp") || app.equals("wa")) {
             executeWhatsAppCall(context, contact, isVideo);
         } else {
             executePhoneDial(context, contact);
         }
+    }
+
+    public static void executeTelegramCall(Context context, String contact) {
+        if (contact == null || contact.trim().isEmpty()) {
+            launchAppByName(context, "telegram");
+            return;
+        }
+        String cleanUser = contact.trim();
+        if (cleanUser.startsWith("@")) cleanUser = cleanUser.substring(1);
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/" + cleanUser));
+            intent.setPackage("org.telegram.messenger");
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
+                context.startActivity(intent);
+                return;
+            }
+        } catch (Exception ignored) {}
+        executeTelegram(context, contact, "");
     }
 
     public static void executeWhatsAppCall(Context context, String contact, boolean isVideo) {
