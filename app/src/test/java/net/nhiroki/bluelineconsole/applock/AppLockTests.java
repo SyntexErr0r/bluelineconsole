@@ -328,5 +328,56 @@ public class AppLockTests {
         // Clean up
         mgr.setLockAllApps(null, false);
     }
+
+    @Test
+    public void testDynamicTimeBasedPinAndPattern() {
+        // User example: 07:57 -> 5707 (Aa:Bb -> Ba:Ab)
+        assertEquals("5707", AppLockManager.computeTimePin(7, 57));
+
+        // Additional examples
+        assertEquals("4012", AppLockManager.computeTimePin(10, 42)); // 10:42 -> 4012
+        assertEquals("2305", AppLockManager.computeTimePin(3, 25));  // 03:25 -> 2305
+        assertEquals("3214", AppLockManager.computeTimePin(12, 34)); // 12:34 -> 3214
+        assertEquals("5917", AppLockManager.computeTimePin(19, 57)); // 19:57 -> 5917 (24h)
+        assertEquals("0000", AppLockManager.computeTimePin(0, 0));   // 00:00 -> 0000
+        assertEquals("5329", AppLockManager.computeTimePin(23, 59)); // 23:59 -> 5329
+
+        // Pattern generation (Option A - Smart Remap)
+        // 3214 has distinct digits 1-9 -> 3214 directly
+        assertEquals("3214", AppLockManager.computeTimePatternFromPin("3214"));
+
+        // 5707 has 0 and duplicate 7 -> maps 0 to 9, duplicate 7 to 1 -> 5791, 7 to 9 passes 8 -> 57891
+        String pat5707 = AppLockManager.computeTimePatternFromPin("5707");
+        assertNotNull(pat5707);
+        assertTrue(pat5707.length() >= 4);
+        assertFalse(pat5707.contains("0")); // No '0' in pattern!
+
+        // Time lock toggle
+        AppLockManager mgr = AppLockManager.getInstance();
+        mgr.setTimeLockEnabled(null, true);
+        assertTrue(mgr.isTimeLockEnabled(null));
+
+        // Current time PIN is valid right now
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        int h = now.get(java.util.Calendar.HOUR_OF_DAY);
+        int m = now.get(java.util.Calendar.MINUTE);
+        String currentPin = AppLockManager.computeTimePin(h, m);
+        assertTrue(AppLockManager.isValidTimeBasedPin(currentPin));
+
+        // Random non-time PIN fails
+        assertFalse(AppLockManager.isValidTimeBasedPin("9999"));
+
+        // Command searcher supports "lock time on" and "lock time off"
+        AppLockCommandSearcher searcher = new AppLockCommandSearcher();
+        List<CandidateEntry> timeOn = searcher.searchCandidateEntries("lock time on", null);
+        assertEquals(1, timeOn.size());
+        assertTrue(timeOn.get(0) instanceof AppLockCommandSearcher.AppLockToggleTimeLockCandidateEntry);
+        assertTrue(timeOn.get(0).getTitle().contains("ON"));
+
+        List<CandidateEntry> timeOff = searcher.searchCandidateEntries("lock time off", null);
+        assertEquals(1, timeOff.size());
+        assertTrue(timeOff.get(0) instanceof AppLockCommandSearcher.AppLockToggleTimeLockCandidateEntry);
+        assertTrue(timeOff.get(0).getTitle().contains("OFF"));
+    }
 }
 

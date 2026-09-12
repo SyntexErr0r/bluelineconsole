@@ -17,6 +17,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +32,7 @@ public class AppLockManager {
     private static final String KEY_LOCKED_APPS_JSON = "pref_locked_apps_json";
 
     public static final String KEY_LOCK_ALL_APPS = "pref_app_lock_all_apps";
+    public static final String KEY_TIME_LOCK_ENABLED = "pref_app_lock_time_lock_enabled";
     public static final String KEY_MASTER_PIN = "pref_app_lock_master_pin";
     public static final String KEY_MASTER_PATTERN = "pref_app_lock_master_pattern";
     public static final String KEY_EXEMPT_APPS = "pref_app_lock_exempt_apps";
@@ -77,6 +79,7 @@ public class AppLockManager {
     private boolean mInitialized = false;
     private boolean mMasterEnabled = true;
     private boolean mLockAllApps = true;
+    private boolean mTimeLockEnabled = true;
     private String mMasterPin = DEFAULT_MASTER_PIN;
     private String mMasterPattern = DEFAULT_MASTER_PATTERN;
     private final Set<String> mExemptApps = new HashSet<>();
@@ -106,6 +109,7 @@ public class AppLockManager {
         SharedPreferences prefs = context.getSharedPreferences(PREF_FILE, Context.MODE_PRIVATE);
         mMasterEnabled = prefs.getBoolean(KEY_MASTER_ENABLED, true);
         mLockAllApps = prefs.getBoolean(KEY_LOCK_ALL_APPS, true);
+        mTimeLockEnabled = prefs.getBoolean(KEY_TIME_LOCK_ENABLED, true);
         mMasterPin = prefs.getString(KEY_MASTER_PIN, DEFAULT_MASTER_PIN);
         mMasterPattern = prefs.getString(KEY_MASTER_PATTERN, DEFAULT_MASTER_PATTERN);
 
@@ -171,6 +175,7 @@ public class AppLockManager {
             prefs.edit()
                     .putBoolean(KEY_MASTER_ENABLED, mMasterEnabled)
                     .putBoolean(KEY_LOCK_ALL_APPS, mLockAllApps)
+                    .putBoolean(KEY_TIME_LOCK_ENABLED, mTimeLockEnabled)
                     .putString(KEY_MASTER_PIN, mMasterPin)
                     .putString(KEY_MASTER_PATTERN, mMasterPattern)
                     .putStringSet(KEY_EXEMPT_APPS, new HashSet<>(mExemptApps))
@@ -344,6 +349,132 @@ public class AppLockManager {
         return computeT9PinFromName(label);
     }
 
+    /**
+     * Computes 4-digit PIN from hour and minute using formula: Aa:Bb -> Ba:Ab
+     * A = hour tens, a = hour units, B = minute tens, b = minute units.
+     * e.g. 07:57 -> 5707.
+     */
+    public static String computeTimePin(int hour, int minute) {
+        int A = (hour / 10) % 10;
+        int a = hour % 10;
+        int B = (minute / 10) % 10;
+        int b = minute % 10;
+        return "" + B + a + A + b;
+    }
+
+    /**
+     * Converts a 4-digit PIN to a valid 9-dot pattern swipe (Option A: Smart Remap).
+     * 1. Replaces '0' with 5 (or 9 if 5 is already visited).
+     * 2. If a dot is already visited, picks the next available unused dot (1 to 9).
+     * 3. Expands intermediate dots so physical swipes match properly.
+     */
+    public static String computeTimePatternFromPin(String pin) {
+        if (pin == null || pin.isEmpty()) return "";
+        StringBuilder pattern = new StringBuilder();
+        Set<Integer> visited = new HashSet<>();
+
+        for (int i = 0; i < pin.length(); i++) {
+            char c = pin.charAt(i);
+            if (c < '0' || c > '9') continue;
+            int digit = c - '0';
+
+            // Map 0 to 5 (or 9 if 5 is already in path)
+            if (digit == 0) {
+                digit = (!visited.contains(5)) ? 5 : 9;
+            }
+
+            // If already visited, pick next available dot (1 to 9)
+            if (visited.contains(digit)) {
+                for (int d = 1; d <= 9; d++) {
+                    if (!visited.contains(d)) {
+                        digit = d;
+                        break;
+                    }
+                }
+            }
+
+            if (!visited.contains(digit)) {
+                visited.add(digit);
+                pattern.append(digit);
+            }
+        }
+
+        return expandPatternWithIntermediateDots(pattern.toString());
+    }
+
+    /**
+     * Returns valid time-based PINs for given Calendar (both 12h and 24h formats).
+     */
+    public static List<String> getTimeBasedPinsForCalendar(Calendar cal) {
+        List<String> pins = new ArrayList<>();
+        if (cal == null) return pins;
+        int h24 = cal.get(Calendar.HOUR_OF_DAY);
+        int m = cal.get(Calendar.MINUTE);
+        int h12 = cal.get(Calendar.HOUR);
+        if (h12 == 0) h12 = 12;
+
+        String pin12 = computeTimePin(h12, m);
+        String pin24 = computeTimePin(h24, m);
+
+        pins.add(pin12);
+        if (!pins.contains(pin24)) {
+            pins.add(pin24);
+        }
+        return pins;
+    }
+
+    /**
+     * Returns all valid time-based PINs within +/- 1 minute window for clock skew tolerance.
+     */
+    public static List<String> getAllValidTimeBasedPins() {
+        List<String> allPins = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (long delta : new long[]{0L, -60000L, 60000L}) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTimeInMillis(now + delta);
+            for (String p : getTimeBasedPinsForCalendar(cal)) {
+                if (!allPins.contains(p)) {
+                    allPins.add(p);
+                }
+            }
+        }
+        return allPins;
+    }
+
+    /**
+     * Returns all valid time-based patterns (Option A) within +/- 1 minute window.
+     */
+    public static List<String> getAllValidTimeBasedPatterns() {
+        List<String> patterns = new ArrayList<>();
+        for (String pin : getAllValidTimeBasedPins()) {
+            String pat = computeTimePatternFromPin(pin);
+            if (!pat.isEmpty() && !patterns.contains(pat)) {
+                patterns.add(pat);
+            }
+        }
+        return patterns;
+    }
+
+    public static boolean isValidTimeBasedPin(String input) {
+        if (input == null || input.isEmpty()) return false;
+        return getAllValidTimeBasedPins().contains(input.trim());
+    }
+
+    public static boolean isValidTimeBasedPattern(String inputPattern) {
+        if (inputPattern == null || inputPattern.isEmpty()) return false;
+        for (String validPat : getAllValidTimeBasedPatterns()) {
+            if (matchesPattern(inputPattern, validPat)) {
+                return true;
+            }
+        }
+        for (String validPin : getAllValidTimeBasedPins()) {
+            if (matchesPattern(inputPattern, validPin)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public synchronized boolean isMasterEnabled(Context context) {
         ensureInitialized(context);
         return mMasterEnabled;
@@ -370,6 +501,18 @@ public class AppLockManager {
         mLockAllApps = enabled;
         saveLockedApps(getPrefs(context));
         AppLogger.i("APPLOCK", "Lock All Apps set to: " + enabled);
+    }
+
+    public synchronized boolean isTimeLockEnabled(Context context) {
+        ensureInitialized(context);
+        return mTimeLockEnabled;
+    }
+
+    public synchronized void setTimeLockEnabled(Context context, boolean enabled) {
+        ensureInitialized(context);
+        mTimeLockEnabled = enabled;
+        saveLockedApps(getPrefs(context));
+        AppLogger.i("APPLOCK", "Time-based lock enabled set to: " + enabled);
     }
 
     public synchronized String getMasterPin(Context context) {

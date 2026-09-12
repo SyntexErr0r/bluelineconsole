@@ -83,6 +83,16 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return candidates;
         }
 
+        // 3b. "lock time on" / "lock time off" or "lock master time on" / "lock master time off"
+        if (q.equals("lock time on") || q.equals("applock time on") || q.equals("lock master time on") || q.equals("applock master time on")) {
+            candidates.add(new AppLockToggleTimeLockCandidateEntry(true));
+            return candidates;
+        }
+        if (q.equals("lock time off") || q.equals("applock time off") || q.equals("lock master time off") || q.equals("applock master time off")) {
+            candidates.add(new AppLockToggleTimeLockCandidateEntry(false));
+            return candidates;
+        }
+
         // 4. "lock master pin <pin>" or "lock master <pin>"
         Pattern pMasterPin = Pattern.compile("^(?:lock|applock)\\s+master(?:\\s+pin)?\\s+(\\d+)");
         Matcher mMasterPin = pMasterPin.matcher(q);
@@ -246,9 +256,11 @@ public class AppLockCommandSearcher implements CommandSearcher {
             body.setTypeface(Typeface.MONOSPACE);
             body.setText("• Master System: " + (mEnabled ? "ACTIVE" : "DISABLED") + "\n" +
                     "• Lock All Mode: " + (mLockAllApps ? "ACTIVE (Downloaded & New Apps Locked)" : "OFF (Only Configured Apps)") + "\n" +
+                    "• Dynamic Time Lock (Aa:Bb -> Ba:Ab): " + (AppLockManager.getInstance().isTimeLockEnabled(mainActivity) ? "ON (Rolling Time PIN & Pattern Active)" : "OFF") + "\n" +
                     "• Master PIN: " + mMasterPin + " | Master Pattern: " + mMasterPattern + "\n" +
                     "• Configured Apps: " + mLockedCount + " (WhatsApp: 9428, Telegram: 8353)\n" +
                     "• Commands:\n" +
+                    "  'lock time on/off' - Toggle dynamic time PIN & pattern\n" +
                     "  'lock all on/off' - Secure all downloaded/new apps\n" +
                     "  'lock master pin <pin>' - Set master PIN\n" +
                     "  'lock master pattern <pat>' - Set master pattern\n" +
@@ -628,6 +640,64 @@ public class AppLockCommandSearcher implements CommandSearcher {
             return activity -> {
                 AppLockManager.getInstance().setLockAllApps(activity, mEnable);
                 Toast.makeText(activity, "Lock All Apps is now " + (mEnable ? "ACTIVE" : "OFF"), Toast.LENGTH_SHORT).show();
+                activity.finishIfNotHome();
+            };
+        }
+
+        @Override
+        public boolean hasLongView() { return false; }
+        @Override
+        public Drawable getIcon(Context context) { return null; }
+        @Override
+        public boolean hasEvent() { return true; }
+        @Override
+        public boolean isSubItem() { return false; }
+        @Override
+        public boolean viewIsRecyclable() { return true; }
+    }
+
+    public static class AppLockToggleTimeLockCandidateEntry implements CandidateEntry {
+        private final boolean mEnable;
+
+        public AppLockToggleTimeLockCandidateEntry(boolean enable) {
+            this.mEnable = enable;
+        }
+
+        @Override
+        public String getTitle() {
+            return mEnable ? "⏰ Dynamic Time Lock: ON (Aa:Bb -> Ba:Ab)" : "⏰ Dynamic Time Lock: OFF";
+        }
+
+        @Override
+        public View getView(MainActivity mainActivity) {
+            LinearLayout layout = new LinearLayout(mainActivity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(0, 4, 0, 8);
+
+            TextView header = new TextView(mainActivity);
+            header.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            header.setTextColor(mEnable ? Color.parseColor("#00f0ff") : Color.parseColor("#ff5577"));
+            header.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            header.setText(mEnable ? "⏰ DYNAMIC TIME LOCK (ON)" : "⏰ DYNAMIC TIME LOCK (OFF)");
+
+            TextView body = new TextView(mainActivity);
+            body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+            body.setTextColor(mainActivity.getAccentColor());
+            body.setTypeface(Typeface.MONOSPACE);
+            body.setText(mEnable ?
+                    "▶ Press Enter or tap to enable rolling Time PIN & Pattern (Aa:Bb -> Ba:Ab, e.g. 07:57 -> 5707)" :
+                    "▶ Press Enter or tap to disable rolling Time PIN & Pattern");
+
+            layout.addView(header);
+            layout.addView(body);
+            return layout;
+        }
+
+        @Override
+        public EventLauncher getEventLauncher(Context context) {
+            return activity -> {
+                AppLockManager.getInstance().setTimeLockEnabled(activity, mEnable);
+                Toast.makeText(activity, "Dynamic Time Lock is now " + (mEnable ? "ENABLED" : "DISABLED"), Toast.LENGTH_SHORT).show();
                 activity.finishIfNotHome();
             };
         }

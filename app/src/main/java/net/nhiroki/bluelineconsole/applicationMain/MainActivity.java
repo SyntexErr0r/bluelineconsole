@@ -684,15 +684,9 @@ public class MainActivity extends BaseWindowActivity {
             nameView.setText(appName);
         }
 
-        final String pinToDisplay = (config.pin != null && !config.pin.isEmpty()) ? config.pin : AppLockManager.getT9PinForPackage(this, packageName);
-
         TextView statusView = findViewById(R.id.appLockStatusText);
         if (statusView != null) {
-            if (pinToDisplay != null && !pinToDisplay.isEmpty()) {
-                statusView.setText(String.format("Enter PIN (%s) or swipe pattern to unlock", pinToDisplay));
-            } else {
-                statusView.setText("Enter PIN or swipe pattern to unlock");
-            }
+            statusView.setText("Enter PIN or swipe pattern to unlock");
         }
 
         TypedValue tvAccent = new TypedValue();
@@ -725,9 +719,7 @@ public class MainActivity extends BaseWindowActivity {
                 tabPattern.setTextColor(disabledColor);
                 keypadView.setVisibility(View.VISIBLE);
                 patternView.setVisibility(View.GONE);
-                mainInputText.setHint(pinToDisplay != null && !pinToDisplay.isEmpty() ?
-                        "Enter PIN (" + pinToDisplay + ") or Pattern digits..." :
-                        "Enter PIN or Pattern digits to unlock...");
+                mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
             });
 
             tabPattern.setOnClickListener(v -> {
@@ -757,9 +749,7 @@ public class MainActivity extends BaseWindowActivity {
         }
 
         mainInputText.setText("");
-        mainInputText.setHint(pinToDisplay != null && !pinToDisplay.isEmpty() ?
-                "Enter PIN (" + pinToDisplay + ") or Pattern digits..." :
-                "Enter PIN or Pattern digits to unlock...");
+        mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
         mainInputText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         mainInputText.setEnabled(true);
         mainInputText.requestFocus();
@@ -818,11 +808,15 @@ public class MainActivity extends BaseWindowActivity {
         String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
         String masterPin = AppLockManager.getInstance().getMasterPin(this);
 
+        boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
+
         boolean pinMatch = (!config.pin.isEmpty() && input.equals(config.pin)) ||
                            (!t9Pin.isEmpty() && input.equals(t9Pin)) ||
-                           (!masterPin.isEmpty() && input.equals(masterPin));
+                           (!masterPin.isEmpty() && input.equals(masterPin)) ||
+                           (timeLockActive && AppLockManager.isValidTimeBasedPin(input));
         boolean patternMatch = (!config.pattern.isEmpty() && AppLockManager.matchesPattern(input, config.pattern)) ||
-                              (!t9Pin.isEmpty() && AppLockManager.matchesPattern(input, t9Pin));
+                              (!t9Pin.isEmpty() && AppLockManager.matchesPattern(input, t9Pin)) ||
+                              (timeLockActive && AppLockManager.isValidTimeBasedPattern(input));
 
         if (pinMatch || patternMatch) {
             onAppUnlockSuccess();
@@ -841,13 +835,15 @@ public class MainActivity extends BaseWindowActivity {
         AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
         String t9Pin = AppLockManager.getT9PinForPackage(this, this.mTargetLockedPackage);
         String masterPattern = AppLockManager.getInstance().getMasterPattern(this);
+        boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
 
         boolean match = (config != null && (
                 (!config.pattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pattern)) ||
                 (!config.pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pin))
         )) ||
         (!t9Pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, t9Pin)) ||
-        (!masterPattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, masterPattern));
+        (!masterPattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, masterPattern)) ||
+        (timeLockActive && AppLockManager.isValidTimeBasedPattern(patternDigits));
 
         if (match) {
             PatternLockView patternView = findViewById(R.id.appLockPatternView);
