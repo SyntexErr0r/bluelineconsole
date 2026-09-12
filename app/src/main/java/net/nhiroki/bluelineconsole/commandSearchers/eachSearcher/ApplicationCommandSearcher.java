@@ -147,6 +147,7 @@ public class ApplicationCommandSearcher implements CommandSearcher {
                     Toast.makeText(activity, String.format(activity.getString(R.string.error_failure_not_found_opening_application_with_class), packageName), Toast.LENGTH_LONG).show();
                     return;
                 }
+                net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole(packageName);
                 activity.startActivity(intent);
                 activity.finishIfNotHome();
             };

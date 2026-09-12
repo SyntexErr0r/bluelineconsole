@@ -10,13 +10,17 @@ android {
     namespace 'net.nhiroki.bluelineconsole'
     defaultConfig {
         applicationId "net.nhiroki.bluelineconsole.beta"
-        versionCode 60
-        versionName "1.2.26-beta18"
+        versionCode 61
+        versionName "1.2.26-beta19"
 
         minSdkVersion 23
         targetSdkVersion 36
         
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
     }
 
     buildTypes {

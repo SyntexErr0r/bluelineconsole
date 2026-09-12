@@ -562,6 +562,7 @@ public class AgentActionEngine {
         String pkg = findPackageByName(context, name);
         if (pkg != null) {
             AppLogger.i("ACTION", "launchAppByName: launching package '" + pkg + "'");
+            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole(pkg);
             Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
             if (launch != null) {
                 if (!(context instanceof android.app.Activity)) {
@@ -666,6 +667,7 @@ public class AgentActionEngine {
 
         try {
             if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 context.startActivity(intent);
                 triggerWhatsAppAutoSendIfConfigured(context, recipient, message, isDirectPhone);
                 return;
@@ -676,6 +678,7 @@ public class AgentActionEngine {
         try {
             intent.setPackage("com.whatsapp.w4b");
             if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
                 context.startActivity(intent);
                 triggerWhatsAppAutoSendIfConfigured(context, recipient, message, isDirectPhone);
                 return;
@@ -709,6 +712,7 @@ public class AgentActionEngine {
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
                 if (context.getPackageManager().queryIntentActivities(intent, 0).size() > 0) {
+                    net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
                     context.startActivity(intent);
                     return;
                 }
