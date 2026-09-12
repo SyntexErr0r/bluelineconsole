@@ -107,4 +107,149 @@ public class AppLockTests {
         assertEquals(1, remove.size());
         assertTrue(remove.get(0) instanceof AppLockCommandSearcher.AppLockRemoveCandidateEntry);
     }
+
+    @Test
+    public void testExpandPatternWithIntermediateDots() {
+        // WhatsApp: 9 -> 4 -> 2 -> 8 traverses dot 5 between 2 and 8
+        assertEquals("94258", AppLockManager.expandPatternWithIntermediateDots("9428"));
+        assertEquals("94258", AppLockManager.expandPatternWithIntermediateDots("94258"));
+
+        // Horizontal line: 1 -> 3 crosses 2, 4 -> 6 crosses 5, 7 -> 9 crosses 8
+        assertEquals("123", AppLockManager.expandPatternWithIntermediateDots("13"));
+        assertEquals("456", AppLockManager.expandPatternWithIntermediateDots("46"));
+        assertEquals("789", AppLockManager.expandPatternWithIntermediateDots("79"));
+
+        // Vertical line: 1 -> 7 crosses 4, 2 -> 8 crosses 5, 3 -> 9 crosses 6
+        assertEquals("147", AppLockManager.expandPatternWithIntermediateDots("17"));
+        assertEquals("258", AppLockManager.expandPatternWithIntermediateDots("28"));
+        assertEquals("369", AppLockManager.expandPatternWithIntermediateDots("39"));
+
+        // Diagonal: 1 -> 9 crosses 5, 3 -> 7 crosses 5
+        assertEquals("159", AppLockManager.expandPatternWithIntermediateDots("19"));
+        assertEquals("357", AppLockManager.expandPatternWithIntermediateDots("37"));
+
+        // Reverse
+        assertEquals("852", AppLockManager.expandPatternWithIntermediateDots("82"));
+        assertEquals("951", AppLockManager.expandPatternWithIntermediateDots("91"));
+        assertEquals("753", AppLockManager.expandPatternWithIntermediateDots("73"));
+
+        // Square corners: 1 -> 3 -> 7 -> 9
+        // 1 to 3 crosses 2 -> 1,2,3
+        // 3 to 7 crosses 5 -> 1,2,3,5,7
+        // 7 to 9 crosses 8 -> 1,2,3,5,7,8,9
+        assertEquals("1235789", AppLockManager.expandPatternWithIntermediateDots("1379"));
+
+        // Telegram pattern: 8 -> 3 -> 5 (no dots skipped)
+        assertEquals("835", AppLockManager.expandPatternWithIntermediateDots("835"));
+
+        // Re-visiting an intermediate dot that was already visited: e.g. 5 -> 2 -> 8
+        // 5 is already in path; when going 2 to 8, 5 is NOT re-added
+        assertEquals("528", AppLockManager.expandPatternWithIntermediateDots("528"));
+
+        // Non 1-9 characters (like PIN with 0) are untouched
+        assertEquals("0000", AppLockManager.expandPatternWithIntermediateDots("0000"));
+        assertEquals("1204", AppLockManager.expandPatternWithIntermediateDots("1204"));
+    }
+
+    @Test
+    public void testMatchesPattern() {
+        // WhatsApp target "94258" matched by "9428" and "94258"
+        assertTrue(AppLockManager.matchesPattern("9428", "94258"));
+        assertTrue(AppLockManager.matchesPattern("94258", "9428"));
+        assertTrue(AppLockManager.matchesPattern("9428", "9428"));
+        assertTrue(AppLockManager.matchesPattern("94258", "94258"));
+
+        // Telegram target "835" matched by "835" and "8353"
+        assertTrue(AppLockManager.matchesPattern("835", "835"));
+        assertTrue(AppLockManager.matchesPattern("835", "8353"));
+
+        // Arbitrary patterns
+        assertTrue(AppLockManager.matchesPattern("1379", "1235789"));
+        assertTrue(AppLockManager.matchesPattern("28", "258"));
+
+        // Non-matches
+        assertFalse(AppLockManager.matchesPattern("1234", "5678"));
+        assertFalse(AppLockManager.matchesPattern("9428", "8353"));
+        assertFalse(AppLockManager.matchesPattern("", "9428"));
+        assertFalse(AppLockManager.matchesPattern(null, "9428"));
+    }
+
+    @Test
+    public void testLockAllAppsAndMasterCredentials() {
+        AppLockManager mgr = AppLockManager.getInstance();
+
+        // Master PIN & Pattern getters and setters
+        mgr.setMasterPin(null, "5432");
+        assertEquals("5432", mgr.getMasterPin(null));
+
+        mgr.setMasterPattern(null, "12369");
+        assertEquals("12369", mgr.getMasterPattern(null));
+
+        // Lock All Apps toggle
+        mgr.setLockAllApps(null, true);
+        assertTrue(mgr.isLockAllApps(null));
+
+        // Exempt management
+        assertFalse(mgr.isExempt(null, "com.arbitrary.newapp"));
+        mgr.setExempt(null, "com.exempt.app", true);
+        assertTrue(mgr.isExempt(null, "com.exempt.app"));
+
+        // Effective config resolution for non-exempt app under Lock All
+        AppLockManager.LockedAppConfig effective = mgr.getEffectiveLockedAppConfig(null, "com.arbitrary.newapp");
+        assertNotNull(effective);
+        assertEquals("5432", effective.pin);
+        assertEquals("12369", effective.pattern);
+        assertTrue(effective.enabled);
+
+        // Effective config for exempt app is null
+        assertNull(mgr.getEffectiveLockedAppConfig(null, "com.exempt.app"));
+
+        // Clean up
+        mgr.setMasterPin(null, AppLockManager.DEFAULT_MASTER_PIN);
+        mgr.setMasterPattern(null, AppLockManager.DEFAULT_MASTER_PATTERN);
+        mgr.setExempt(null, "com.exempt.app", false);
+    }
+
+    @Test
+    public void testAppLockCommandSearcherExtended() {
+        AppLockCommandSearcher searcher = new AppLockCommandSearcher();
+
+        // "lock all on" / "lock all off"
+        List<CandidateEntry> allOn = searcher.searchCandidateEntries("lock all on", null);
+        assertEquals(1, allOn.size());
+        assertTrue(allOn.get(0) instanceof AppLockCommandSearcher.AppLockToggleLockAllCandidateEntry);
+        assertTrue(allOn.get(0).getTitle().contains("ON"));
+
+        List<CandidateEntry> allOff = searcher.searchCandidateEntries("lock all off", null);
+        assertEquals(1, allOff.size());
+        assertTrue(allOff.get(0) instanceof AppLockCommandSearcher.AppLockToggleLockAllCandidateEntry);
+        assertTrue(allOff.get(0).getTitle().contains("OFF"));
+
+        // "lock master pin 1234"
+        List<CandidateEntry> mPin = searcher.searchCandidateEntries("lock master pin 1234", null);
+        assertEquals(1, mPin.size());
+        assertTrue(mPin.get(0) instanceof AppLockCommandSearcher.AppLockSetMasterPinCandidateEntry);
+        assertTrue(mPin.get(0).getTitle().contains("1234"));
+
+        // "lock master pattern 12369"
+        List<CandidateEntry> mPat = searcher.searchCandidateEntries("lock master pattern 12369", null);
+        assertEquals(1, mPat.size());
+        assertTrue(mPat.get(0) instanceof AppLockCommandSearcher.AppLockSetMasterPatternCandidateEntry);
+        assertTrue(mPat.get(0).getTitle().contains("12369"));
+
+        // "lock master 7890"
+        List<CandidateEntry> mShort = searcher.searchCandidateEntries("lock master 7890", null);
+        assertEquals(1, mShort.size());
+        assertTrue(mShort.get(0) instanceof AppLockCommandSearcher.AppLockSetMasterPinCandidateEntry);
+
+        // "lock exempt com.test.app"
+        List<CandidateEntry> exempt = searcher.searchCandidateEntries("lock exempt com.test.app", null);
+        assertEquals(1, exempt.size());
+        assertTrue(exempt.get(0) instanceof AppLockCommandSearcher.AppLockExemptCandidateEntry);
+
+        // "lock instagram" (quick lock candidate)
+        List<CandidateEntry> quick = searcher.searchCandidateEntries("lock instagram", null);
+        assertEquals(1, quick.size());
+        assertTrue(quick.get(0) instanceof AppLockCommandSearcher.AppLockQuickLockCandidateEntry);
+    }
 }

@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -640,7 +642,7 @@ public class MainActivity extends BaseWindowActivity {
             exitAppUnlockMode();
             return;
         }
-        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getLockedAppConfig(this, packageName);
+        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, packageName);
         if (config == null || !config.enabled || AppLockManager.getInstance().isAppUnlockedForSession(packageName)) {
             exitAppUnlockMode();
             return;
@@ -800,11 +802,11 @@ public class MainActivity extends BaseWindowActivity {
 
     private void validateUnlockInput(String input, boolean forceCheck) {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
-        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getLockedAppConfig(this, this.mTargetLockedPackage);
+        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
         if (config == null) return;
 
         boolean pinMatch = !config.pin.isEmpty() && input.equals(config.pin);
-        boolean patternMatch = !config.pattern.isEmpty() && (input.equals(config.pattern) || ("94258".equals(config.pattern) && "9428".equals(input)) || ("9428".equals(config.pattern) && "94258".equals(input)));
+        boolean patternMatch = !config.pattern.isEmpty() && AppLockManager.matchesPattern(input, config.pattern);
 
         if (pinMatch || patternMatch) {
             onAppUnlockSuccess();
@@ -818,8 +820,11 @@ public class MainActivity extends BaseWindowActivity {
 
     private void validateUnlockPattern(String patternDigits) {
         if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
-        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getLockedAppConfig(this, this.mTargetLockedPackage);
-        boolean match = config != null && !config.pattern.isEmpty() && (patternDigits.equals(config.pattern) || ("94258".equals(config.pattern) && "9428".equals(patternDigits)) || ("9428".equals(config.pattern) && "94258".equals(patternDigits)));
+        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getEffectiveLockedAppConfig(this, this.mTargetLockedPackage);
+        boolean match = config != null && (
+                (!config.pattern.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pattern)) ||
+                (!config.pin.isEmpty() && AppLockManager.matchesPattern(patternDigits, config.pin))
+        );
         if (match) {
             PatternLockView patternView = findViewById(R.id.appLockPatternView);
             if (patternView != null) {
@@ -899,6 +904,14 @@ public class MainActivity extends BaseWindowActivity {
         mainInputText.setText("");
         if (this.mAppUnlockFailedAttempts >= 3) {
             Toast.makeText(this, "Access denied: 3 failed attempts.", Toast.LENGTH_SHORT).show();
+            if (this.mTargetLockedPackage != null) {
+                try {
+                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                    if (am != null) {
+                        am.killBackgroundProcesses(this.mTargetLockedPackage);
+                    }
+                } catch (Exception ignored) {}
+            }
             exitAppUnlockModeAndFinish();
             BlueLineAgentService service = BlueLineAgentService.getInstance();
             if (service != null) {
