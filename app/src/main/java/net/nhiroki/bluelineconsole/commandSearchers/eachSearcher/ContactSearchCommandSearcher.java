@@ -1,13 +1,17 @@
 package net.nhiroki.bluelineconsole.commandSearchers.eachSearcher;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.telecom.TelecomManager;
 import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.util.Pair;
 import androidx.preference.PreferenceManager;
@@ -518,8 +522,22 @@ public class ContactSearchCommandSearcher implements CommandSearcher {
         @Override
         public EventLauncher getEventLauncher(Context context) {
             return activity -> {
-                Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(PhoneNumberCandidateEntry.this.phoneNumber)));
+                try {
+                    TelecomManager tm = (TelecomManager) activity.getSystemService(Context.TELECOM_SERVICE);
+                    if (tm != null) {
+                        String defaultDialer = tm.getDefaultDialerPackage();
+                        if (defaultDialer != null && !defaultDialer.isEmpty()) {
+                            net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole(defaultDialer);
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                boolean hasCallPerm = ContextCompat.checkSelfPermission(activity, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED;
+                Intent intent = new Intent(hasCallPerm ? Intent.ACTION_CALL : Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(PhoneNumberCandidateEntry.this.phoneNumber)));
                 activity.startActivity(intent);
+                if (!hasCallPerm) {
+                    ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CALL_PHONE}, 201);
+                }
             };
         }
 

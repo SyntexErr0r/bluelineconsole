@@ -1,10 +1,17 @@
 package net.nhiroki.bluelineconsole.contacts;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.telecom.TelecomManager;
 import android.widget.Toast;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import net.nhiroki.bluelineconsole.agent.AgentActionEngine;
 import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
@@ -364,7 +371,7 @@ public class ContactManager {
             case CALL_METHOD_WHATSAPP_VOICE: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, false);
+                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, cleanPhone, false);
                 if (!success && !cleanPhone.isEmpty()) {
                     Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
                     Intent intent = new Intent(Intent.ACTION_VIEW, uri);
@@ -375,7 +382,7 @@ public class ContactManager {
                         if (BlueLineAgentService.isServiceConnected()) {
                             BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(false);
                         } else {
-                            Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "Opening WhatsApp. (Enable BlueLine Console in Accessibility Settings to auto-call)", Toast.LENGTH_LONG).show();
                         }
                     } catch (Exception e) {
                         launchDialer(context, phone);
@@ -388,7 +395,7 @@ public class ContactManager {
             case CALL_METHOD_WHATSAPP_VIDEO: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, true);
+                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, cleanPhone, true);
                 if (!success && !cleanPhone.isEmpty()) {
                     Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
                     Intent intent = new Intent(Intent.ACTION_VIEW, uri);
@@ -399,7 +406,7 @@ public class ContactManager {
                         if (BlueLineAgentService.isServiceConnected()) {
                             BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(true);
                         } else {
-                            Toast.makeText(context, "Opening WhatsApp for " + contactName, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context, "Opening WhatsApp. (Enable BlueLine Console in Accessibility Settings to auto-call)", Toast.LENGTH_LONG).show();
                         }
                     } catch (Exception e) {
                         launchDialer(context, phone);
@@ -508,12 +515,27 @@ public class ContactManager {
             Toast.makeText(context, "No phone number available", Toast.LENGTH_SHORT).show();
             return;
         }
-        Intent intent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(phone)));
+        try {
+            TelecomManager tm = (TelecomManager) context.getSystemService(Context.TELECOM_SERVICE);
+            if (tm != null) {
+                String defaultDialer = tm.getDefaultDialerPackage();
+                if (defaultDialer != null && !defaultDialer.isEmpty()) {
+                    AppLockManager.getInstance().notifyAppLaunchedFromConsole(defaultDialer);
+                }
+            }
+        } catch (Exception ignored) {}
+
+        boolean hasCallPerm = ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED;
+        Intent intent = new Intent(hasCallPerm ? Intent.ACTION_CALL : Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(phone)));
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             context.startActivity(intent);
         } catch (Exception e) {
-            Toast.makeText(context, "Cannot open dialer", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Cannot place call", Toast.LENGTH_SHORT).show();
+        }
+
+        if (!hasCallPerm && context instanceof Activity) {
+            ActivityCompat.requestPermissions((Activity) context, new String[]{Manifest.permission.CALL_PHONE}, 201);
         }
     }
 }

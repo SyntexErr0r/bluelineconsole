@@ -70,6 +70,8 @@ public class BlueLineAgentService extends AccessibilityService {
     private volatile boolean mPendingWhatsAppCall = false;
     private volatile boolean mPendingWhatsAppCallIsVideo = false;
     private volatile long mCallDeadline = 0;
+    private volatile boolean mPendingWhatsAppCallDialogConfirm = false;
+    private volatile long mDialogConfirmDeadline = 0;
     private volatile boolean mPendingWhatsAppGroupSend = false;
     private volatile boolean mPendingWhatsAppGroupOpen = false;
     private volatile String mTargetGroupName = null;
@@ -107,6 +109,9 @@ public class BlueLineAgentService extends AccessibilityService {
         }
         if (mPendingWhatsAppCall) {
             performWhatsAppCallClick();
+        }
+        if (mPendingWhatsAppCallDialogConfirm) {
+            performWhatsAppCallDialogConfirm();
         }
         if (mPendingWhatsAppGroupSend) {
             performWhatsAppGroupSend();
@@ -289,9 +294,21 @@ public class BlueLineAgentService extends AccessibilityService {
         AccessibilityNodeInfo current = node;
         while (current != null) {
             if (current.isClickable()) {
-                return current.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                if (current.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    return true;
+                }
             }
             current = current.getParent();
+        }
+        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            return true;
+        }
+        if (Build.VERSION.SDK_INT >= 24) {
+            Rect bounds = new Rect();
+            node.getBoundsInScreen(bounds);
+            if (bounds.width() > 0 && bounds.height() > 0) {
+                return tapAt(bounds.centerX(), bounds.centerY());
+            }
         }
         return false;
     }
@@ -360,12 +377,13 @@ public class BlueLineAgentService extends AccessibilityService {
         mPendingWhatsAppCall = true;
         mPendingWhatsAppCallIsVideo = isVideo;
         mCallDeadline = System.currentTimeMillis() + 8000;
+        mPendingWhatsAppCallDialogConfirm = false;
         AppLogger.i("A11Y", "Scheduled WhatsApp " + (isVideo ? "video" : "voice") + " call click (8s deadline)");
         schedulePollingChecks();
     }
 
     private void schedulePollingChecks() {
-        int[] delays = {350, 700, 1100, 1600, 2300, 3200, 4500};
+        int[] delays = {150, 350, 600, 900, 1300, 1800, 2400, 3200, 4200, 5500};
         for (int delay : delays) {
             mMainHandler.postDelayed(() -> {
                 if (mPendingWhatsAppAutoSend) {
@@ -373,6 +391,9 @@ public class BlueLineAgentService extends AccessibilityService {
                 }
                 if (mPendingWhatsAppCall) {
                     performWhatsAppCallClick();
+                }
+                if (mPendingWhatsAppCallDialogConfirm) {
+                    performWhatsAppCallDialogConfirm();
                 }
                 if (mPendingWhatsAppGroupSend) {
                     performWhatsAppGroupSend();
@@ -485,16 +506,21 @@ public class BlueLineAgentService extends AccessibilityService {
     private AccessibilityNodeInfo findCallNodeByDesc(AccessibilityNodeInfo node, boolean isVideo) {
         if (node == null) return null;
         if (isVideo) {
-            if (isVideoNode(node) && node.isClickable() && node.isVisibleToUser()) {
-                return node;
+            if (isVideoNode(node) && node.isVisibleToUser()) {
+                CharSequence desc = node.getContentDescription();
+                if (desc != null && desc.toString().toLowerCase().contains("call")) {
+                    return node;
+                }
             }
         } else {
             if (!isVideoNode(node) && node.isVisibleToUser()) {
                 CharSequence desc = node.getContentDescription();
                 if (desc != null) {
                     String d = desc.toString().trim().toLowerCase();
-                    if (d.equals("voice call") || d.equals("call") || d.equals("audio call") || d.contains("voice call")) {
-                        return node;
+                    if (d.equals("voice call") || d.equals("call") || d.equals("audio call") || d.contains("voice call") || (d.contains("call") && !d.contains("video"))) {
+                        if (!d.contains("attach") && !d.contains("back") && !d.contains("message") && !d.contains("more options") && !d.contains("search")) {
+                            return node;
+                        }
                     }
                 }
             }
@@ -510,47 +536,87 @@ public class BlueLineAgentService extends AccessibilityService {
     private AccessibilityNodeInfo findWhatsAppCallButton(AccessibilityNodeInfo root, boolean isVideo) {
         if (root == null) return null;
         if (isVideo) {
-            AccessibilityNodeInfo node = findNodeEndingWithId(root, ":id/menuitem_video_call");
-            if (node != null && node.isVisibleToUser()) return node;
-            node = findNodeEndingWithId(root, ":id/video_call");
-            if (node != null && node.isVisibleToUser()) return node;
+            String[] videoIds = {
+                    ":id/menuitem_video_call",
+                    ":id/video_call",
+                    ":id/action_video_call",
+                    ":id/conversation_contact_video_call",
+                    ":id/video_call_btn"
+            };
+            for (String id : videoIds) {
+                AccessibilityNodeInfo node = findNodeEndingWithId(root, id);
+                if (node != null && node.isVisibleToUser()) return node;
+            }
             return findCallNodeByDesc(root, true);
         } else {
             // Voice call: explicitly exclude any video element
-            AccessibilityNodeInfo node = findNodeEndingWithId(root, ":id/menuitem_call");
-            if (node != null && node.isVisibleToUser() && !isVideoNode(node)) return node;
-            node = findNodeEndingWithId(root, ":id/voice_call");
-            if (node != null && node.isVisibleToUser() && !isVideoNode(node)) return node;
-            node = findNodeEndingWithId(root, ":id/audio_call");
-            if (node != null && node.isVisibleToUser() && !isVideoNode(node)) return node;
-            node = findNodeEndingWithId(root, ":id/call");
-            if (node != null && node.isVisibleToUser() && !isVideoNode(node)) return node;
+            String[] voiceIds = {
+                    ":id/menuitem_call",
+                    ":id/voice_call",
+                    ":id/action_voice_call",
+                    ":id/conversation_contact_call",
+                    ":id/audio_call",
+                    ":id/call_btn",
+                    ":id/call_button",
+                    ":id/call"
+            };
+            for (String id : voiceIds) {
+                AccessibilityNodeInfo node = findNodeEndingWithId(root, id);
+                if (node != null && node.isVisibleToUser() && !isVideoNode(node)) return node;
+            }
             return findCallNodeByDesc(root, false);
         }
     }
 
     private AccessibilityNodeInfo findDialogCallButton(AccessibilityNodeInfo root, boolean isVideo) {
         if (root == null) return null;
+
+        // 1. Check by typical dialog button IDs
+        String[] dialogBtnIds = {
+                "android:id/button1",
+                ":id/button1",
+                ":id/ok_button",
+                ":id/positive_button",
+                ":id/call_button",
+                ":id/call_action",
+                ":id/btn_call",
+                ":id/confirm"
+        };
+        for (String idSuffix : dialogBtnIds) {
+            AccessibilityNodeInfo btn = findNodeEndingWithId(root, idSuffix);
+            if (btn != null && btn.isVisibleToUser()) {
+                String resId = btn.getViewIdResourceName();
+                if (resId == null || (!resId.contains("toolbar") && !resId.contains("action_bar"))) {
+                    return btn;
+                }
+            }
+        }
+
+        // 2. Search by text
         List<AccessibilityNodeInfo> candidates = new ArrayList<>();
-        List<AccessibilityNodeInfo> callNodes = root.findAccessibilityNodeInfosByText("CALL");
-        if (callNodes != null) candidates.addAll(callNodes);
-        List<AccessibilityNodeInfo> callNodes2 = root.findAccessibilityNodeInfosByText("Call");
-        if (callNodes2 != null) candidates.addAll(callNodes2);
+        String[] texts = {"CALL", "Call", "Voice call", "Voice Call", "Video call", "Video Call", "Start call", "Start Call"};
+        for (String t : texts) {
+            List<AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(t);
+            if (nodes != null) candidates.addAll(nodes);
+        }
 
         for (AccessibilityNodeInfo btn : candidates) {
             if (btn == null || !btn.isVisibleToUser()) continue;
-            CharSequence cls = btn.getClassName();
             String id = btn.getViewIdResourceName();
             if (id != null && (id.contains("menuitem") || id.contains("action_bar") || id.contains("toolbar"))) {
                 continue; // Skip action bar items
             }
+            CharSequence cls = btn.getClassName();
             if (cls != null && (cls.toString().contains("ImageView") || cls.toString().contains("ImageButton"))) {
                 continue; // Skip image buttons
             }
             CharSequence txt = btn.getText();
             if (txt != null) {
                 String tStr = txt.toString().trim();
-                if (tStr.equalsIgnoreCase("CALL") || tStr.equalsIgnoreCase("Call") || tStr.equalsIgnoreCase("Voice Call") || tStr.equalsIgnoreCase("Video Call")) {
+                if (tStr.equalsIgnoreCase("CALL") || tStr.equalsIgnoreCase("Call") ||
+                    tStr.equalsIgnoreCase("Voice Call") || tStr.equalsIgnoreCase("Video Call") ||
+                    tStr.equalsIgnoreCase("Start Call") || tStr.equalsIgnoreCase("Start Voice Call") ||
+                    tStr.equalsIgnoreCase("Start Video Call")) {
                     if (!isVideo && tStr.toLowerCase().contains("video")) {
                         continue;
                     }
@@ -583,8 +649,9 @@ public class BlueLineAgentService extends AccessibilityService {
         // 1. Check if a confirmation dialog button is already showing
         AccessibilityNodeInfo dialogBtn = findDialogCallButton(root, isVideo);
         if (dialogBtn != null && performClickOnNode(dialogBtn)) {
-            AppLogger.i("A11Y", "WhatsApp call: confirmed dialog button");
+            AppLogger.i("A11Y", "WhatsApp call: confirmed dialog button directly");
             mPendingWhatsAppCall = false;
+            mPendingWhatsAppCallDialogConfirm = false;
             return true;
         }
 
@@ -593,8 +660,15 @@ public class BlueLineAgentService extends AccessibilityService {
         if (callNode != null && callNode.isVisibleToUser()) {
             if (performClickOnNode(callNode)) {
                 AppLogger.i("A11Y", "WhatsApp call: clicked " + (isVideo ? "video" : "voice") + " call button");
-                mMainHandler.postDelayed(() -> dismissCallConfirmationDialogIfAny(isVideo), 350);
                 mPendingWhatsAppCall = false;
+                mPendingWhatsAppCallDialogConfirm = true;
+                mDialogConfirmDeadline = System.currentTimeMillis() + 4000;
+
+                // Watch closely for the confirmation dialog
+                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 200);
+                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 500);
+                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 900);
+                mMainHandler.postDelayed(this::performWhatsAppCallDialogConfirm, 1500);
                 return true;
             }
         }
@@ -602,13 +676,29 @@ public class BlueLineAgentService extends AccessibilityService {
         return false;
     }
 
-    private void dismissCallConfirmationDialogIfAny(boolean isVideo) {
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return;
-        AccessibilityNodeInfo dialogBtn = findDialogCallButton(root, isVideo);
-        if (dialogBtn != null && performClickOnNode(dialogBtn)) {
-            AppLogger.i("A11Y", "WhatsApp call dialog auto-confirmed");
+    public synchronized boolean performWhatsAppCallDialogConfirm() {
+        if (!mPendingWhatsAppCallDialogConfirm) return false;
+        if (System.currentTimeMillis() > mDialogConfirmDeadline) {
+            mPendingWhatsAppCallDialogConfirm = false;
+            return false;
         }
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+        CharSequence pkg = root.getPackageName();
+        if (pkg == null) return false;
+        String pkgStr = pkg.toString().toLowerCase();
+        if (!pkgStr.equals("com.whatsapp") && !pkgStr.equals("com.whatsapp.w4b")) {
+            return false;
+        }
+
+        AccessibilityNodeInfo dialogBtn = findDialogCallButton(root, mPendingWhatsAppCallIsVideo);
+        if (dialogBtn != null && performClickOnNode(dialogBtn)) {
+            AppLogger.i("A11Y", "WhatsApp call: confirmed dialog button via watcher");
+            mPendingWhatsAppCallDialogConfirm = false;
+            return true;
+        }
+        return false;
     }
 
     private AccessibilityNodeInfo findNodeEndingWithId(AccessibilityNodeInfo node, String idSuffix) {

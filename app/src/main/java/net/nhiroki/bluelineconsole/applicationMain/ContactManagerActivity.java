@@ -25,6 +25,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import net.nhiroki.bluelineconsole.R;
 import net.nhiroki.bluelineconsole.contacts.ContactDialogHelper;
@@ -221,8 +222,15 @@ public class ContactManagerActivity extends BaseWindowActivity {
     }
 
     private void loadContactsAsync() {
+        List<String> perms = new ArrayList<>();
         if (!ContactsReader.appHasReadContactsPermission(this)) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_CONTACTS}, REQ_READ_CONTACTS);
+            perms.add(Manifest.permission.READ_CONTACTS);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            perms.add(Manifest.permission.CALL_PHONE);
+        }
+        if (!perms.isEmpty()) {
+            ActivityCompat.requestPermissions(this, perms.toArray(new String[0]), REQ_READ_CONTACTS);
             return;
         }
 
@@ -251,7 +259,7 @@ public class ContactManagerActivity extends BaseWindowActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_READ_CONTACTS) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (ContactsReader.appHasReadContactsPermission(this)) {
                 loadContactsAsync();
             } else {
                 Toast.makeText(this, "Contacts permission required to manage contacts", Toast.LENGTH_LONG).show();

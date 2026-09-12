@@ -418,6 +418,16 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 201) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                AppLogger.i("PERMISSION", "CALL_PHONE permission granted in MainActivity");
+            }
+        }
+    }
+
+    @Override
     protected void onPause() {
         ++this.resumeId;
         if (lockoutRunnable != null) {
