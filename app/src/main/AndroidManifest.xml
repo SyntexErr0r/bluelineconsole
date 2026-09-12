@@ -141,6 +141,11 @@
             android:exported="false"
             />
         <activity
+            android:name=".applicationMain.ContactManagerActivity"
+            android:theme="@style/AppThemeCyberGlass"
+            android:exported="false"
+            />
+        <activity
             android:name=".applicationMain.StartUpHelpActivity"
             android:theme="@style/AppThemeCyberGlass"
             android:exported="false"

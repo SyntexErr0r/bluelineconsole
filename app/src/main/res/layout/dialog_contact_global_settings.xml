@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/transparent">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DEFAULT CALL SYSTEM"
+        android:textColor="#00f0ff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="8dp" />
+
+    <RadioGroup
+        android:id="@+id/dialogContactRadioGroupCall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioCallPhone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📞 Direct Phone Call (Dialer)"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioCallWhatsAppVoice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🟢 WhatsApp Voice Call"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioCallWhatsAppVideo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🎥 WhatsApp Video Call"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioCallTelegram"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✈️ Telegram Call"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+    </RadioGroup>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#2000f0ff"
+        android:layout_marginBottom="14dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DEFAULT MESSAGE SYSTEM"
+        android:textColor="#00f0ff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="8dp" />
+
+    <RadioGroup
+        android:id="@+id/dialogContactRadioGroupMsg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp">
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioMsgWhatsApp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🟢 WhatsApp Chat"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioMsgTelegram"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✈️ Telegram Message"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+
+        <RadioButton
+            android:id="@+id/dialogContactRadioMsgSms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="💬 Direct SMS"
+            android:textColor="#e6f9ff"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:buttonTint="#00f0ff" />
+    </RadioGroup>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#2000f0ff"
+        android:layout_marginBottom="14dp" />
+
+    <!-- Switch: Only search contacts on /con command -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Only search with /con command"
+                android:textColor="#e6f9ff"
+                android:textSize="13sp"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Keeps app searches clean from phone numbers"
+                android:textColor="#4d7a94"
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/dialogContactSwitchOnlyCommand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:thumbTint="#00f0ff"
+            app:trackTint="#6600f0ff" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/dialogContactBtnSaveGlobal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SAVE SETTINGS"
+            android:textColor="#00f0ff"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+</LinearLayout>

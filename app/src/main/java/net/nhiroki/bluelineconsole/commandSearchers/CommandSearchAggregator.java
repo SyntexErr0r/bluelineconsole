@@ -63,9 +63,8 @@ public class CommandSearchAggregator {
         commandSearcherList.add(new SearchEngineCommandSearcher(context));
         commandSearcherList.add(new ColorDisplayCommandSearcher());
 
-        // Command searchers which may return tons candidate should comes to the last of "search result"
-        commandSearcherList.add(new ContactSearchCommandSearcher());
         commandSearcherList.add(new ApplicationCommandSearcher());
+        commandSearcherList.add(new ContactSearchCommandSearcher());
 
         // This should be separately called and order does not matter, and results are placed at last.
         commandSearcherListAlwaysLast.add(new SearchEngineDefaultCommandSearcher(context));

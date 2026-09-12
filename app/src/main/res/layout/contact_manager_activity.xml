@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/transparent">
+
+    <!-- 1st Line: Header with Settings Icon at Left & Status Summary -->
+    <LinearLayout
+        android:id="@+id/contactTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp"
+        android:background="#1a00f0ff">
+
+        <!-- Settings Icon Button at Left -->
+        <LinearLayout
+            android:id="@+id/contactBtnOpenSettings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_settings_cyber"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SETTINGS"
+                android:textColor="#00f0ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <!-- Status Summary on 1st Line -->
+        <TextView
+            android:id="@+id/contactTopStatusSummary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Contacts: 0 | Pinned: 0 | Call: Phone"
+            android:textColor="#99d6ea"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:gravity="end"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Search Input Field -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp">
+
+        <EditText
+            android:id="@+id/contactSearchEdit"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:background="@drawable/cyber_glass_input_box"
+            android:hint="🔍 Search contacts by name or number..."
+            android:textColor="#00f0ff"
+            android:textColorHint="#4d7a94"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- List of Contacts with Cyber Fast Scroller & Loading State -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Cyber Loading State -->
+        <LinearLayout
+            android:id="@+id/contactLoadingContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="visible">
+
+            <ProgressBar
+                android:id="@+id/contactLoadingProgress"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:indeterminate="true"
+                android:indeterminateTint="#00f0ff"
+                android:indeterminateTintMode="src_in" />
+
+            <TextView
+                android:id="@+id/contactLoadingText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="[ SCANNING CONTACTS... ]"
+                android:textColor="#00f0ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.05" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Preparing Cyber Contact Hub..."
+                android:textColor="#4d7a94"
+                android:textSize="11sp"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <ListView
+            android:id="@+id/contactListView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="#2000f0ff"
+            android:dividerHeight="1dp"
+            android:scrollbars="none"
+            android:visibility="gone" />
+
+        <!-- Cyber Fast Scroller Overlay (Strict 14dp boundary at far right edge) -->
+        <FrameLayout
+            android:id="@+id/contactFastScrollContainer"
+            android:layout_width="14dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:visibility="gone">
+
+            <!-- Subtle Track -->
+            <View
+                android:layout_width="2dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_horizontal"
+                android:background="#1500f0ff" />
+
+            <!-- Draggable Glowing Cyber Thumb -->
+            <View
+                android:id="@+id/contactFastScrollThumb"
+                android:layout_width="10dp"
+                android:layout_height="42dp"
+                android:layout_gravity="top|center_horizontal"
+                android:background="@drawable/cyber_fast_scroll_thumb" />
+        </FrameLayout>
+    </FrameLayout>
+</LinearLayout>

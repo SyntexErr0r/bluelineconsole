@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:background="@android:color/transparent">
+
+        <!-- Contact Name & Phone Summary -->
+        <TextView
+            android:id="@+id/dialogEditContactName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#00f0ff"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:text="Contact Name" />
+
+        <TextView
+            android:id="@+id/dialogEditContactPhone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#99d6ea"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="12dp"
+            android:text="+1 234 567 890" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#2000f0ff"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Pin Switch -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="14dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📌 Pin to Top of Contacts"
+                android:textColor="#e6f9ff"
+                android:textSize="13sp"
+                android:fontFamily="monospace" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/dialogEditContactSwitchPin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:thumbTint="#00f0ff"
+                app:trackTint="#6600f0ff" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#2000f0ff"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Call Method Option -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PREFERRED CALL SYSTEM"
+            android:textColor="#00f0ff"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="6dp" />
+
+        <RadioGroup
+            android:id="@+id/dialogEditContactRadioGroupCall"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp">
+
+            <RadioButton
+                android:id="@+id/dialogEditContactCallDefault"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚙️ System Default"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactCallPhone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📞 Direct Phone Call"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactCallWhatsAppVoice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🟢 WhatsApp Voice Call"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactCallWhatsAppVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🎥 WhatsApp Video Call"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactCallTelegram"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="✈️ Telegram Call"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+        </RadioGroup>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#2000f0ff"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Message Method Option -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PREFERRED MESSAGE SYSTEM"
+            android:textColor="#00f0ff"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="6dp" />
+
+        <RadioGroup
+            android:id="@+id/dialogEditContactRadioGroupMsg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp">
+
+            <RadioButton
+                android:id="@+id/dialogEditContactMsgDefault"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚙️ System Default"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactMsgWhatsApp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🟢 WhatsApp Chat"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactMsgTelegram"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="✈️ Telegram Message"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+
+            <RadioButton
+                android:id="@+id/dialogEditContactMsgSms"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💬 Direct SMS"
+                android:textColor="#e6f9ff"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:buttonTint="#00f0ff" />
+        </RadioGroup>
+
+        <!-- Telegram Username Input -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TELEGRAM USERNAME (OPTIONAL)"
+            android:textColor="#00f0ff"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:layout_marginBottom="4dp" />
+
+        <EditText
+            android:id="@+id/dialogEditContactTgUsername"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:background="@drawable/cyber_glass_input_box"
+            android:hint="@username"
+            android:textColor="#00f0ff"
+            android:textColorHint="#4d7a94"
+            android:textSize="12sp"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="8dp"
+            android:singleLine="true"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Quick Test Buttons: Call & Message -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/dialogEditContactBtnTestCall"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📞 TEST CALL"
+                android:textColor="#00f0ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:padding="8dp"
+                android:background="#1500f0ff"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/dialogEditContactBtnTestMsg"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="💬 TEST MSG"
+                android:textColor="#00f0ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:padding="8dp"
+                android:background="#1500f0ff"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginStart="6dp" />
+        </LinearLayout>
+
+        <!-- Dialog Footer: Cancel & Save -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/dialogEditContactBtnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CANCEL"
+                android:textColor="#4d7a94"
+                android:textSize="13sp"
+                android:fontFamily="monospace"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/dialogEditContactBtnSave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SAVE CONFIG"
+                android:textColor="#00f0ff"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
