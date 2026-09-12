@@ -180,15 +180,6 @@
             </intent-filter>
         </receiver>
 
-        <activity
-            android:name=".applock.AppLockActivity"
-            android:exported="false"
-            android:theme="@style/AppThemeCyberGlass"
-            android:launchMode="singleTop"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:windowSoftInputMode="stateHidden|adjustResize"
-            android:taskAffinity="net.nhiroki.bluelineconsole.applock" />
 
         <service
             android:name=".applicationMain.lib.ScreenCaptureService"

@@ -3,7 +3,11 @@ package net.nhiroki.bluelineconsole.applock;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 
+import net.nhiroki.bluelineconsole.agent.BlueLineAgentService;
+import net.nhiroki.bluelineconsole.applicationMain.MainActivity;
 import net.nhiroki.bluelineconsole.commands.logs.AppLogger;
 
 import org.json.JSONArray;
@@ -264,21 +268,35 @@ public class AppLockManager {
             return;
         }
 
-        // Throttle lock activity launches to once per 1200ms
+        // Throttle lock triggers to once per 1000ms
         long now = System.currentTimeMillis();
-        if (now - mLastLockTriggerTime < 1200) {
+        if (now - mLastLockTriggerTime < 1000) {
             return;
         }
         mLastLockTriggerTime = now;
 
-        AppLogger.i("APPLOCK", "Locking access to " + pkg + ". Launching AppLockActivity.");
+        AppLogger.i("APPLOCK", "Unauthorized access to " + pkg + ". Closing app and opening BlueLine Console unlock.");
 
-        Intent lockIntent = new Intent(context, AppLockActivity.class);
-        lockIntent.putExtra(AppLockActivity.EXTRA_PACKAGE_NAME, pkg);
-        lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
-                            Intent.FLAG_ACTIVITY_NO_ANIMATION |
-                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS |
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        context.startActivity(lockIntent);
+        // 1. Immediately close the unauthorized app by pressing Home
+        if (context instanceof BlueLineAgentService) {
+            ((BlueLineAgentService) context).pressHome();
+        } else if (BlueLineAgentService.getInstance() != null) {
+            BlueLineAgentService.getInstance().pressHome();
+        }
+
+        // 2. Launch BlueLine Console MainActivity in App Unlock mode
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            try {
+                Intent lockIntent = new Intent(context, MainActivity.class);
+                lockIntent.setAction(MainActivity.ACTION_UNLOCK_APP);
+                lockIntent.putExtra(MainActivity.EXTRA_UNLOCK_PACKAGE, pkg);
+                lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                                    Intent.FLAG_ACTIVITY_SINGLE_TOP |
+                                    Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                context.startActivity(lockIntent);
+            } catch (Exception e) {
+                AppLogger.e("APPLOCK", "Error starting MainActivity for unlock", e);
+            }
+        }, 60);
     }
 }

@@ -19,10 +19,20 @@ import android.view.animation.Animation;
 import android.view.animation.CycleInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.content.pm.PackageManager;
+import android.content.pm.ApplicationInfo;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.text.InputType;
+import android.util.TypedValue;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+
+import net.nhiroki.bluelineconsole.agent.BlueLineAgentService;
+import net.nhiroki.bluelineconsole.applock.AppLockManager;
+import net.nhiroki.bluelineconsole.applock.PatternLockView;
 
 import androidx.annotation.NonNull;
 import androidx.biometric.BiometricPrompt;
@@ -67,6 +77,14 @@ public class MainActivity extends BaseWindowActivity {
     private boolean biometricPromptShowing = false;
 
 
+    public static final String ACTION_UNLOCK_APP = "net.nhiroki.bluelineconsole.action.UNLOCK_APP";
+    public static final String EXTRA_UNLOCK_PACKAGE = "net.nhiroki.bluelineconsole.extra.UNLOCK_PACKAGE";
+
+    private String mTargetLockedPackage = null;
+    private String mTargetLockedAppName = null;
+    private boolean mIsAppUnlockMode = false;
+    private int mAppUnlockFailedAttempts = 0;
+
     public MainActivity() {
         super(R.layout.main_activity_body, true);
     }
@@ -74,6 +92,29 @@ public class MainActivity extends BaseWindowActivity {
     public static void setIsComingBack(boolean flag) {
         if (myActiveInstance != null) {
             myActiveInstance.comingBackFlag = flag;
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        this.setIntent(intent);
+        this.handleIncomingIntent(intent);
+    }
+
+    private void handleIncomingIntent(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        if (ACTION_UNLOCK_APP.equals(action) || intent.hasExtra(EXTRA_UNLOCK_PACKAGE)) {
+            String targetPkg = intent.getStringExtra(EXTRA_UNLOCK_PACKAGE);
+            if (targetPkg != null && !targetPkg.isEmpty()) {
+                setupAppUnlockMode(targetPkg);
+                return;
+            }
+        }
+        String search = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if (search != null) {
+            mainInputText.setText(search);
         }
     }
 
@@ -119,13 +160,13 @@ public class MainActivity extends BaseWindowActivity {
         mainInputText.requestFocus();
         mainInputText.requestFocusFromTouch();
 
-        Intent from_intent = this.getIntent();
-        String search = from_intent.getStringExtra(Intent.EXTRA_TEXT);
-        if (search != null) {
-            mainInputText.setText(search);
-        }
+        this.handleIncomingIntent(this.getIntent());
 
         mainInputText.setOnEditorActionListener((v, actionId, event) -> {
+            if (this.mIsAppUnlockMode) {
+                validateUnlockInput(mainInputText.getText().toString().trim(), true);
+                return true;
+            }
             if (resultCandidateListAdapter.isEmpty()) {
                 return false;
             }
@@ -189,11 +230,20 @@ public class MainActivity extends BaseWindowActivity {
             return;
         }
 
+        if (this.mIsAppUnlockMode) {
+            this.setWholeLayout();
+            this.enableBaseWindowAnimation();
+            return;
+        }
+
         this.completeResumeSetup();
         this.updateAppLockUI();
     }
 
     private void completeResumeSetup() {
+        if (this.mIsAppUnlockMode) {
+            return;
+        }
         AppLogger.d("LIFECYCLE", "MainActivity resumed (home=" + this.iAmHomeActivity + ", cameBack=" + cameBackFlag + ")");
         resultCandidateListAdapter.setShowIcons(PreferenceManager.getDefaultSharedPreferences(this).getBoolean("pref_appearance_show_icons", true));
 
@@ -348,6 +398,15 @@ public class MainActivity extends BaseWindowActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        if (this.mIsAppUnlockMode) {
+            this.exitAppUnlockModeAndFinish();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    @Override
     protected void onHeightChange() {
         super.onHeightChange();
         this.setWholeLayout();
@@ -357,6 +416,9 @@ public class MainActivity extends BaseWindowActivity {
     protected void onStop() {
         // This app should be as stateless as possible. When app disappears most activities should finish.
         super.onStop();
+        if (this.mIsAppUnlockMode) {
+            this.exitAppUnlockMode();
+        }
         if (!comingBackFlag) {
             net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.onAppExit(this);
         }
@@ -372,6 +434,7 @@ public class MainActivity extends BaseWindowActivity {
         this.enableWindowAnimationForEachViewGroup(findViewById(R.id.mainRootLinearLayout));
         this.enableWindowAnimationForEachViewGroup(findViewById(R.id.mainInputTextWrapperLinearLayout));
         this.enableWindowAnimationForEachViewGroup(findViewById(R.id.candidateViewWrapperLinearLayout));
+        this.enableWindowAnimationForEachViewGroup(findViewById(R.id.appLockWrapperLinearLayout));
     }
 
     @Override
@@ -381,6 +444,7 @@ public class MainActivity extends BaseWindowActivity {
         this.disableWindowAnimationForEachViewGroup(findViewById(R.id.mainRootLinearLayout));
         this.disableWindowAnimationForEachViewGroup(findViewById(R.id.mainInputTextWrapperLinearLayout));
         this.disableWindowAnimationForEachViewGroup(findViewById(R.id.candidateViewWrapperLinearLayout));
+        this.disableWindowAnimationForEachViewGroup(findViewById(R.id.appLockWrapperLinearLayout));
     }
 
     public void changeInputText(String text) {
@@ -395,7 +459,7 @@ public class MainActivity extends BaseWindowActivity {
             findViewById(R.id.candidateViewWrapperLinearLayout).setPaddingRelative(0, (int)(6 * getResources().getDisplayMetrics().density + 0.5), 0, 0);
         }
 
-        final boolean contentFilled = !mainInputText.getText().toString().isEmpty() || this.homeItemExists;
+        final boolean contentFilled = !mainInputText.getText().toString().isEmpty() || this.homeItemExists || this.mIsAppUnlockMode;
 
         this.setWindowBoundarySize(contentFilled ? ROOT_WINDOW_FULL_WIDTH_IN_MOBILE : ROOT_WINDOW_ALWAYS_HORIZONTAL_MARGIN, 0);
 
@@ -535,6 +599,11 @@ public class MainActivity extends BaseWindowActivity {
             return;
         }
 
+        if (this.mIsAppUnlockMode) {
+            this.validateUnlockInput(query.toString().trim(), false);
+            return;
+        }
+
         if (commandSearchAggregator.isPrepared() || (query.toString().isEmpty() && !this.iAmHomeActivity)) {
             findViewById(R.id.commandSearchWaitingNotification).setVisibility(View.GONE);
             executeSearch(query.toString());
@@ -564,6 +633,309 @@ public class MainActivity extends BaseWindowActivity {
                 });
             });
         }
+    }
+
+    private void setupAppUnlockMode(String packageName) {
+        if (packageName == null || packageName.isEmpty()) {
+            exitAppUnlockMode();
+            return;
+        }
+        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getLockedAppConfig(this, packageName);
+        if (config == null || !config.enabled || AppLockManager.getInstance().isAppUnlockedForSession(packageName)) {
+            exitAppUnlockMode();
+            return;
+        }
+
+        this.mTargetLockedPackage = packageName;
+        this.mIsAppUnlockMode = true;
+        this.mAppUnlockFailedAttempts = 0;
+
+        String appName = packageName;
+        Drawable appIcon = null;
+        try {
+            PackageManager pm = getPackageManager();
+            ApplicationInfo info = pm.getApplicationInfo(packageName, 0);
+            appName = pm.getApplicationLabel(info).toString();
+            appIcon = pm.getApplicationIcon(info);
+        } catch (Exception ignored) {}
+        this.mTargetLockedAppName = appName;
+
+        this.setHeaderFooterTexts("🔒 " + appName + " (LOCKED)", "BlueLine Console AppLock");
+
+        View appLockWrapper = findViewById(R.id.appLockWrapperLinearLayout);
+        View candidateWrapper = findViewById(R.id.candidateViewWrapperLinearLayout);
+        if (candidateWrapper != null) candidateWrapper.setVisibility(View.GONE);
+        if (appLockWrapper != null) appLockWrapper.setVisibility(View.VISIBLE);
+
+        ImageView iconView = findViewById(R.id.appLockAppIcon);
+        if (iconView != null) {
+            if (appIcon != null) {
+                iconView.setImageDrawable(appIcon);
+                iconView.setVisibility(View.VISIBLE);
+            } else {
+                iconView.setVisibility(View.GONE);
+            }
+        }
+
+        TextView nameView = findViewById(R.id.appLockAppName);
+        if (nameView != null) {
+            nameView.setText(appName);
+        }
+
+        TextView statusView = findViewById(R.id.appLockStatusText);
+        if (statusView != null) {
+            statusView.setText("Enter PIN or swipe pattern to unlock");
+        }
+
+        TypedValue tvAccent = new TypedValue();
+        getTheme().resolveAttribute(R.attr.bluelineconsoleAccentColor, tvAccent, true);
+        final int accentColor = tvAccent.data;
+
+        TypedValue tvDisabled = new TypedValue();
+        getTheme().resolveAttribute(R.attr.bluelineconsoleDisabledTextColor, tvDisabled, true);
+        final int disabledColor = tvDisabled.data;
+
+        PatternLockView patternView = findViewById(R.id.appLockPatternView);
+        if (patternView != null) {
+            patternView.setAccentColor(accentColor);
+            patternView.setOnPatternListener(this::validateUnlockPattern);
+        }
+
+        final TextView tabPin = findViewById(R.id.appLockTabPin);
+        final TextView tabPattern = findViewById(R.id.appLockTabPattern);
+        final TextView tabBiometric = findViewById(R.id.appLockTabBiometric);
+        final View keypadView = findViewById(R.id.appLockPinKeypad);
+
+        if (tabPin != null && tabPattern != null && keypadView != null && patternView != null) {
+            tabPin.setTextColor(accentColor);
+            tabPattern.setTextColor(disabledColor);
+            keypadView.setVisibility(View.VISIBLE);
+            patternView.setVisibility(View.GONE);
+
+            tabPin.setOnClickListener(v -> {
+                tabPin.setTextColor(accentColor);
+                tabPattern.setTextColor(disabledColor);
+                keypadView.setVisibility(View.VISIBLE);
+                patternView.setVisibility(View.GONE);
+                mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
+            });
+
+            tabPattern.setOnClickListener(v -> {
+                tabPattern.setTextColor(accentColor);
+                tabPin.setTextColor(disabledColor);
+                keypadView.setVisibility(View.GONE);
+                patternView.setVisibility(View.VISIBLE);
+                patternView.clearPattern();
+                mainInputText.setHint("Swipe 9-dot pattern to unlock...");
+            });
+        }
+
+        if (tabBiometric != null) {
+            if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) {
+                tabBiometric.setVisibility(View.VISIBLE);
+                tabBiometric.setOnClickListener(v -> tryTriggerBiometricForAppUnlock());
+            } else {
+                tabBiometric.setVisibility(View.GONE);
+            }
+        }
+
+        setupKeypadButtons();
+
+        View dismissBtn = findViewById(R.id.appLockDismissBtn);
+        if (dismissBtn != null) {
+            dismissBtn.setOnClickListener(v -> exitAppUnlockModeAndFinish());
+        }
+
+        mainInputText.setText("");
+        mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
+        mainInputText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        mainInputText.setEnabled(true);
+        mainInputText.requestFocus();
+
+        this.setWholeLayout();
+        this.enableBaseWindowAnimation();
+
+        if (net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) {
+            new Handler(Looper.getMainLooper()).postDelayed(this::tryTriggerBiometricForAppUnlock, 300);
+        }
+    }
+
+    private void setupKeypadButtons() {
+        int[] numIds = new int[]{
+                R.id.btnKey0, R.id.btnKey1, R.id.btnKey2, R.id.btnKey3, R.id.btnKey4,
+                R.id.btnKey5, R.id.btnKey6, R.id.btnKey7, R.id.btnKey8, R.id.btnKey9
+        };
+        for (int id : numIds) {
+            View btn = findViewById(id);
+            if (btn instanceof TextView) {
+                final String digit = ((TextView) btn).getText().toString();
+                btn.setOnClickListener(v -> mainInputText.append(digit));
+            }
+        }
+
+        View btnClear = findViewById(R.id.btnKeyClear);
+        if (btnClear != null) {
+            btnClear.setOnClickListener(v -> {
+                Editable text = mainInputText.getText();
+                if (text != null && text.length() > 0) {
+                    text.delete(text.length() - 1, text.length());
+                }
+            });
+            btnClear.setOnLongClickListener(v -> {
+                mainInputText.setText("");
+                return true;
+            });
+        }
+
+        View btnEnter = findViewById(R.id.btnKeyEnter);
+        if (btnEnter != null) {
+            btnEnter.setOnClickListener(v -> {
+                CharSequence text = mainInputText.getText();
+                if (text != null) {
+                    validateUnlockInput(text.toString().trim(), true);
+                }
+            });
+        }
+    }
+
+    private void validateUnlockInput(String input, boolean forceCheck) {
+        if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getLockedAppConfig(this, this.mTargetLockedPackage);
+        if (config == null) return;
+
+        boolean pinMatch = !config.pin.isEmpty() && input.equals(config.pin);
+        boolean patternMatch = !config.pattern.isEmpty() && input.equals(config.pattern);
+
+        if (pinMatch || patternMatch) {
+            onAppUnlockSuccess();
+        } else {
+            int targetLen = Math.max(config.pin.length(), config.pattern.length());
+            if (forceCheck || (targetLen > 0 && input.length() >= targetLen)) {
+                onAppUnlockFailure();
+            }
+        }
+    }
+
+    private void validateUnlockPattern(String patternDigits) {
+        if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        AppLockManager.LockedAppConfig config = AppLockManager.getInstance().getLockedAppConfig(this, this.mTargetLockedPackage);
+        if (config != null && !config.pattern.isEmpty() && patternDigits.equals(config.pattern)) {
+            PatternLockView patternView = findViewById(R.id.appLockPatternView);
+            if (patternView != null) {
+                patternView.showSuccess();
+            }
+            new Handler(Looper.getMainLooper()).postDelayed(this::onAppUnlockSuccess, 200);
+        } else {
+            PatternLockView patternView = findViewById(R.id.appLockPatternView);
+            if (patternView != null) {
+                patternView.showError();
+            }
+            onAppUnlockFailure();
+        }
+    }
+
+    private void tryTriggerBiometricForAppUnlock() {
+        if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        if (!net.nhiroki.bluelineconsole.applicationMain.lib.AppLockState.isBiometricSupported(this)) return;
+        if (this.biometricPromptShowing) return;
+
+        try {
+            BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(getString(R.string.app_name))
+                    .setSubtitle("Authenticate to unlock " + (mTargetLockedAppName != null ? mTargetLockedAppName : "App"))
+                    .setNegativeButtonText(getString(android.R.string.cancel))
+                    .build();
+
+            this.biometricPromptShowing = true;
+            BiometricPrompt prompt = new BiometricPrompt(this, ContextCompat.getMainExecutor(this), new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+                    super.onAuthenticationSucceeded(result);
+                    biometricPromptShowing = false;
+                    onAppUnlockSuccess();
+                }
+
+                @Override
+                public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+                    super.onAuthenticationError(errorCode, errString);
+                    biometricPromptShowing = false;
+                }
+
+                @Override
+                public void onAuthenticationFailed() {
+                    super.onAuthenticationFailed();
+                    onAppUnlockFailure();
+                }
+            });
+
+            prompt.authenticate(promptInfo);
+        } catch (Exception ignored) {
+            this.biometricPromptShowing = false;
+        }
+    }
+
+    private void onAppUnlockSuccess() {
+        if (!this.mIsAppUnlockMode || this.mTargetLockedPackage == null) return;
+        String pkg = this.mTargetLockedPackage;
+        String appName = this.mTargetLockedAppName != null ? this.mTargetLockedAppName : pkg;
+
+        AppLockManager.getInstance().unlockAppSession(pkg);
+        AppLockManager.getInstance().notifyAppLaunchedFromConsole(pkg);
+
+        Toast.makeText(this, "Unlocked " + appName, Toast.LENGTH_SHORT).show();
+
+        Intent launchIntent = getPackageManager().getLaunchIntentForPackage(pkg);
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(launchIntent);
+        }
+        exitAppUnlockModeAndFinish();
+    }
+
+    private void onAppUnlockFailure() {
+        this.mAppUnlockFailedAttempts++;
+        triggerShakeAnimation();
+        mainInputText.setText("");
+        if (this.mAppUnlockFailedAttempts >= 3) {
+            Toast.makeText(this, "Access denied: 3 failed attempts.", Toast.LENGTH_SHORT).show();
+            exitAppUnlockModeAndFinish();
+            BlueLineAgentService service = BlueLineAgentService.getInstance();
+            if (service != null) {
+                service.pressHome();
+            }
+        } else {
+            TextView status = findViewById(R.id.appLockStatusText);
+            if (status != null) {
+                status.setText(String.format("Incorrect PIN or Pattern (%d of 3 attempts)", this.mAppUnlockFailedAttempts));
+            }
+        }
+    }
+
+    private void exitAppUnlockMode() {
+        this.mIsAppUnlockMode = false;
+        this.mTargetLockedPackage = null;
+        this.mTargetLockedAppName = null;
+        this.mAppUnlockFailedAttempts = 0;
+
+        View appLockWrapper = findViewById(R.id.appLockWrapperLinearLayout);
+        if (appLockWrapper != null) {
+            appLockWrapper.setVisibility(View.GONE);
+        }
+        View candidateWrapper = findViewById(R.id.candidateViewWrapperLinearLayout);
+        if (candidateWrapper != null) {
+            candidateWrapper.setVisibility(View.VISIBLE);
+        }
+
+        this.setHeaderFooterTexts(getString(R.string.app_name), String.format(getString(R.string.displayedFullVersionString), BuildConfig.VERSION_NAME));
+        mainInputText.setInputType(InputType.TYPE_CLASS_TEXT);
+        mainInputText.setHint(null);
+        mainInputText.setText("");
+        setWholeLayout();
+    }
+
+    private void exitAppUnlockModeAndFinish() {
+        exitAppUnlockMode();
+        finishIfNotHome();
     }
 
     private class MainInputTextListener implements TextWatcher {

@@ -59,6 +59,12 @@ public class AppLockTests {
     }
 
     @Test
+    public void testMainActivityUnlockConstants() {
+        assertEquals("net.nhiroki.bluelineconsole.action.UNLOCK_APP", net.nhiroki.bluelineconsole.applicationMain.MainActivity.ACTION_UNLOCK_APP);
+        assertEquals("net.nhiroki.bluelineconsole.extra.UNLOCK_PACKAGE", net.nhiroki.bluelineconsole.applicationMain.MainActivity.EXTRA_UNLOCK_PACKAGE);
+    }
+
+    @Test
     public void testAppLockCommandSearcherParsing() {
         AppLockCommandSearcher searcher = new AppLockCommandSearcher();
 

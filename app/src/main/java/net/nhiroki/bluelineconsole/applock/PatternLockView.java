@@ -45,8 +45,8 @@ public class PatternLockView extends View {
     private boolean mIsDrawing = false;
     private boolean mInputEnabled = true;
 
-    private int mStateColor = Color.parseColor("#00f0ff"); // default cyber cyan
-    private static final int COLOR_NORMAL = Color.parseColor("#00f0ff");
+    private int mNormalColor = Color.parseColor("#00f0ff");
+    private int mStateColor = Color.parseColor("#00f0ff");
     private static final int COLOR_SUCCESS = Color.parseColor("#00ff99");
     private static final int COLOR_ERROR = Color.parseColor("#ff0055");
 
@@ -84,20 +84,21 @@ public class PatternLockView extends View {
         }
 
         mDotNormalPaint.setStyle(Paint.Style.FILL);
-        mDotNormalPaint.setColor(Color.parseColor("#5000f0ff"));
-
         mDotRingPaint.setStyle(Paint.Style.STROKE);
         mDotRingPaint.setStrokeWidth(3f);
-        mDotRingPaint.setColor(Color.parseColor("#3000f0ff"));
-
         mDotSelectedPaint.setStyle(Paint.Style.FILL);
-        mDotSelectedPaint.setColor(mStateColor);
-
         mLinePaint.setStyle(Paint.Style.STROKE);
         mLinePaint.setStrokeWidth(10f);
         mLinePaint.setStrokeCap(Paint.Cap.ROUND);
         mLinePaint.setStrokeJoin(Paint.Join.ROUND);
-        mLinePaint.setColor(mStateColor);
+        updatePaints();
+    }
+
+    public void setAccentColor(int color) {
+        this.mNormalColor = color;
+        this.mStateColor = color;
+        updatePaints();
+        invalidate();
     }
 
     public void setOnPatternListener(OnPatternListener listener) {
@@ -113,7 +114,7 @@ public class PatternLockView extends View {
         mCurrentTouchX = -1;
         mCurrentTouchY = -1;
         mIsDrawing = false;
-        mStateColor = COLOR_NORMAL;
+        mStateColor = mNormalColor;
         updatePaints();
         invalidate();
     }
@@ -149,15 +150,32 @@ public class PatternLockView extends View {
     }
 
     private void updatePaints() {
+        mDotNormalPaint.setColor((mNormalColor & 0x00ffffff) | 0x50000000);
+        mDotRingPaint.setColor((mNormalColor & 0x00ffffff) | 0x30000000);
         mDotSelectedPaint.setColor(mStateColor);
         mLinePaint.setColor(mStateColor);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int w = MeasureSpec.getSize(widthMeasureSpec);
-        int h = MeasureSpec.getSize(heightMeasureSpec);
-        int size = Math.min(w > 0 ? w : 600, h > 0 ? h : 600);
+        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+
+        int size;
+        if (widthMode != MeasureSpec.UNSPECIFIED && heightMode != MeasureSpec.UNSPECIFIED) {
+            size = Math.min(widthSize, heightSize);
+        } else if (widthMode != MeasureSpec.UNSPECIFIED) {
+            size = widthSize;
+        } else if (heightMode != MeasureSpec.UNSPECIFIED) {
+            size = heightSize;
+        } else {
+            size = (int) (240 * getResources().getDisplayMetrics().density);
+        }
+        if (size <= 0) {
+            size = (int) (240 * getResources().getDisplayMetrics().density);
+        }
         setMeasuredDimension(size, size);
     }
 
@@ -234,6 +252,9 @@ public class PatternLockView extends View {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                if (getParent() != null) {
+                    getParent().requestDisallowInterceptTouchEvent(true);
+                }
                 clearPattern();
                 mIsDrawing = true;
                 Dot hitDown = findClosestDot(x, y);
@@ -259,6 +280,9 @@ public class PatternLockView extends View {
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
+                if (getParent() != null) {
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                }
                 mIsDrawing = false;
                 mCurrentTouchX = -1;
                 mCurrentTouchY = -1;
