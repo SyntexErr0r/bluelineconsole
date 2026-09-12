@@ -848,35 +848,13 @@ public class AgentActionEngine {
 
         if (app.contains("telegram") || app.equals("tg")) {
             net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("org.telegram.messenger");
-        } else if (app.contains("whatsapp") || app.equals("wa")) {
+            executeTelegramCall(context, contact);
+        } else if (app.contains("phone") || app.equals("dialer")) {
+            executePhoneDial(context, contact);
+        } else {
             net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
             net.nhiroki.bluelineconsole.applock.AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-        }
-
-        // If contact exists in phonebook, route through ContactManager for unified handling
-        ContactsReader.Contact c = ContactManager.getInstance().findContact(context, contact);
-        if (c != null) {
-            String method;
-            if (app.contains("telegram") || app.equals("tg")) {
-                method = ContactManager.CALL_METHOD_TELEGRAM;
-            } else if (app.contains("whatsapp") || app.equals("wa")) {
-                method = isVideo ? ContactManager.CALL_METHOD_WHATSAPP_VIDEO : ContactManager.CALL_METHOD_WHATSAPP_VOICE;
-            } else if (app.contains("phone") || app.equals("dialer")) {
-                method = ContactManager.CALL_METHOD_PHONE;
-            } else {
-                method = ContactManager.getInstance().getEffectiveCallMethod(context, c);
-            }
-            ContactManager.getInstance().executeCallWithMethod(context, c, method);
-            return;
-        }
-
-        // Contact not in address book (e.g. raw phone number or direct username)
-        if (app.contains("telegram") || app.equals("tg")) {
-            executeTelegramCall(context, contact);
-        } else if (app.contains("whatsapp") || app.equals("wa")) {
             executeWhatsAppCall(context, contact, isVideo);
-        } else {
-            executePhoneDial(context, contact);
         }
     }
 

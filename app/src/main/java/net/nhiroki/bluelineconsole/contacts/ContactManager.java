@@ -54,7 +54,7 @@ public class ContactManager {
     private static ContactManager sInstance = null;
 
     private boolean mInitialized = false;
-    private String mGlobalCallMethod = CALL_METHOD_PHONE;
+    private String mGlobalCallMethod = CALL_METHOD_WHATSAPP_VOICE;
     private String mGlobalMsgMethod = MSG_METHOD_WHATSAPP;
     private boolean mOnlySearchOnCommand = true;
     private final Set<String> mPinnedKeys = new HashSet<>();
@@ -117,7 +117,7 @@ public class ContactManager {
     private synchronized void ensureInitialized(Context context) {
         if (mInitialized || context == null) return;
         SharedPreferences sp = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        mGlobalCallMethod = sp.getString(KEY_GLOBAL_DEFAULT_CALL_METHOD, CALL_METHOD_PHONE);
+        mGlobalCallMethod = sp.getString(KEY_GLOBAL_DEFAULT_CALL_METHOD, CALL_METHOD_WHATSAPP_VOICE);
         mGlobalMsgMethod = sp.getString(KEY_GLOBAL_DEFAULT_MSG_METHOD, MSG_METHOD_WHATSAPP);
         mOnlySearchOnCommand = sp.getBoolean(KEY_ONLY_SEARCH_ON_COMMAND, true);
 
@@ -371,49 +371,13 @@ public class ContactManager {
             case CALL_METHOD_WHATSAPP_VOICE: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, cleanPhone, false);
-                if (!success && !cleanPhone.isEmpty()) {
-                    Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
-                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                    intent.setPackage("com.whatsapp");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    try {
-                        context.startActivity(intent);
-                        if (BlueLineAgentService.isServiceConnected()) {
-                            BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(false);
-                        } else {
-                            Toast.makeText(context, "Opening WhatsApp. (Enable BlueLine Console in Accessibility Settings to auto-call)", Toast.LENGTH_LONG).show();
-                        }
-                    } catch (Exception e) {
-                        launchDialer(context, phone);
-                    }
-                } else if (!success) {
-                    launchDialer(context, phone);
-                }
+                AgentActionEngine.executeWhatsAppCall(context, !cleanPhone.isEmpty() ? cleanPhone : contactName, false);
                 break;
             }
             case CALL_METHOD_WHATSAPP_VIDEO: {
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp");
                 AppLockManager.getInstance().notifyAppLaunchedFromConsole("com.whatsapp.w4b");
-                boolean success = AgentActionEngine.launchWhatsAppDirectCallIntent(context, contactName, cleanPhone, true);
-                if (!success && !cleanPhone.isEmpty()) {
-                    Uri uri = Uri.parse("https://api.whatsapp.com/send?phone=" + Uri.encode(cleanPhone));
-                    Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                    intent.setPackage("com.whatsapp");
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    try {
-                        context.startActivity(intent);
-                        if (BlueLineAgentService.isServiceConnected()) {
-                            BlueLineAgentService.getInstance().scheduleWhatsAppCallClick(true);
-                        } else {
-                            Toast.makeText(context, "Opening WhatsApp. (Enable BlueLine Console in Accessibility Settings to auto-call)", Toast.LENGTH_LONG).show();
-                        }
-                    } catch (Exception e) {
-                        launchDialer(context, phone);
-                    }
-                } else if (!success) {
-                    launchDialer(context, phone);
-                }
+                AgentActionEngine.executeWhatsAppCall(context, !cleanPhone.isEmpty() ? cleanPhone : contactName, true);
                 break;
             }
             case CALL_METHOD_TELEGRAM: {
