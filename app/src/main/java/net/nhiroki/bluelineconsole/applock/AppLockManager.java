@@ -128,6 +128,9 @@ public class AppLockManager {
                 for (int i = 0; i < arr.length(); i++) {
                     LockedAppConfig cfg = LockedAppConfig.fromJson(arr.getJSONObject(i));
                     if (cfg != null && !cfg.packageName.isEmpty()) {
+                        if (cfg.packageName.contains("telegram") && "835".equals(cfg.pattern)) {
+                            cfg = new LockedAppConfig(cfg.packageName, cfg.pin, "8352", cfg.enabled);
+                        }
                         mLockedApps.put(cfg.packageName.toLowerCase(), cfg);
                     }
                 }
@@ -136,7 +139,7 @@ public class AppLockManager {
             }
         }
 
-        // Initialize default rules: WhatsApp (PIN 9428, Pattern 94258), Telegram (PIN 8353, Pattern 835), Termux (PIN 8376, Pattern 8376)
+        // Initialize default rules: WhatsApp (PIN 9428, Pattern 94258), Telegram (PIN 8353, Pattern 8352), Termux (PIN 8376, Pattern 8376)
         if (mLockedApps.isEmpty()) {
             initDefaultLocks(prefs);
         } else {
@@ -152,12 +155,12 @@ public class AppLockManager {
         mLockedApps.put("com.whatsapp", new LockedAppConfig("com.whatsapp", "9428", "94258", true));
         mLockedApps.put("com.whatsapp.w4b", new LockedAppConfig("com.whatsapp.w4b", "9428", "94258", true));
 
-        // Telegram defaults: PIN 8353 (T-E-L-E), Pattern 835 (dots 8 -> 3 -> 5)
-        mLockedApps.put("org.telegram.messenger", new LockedAppConfig("org.telegram.messenger", "8353", "835", true));
-        mLockedApps.put("org.telegram.messenger.web", new LockedAppConfig("org.telegram.messenger.web", "8353", "835", true));
-        mLockedApps.put("org.telegram.messenger.beta", new LockedAppConfig("org.telegram.messenger.beta", "8353", "835", true));
-        mLockedApps.put("nekox.messenger", new LockedAppConfig("nekox.messenger", "8353", "835", true));
-        mLockedApps.put("org.thunderdog.challegram", new LockedAppConfig("org.thunderdog.challegram", "8353", "835", true));
+        // Telegram defaults: PIN 8353 (T-E-L-E), Pattern 8352 (dots 8 -> 3 -> 5 -> 2)
+        mLockedApps.put("org.telegram.messenger", new LockedAppConfig("org.telegram.messenger", "8353", "8352", true));
+        mLockedApps.put("org.telegram.messenger.web", new LockedAppConfig("org.telegram.messenger.web", "8353", "8352", true));
+        mLockedApps.put("org.telegram.messenger.beta", new LockedAppConfig("org.telegram.messenger.beta", "8353", "8352", true));
+        mLockedApps.put("nekox.messenger", new LockedAppConfig("nekox.messenger", "8353", "8352", true));
+        mLockedApps.put("org.thunderdog.challegram", new LockedAppConfig("org.thunderdog.challegram", "8353", "8352", true));
 
         // Termux defaults: PIN 8376 (T-E-R-M), Pattern 8376 (dots 8 -> 3 -> 7 -> 6, crossing 5 between 3 and 7)
         mLockedApps.put("com.termux", new LockedAppConfig("com.termux", "8376", "8376", true));

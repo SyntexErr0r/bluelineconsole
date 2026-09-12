@@ -816,11 +816,7 @@ public class MainActivity extends BaseWindowActivity {
                            (!masterPin.equals(AppLockManager.DEFAULT_MASTER_PIN) && input.equals(masterPin)) ||
                            (timeLockActive && AppLockManager.isValidTimeBasedPin(input));
 
-        // Exact pattern string match if typed directly
-        boolean patternMatch = (!config.pattern.isEmpty() && input.equals(config.pattern)) ||
-                              (!t9Pin.isEmpty() && input.equals(t9Pin));
-
-        if (pinMatch || patternMatch) {
+        if (pinMatch) {
             onAppUnlockSuccess();
         } else {
             int targetLen = config.pin.length();
