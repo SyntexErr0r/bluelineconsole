@@ -385,24 +385,21 @@ public class AppLockManager {
                     int midCol = prevCol + dCol / 2;
 
                     char midChar = getDotChar(midRow, midCol);
-                    if (midChar != '\0' && !visited.contains(midChar)) {
-                        visited.add(midChar);
+                    if (midChar != '\0' && midChar != prevChar) {
                         expanded.append(midChar);
                     }
                 } else if (dRow == 0 && Math.abs(dCol) == 4) {
                     int stepC = dCol / 4;
                     for (int c = prevCol + stepC; c != currCol; c += stepC) {
                         char midChar = getDotChar(1, c);
-                        if (midChar != '\0' && !visited.contains(midChar)) {
-                            visited.add(midChar);
+                        if (midChar != '\0' && midChar != prevChar) {
                             expanded.append(midChar);
                         }
                     }
                 }
             }
 
-            if (!visited.contains(currChar) || currChar == '0') {
-                visited.add(currChar);
+            if (currChar != prevChar || currChar == '0') {
                 expanded.append(currChar);
             }
 

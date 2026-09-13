@@ -322,10 +322,8 @@ public class PatternLockView extends View {
                 if (hitMove != null) {
                     Dot last = mSelectedDots.isEmpty() ? null : mSelectedDots.get(mSelectedDots.size() - 1);
                     if (hitMove != last) {
-                        if (!mSelectedDots.contains(hitMove)) {
-                            addIntermediateDotsIfNeeded(hitMove);
-                            addDot(hitMove);
-                        }
+                        addIntermediateDotsIfNeeded(hitMove);
+                        addDot(hitMove);
                     }
                 }
                 invalidate();
@@ -375,14 +373,14 @@ public class PatternLockView extends View {
             int midRow = last.row + dRow / 2;
             int midCol = last.col + dCol / 2;
             Dot mid = getDotAt(midRow, midCol);
-            if (mid != null && !mSelectedDots.contains(mid)) {
+            if (mid != null && mid != last) {
                 addDot(mid);
             }
         } else if (dRow == 0 && Math.abs(dCol) == 4) {
             int stepC = dCol / 4;
             for (int c = last.col + stepC; c != target.col; c += stepC) {
                 Dot mid = getDotAt(last.row, c);
-                if (mid != null && !mSelectedDots.contains(mid)) {
+                if (mid != null && mid != last) {
                     addDot(mid);
                 }
             }

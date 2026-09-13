@@ -759,6 +759,12 @@ public class AppLockTests {
         // Left 0 to 5 crosses 4
         assertEquals("045", AppLockManager.expand11NodePattern("05"));
 
+        // Bounce-back pattern support for repeating digits (e.g. 06:56 -> PIN 5606):
+        String pin0656 = AppLockManager.computeTimePin(6, 56);
+        assertEquals("5606", pin0656);
+        assertEquals("5606", AppLockManager.expand11NodePattern("5606"));
+        assertTrue(AppLockManager.matchesPattern("5606", pin0656));
+
         // Matrix coordinates check
         assertEquals(0, AppLockManager.getDotRow('1'));
         assertEquals(0, AppLockManager.getDotRow('2'));

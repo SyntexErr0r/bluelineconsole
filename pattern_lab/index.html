@@ -633,7 +633,7 @@ function handleMove(x, y) {
   const hit = findClosestDot(x, y);
   if (hit) {
     const last = selectedDots[selectedDots.length - 1];
-    if (hit !== last && !selectedDots.includes(hit)) {
+    if (hit !== last) {
       if (last && last.row !== undefined) {
         addIntermediate(last, hit);
       }
@@ -655,7 +655,7 @@ function addIntermediate(last, target) {
     const midRow = last.row + dRow / 2;
     const midCol = last.col + dCol / 2;
     const mid = dots.find(d => d.row === midRow && d.col === midCol);
-    if (mid && !selectedDots.includes(mid)) {
+    if (mid && mid !== last) {
       selectedDots.push(mid);
     }
   } 
@@ -664,7 +664,7 @@ function addIntermediate(last, target) {
     const step = dCol / 4;
     for (let c = last.col + step; c !== target.col; c += step) {
       const mid = dots.find(d => d.row === 1 && d.col === c);
-      if (mid && !selectedDots.includes(mid)) {
+      if (mid && mid !== last) {
         selectedDots.push(mid);
       }
     }
