@@ -388,8 +388,82 @@ public class AppLockManager {
                     if (midChar != '\0' && midChar != prevChar) {
                         expanded.append(midChar);
                     }
-                } else if (dRow == 0 && Math.abs(dCol) == 4) {
-                    int stepC = dCol / 4;
+                } else if (dRow == 0 && Math.abs(dCol) > 1) {
+                    int stepC = dCol > 0 ? 1 : -1;
+                    for (int c = prevCol + stepC; c != currCol; c += stepC) {
+                        char midChar = getDotChar(1, c);
+                        if (midChar != '\0' && midChar != prevChar) {
+                            expanded.append(midChar);
+                        }
+                    }
+                }
+            }
+
+            if (currChar != prevChar || currChar == '0') {
+                expanded.append(currChar);
+            }
+
+            prevChar = currChar;
+        }
+
+        return expanded.toString();
+    }
+
+    /**
+     * Expands 11-node pattern where multiple '0' digits alternate between Left 0 and Right 0 wings.
+     * E.g. for "0704", first 0 is Left 0, second 0 is Right 0, crossing 6 and 5 to reach 4 -> "070654".
+     */
+    public static String expand11NodePatternWithAltWings(String rawPattern) {
+        if (rawPattern == null || rawPattern.length() <= 1) {
+            return rawPattern == null ? "" : rawPattern;
+        }
+
+        StringBuilder expanded = new StringBuilder();
+        char prevChar = rawPattern.charAt(0);
+        expanded.append(prevChar);
+        int zeroCount = (prevChar == '0') ? 1 : 0;
+
+        for (int i = 1; i < rawPattern.length(); i++) {
+            char currChar = rawPattern.charAt(i);
+            if (currChar == '0') zeroCount++;
+
+            int prevRow = getDotRow(prevChar);
+            int prevCol = getDotCol(prevChar);
+            int currRow = getDotRow(currChar);
+            int currCol = getDotCol(currChar);
+
+            if (prevChar == '0' && currChar == '0') {
+                prevCol = 0;
+                currCol = 4;
+            } else if (currChar == '0') {
+                if (zeroCount >= 2) {
+                    currCol = 4;
+                } else if (prevCol > 2) {
+                    currCol = 4;
+                }
+            } else if (prevChar == '0') {
+                if (zeroCount >= 2) {
+                    prevCol = 4;
+                } else if (currCol > 2) {
+                    prevCol = 4;
+                }
+            }
+
+            if (prevRow != -1 && prevCol != -1 && currRow != -1 && currCol != -1) {
+                int dRow = currRow - prevRow;
+                int dCol = currCol - prevCol;
+
+                if (Math.abs(dRow) % 2 == 0 && Math.abs(dCol) % 2 == 0 &&
+                        (Math.abs(dRow) == 2 || Math.abs(dCol) == 2)) {
+                    int midRow = prevRow + dRow / 2;
+                    int midCol = prevCol + dCol / 2;
+
+                    char midChar = getDotChar(midRow, midCol);
+                    if (midChar != '\0' && midChar != prevChar) {
+                        expanded.append(midChar);
+                    }
+                } else if (dRow == 0 && Math.abs(dCol) > 1) {
+                    int stepC = dCol > 0 ? 1 : -1;
                     for (int c = prevCol + stepC; c != currCol; c += stepC) {
                         char midChar = getDotChar(1, c);
                         if (midChar != '\0' && midChar != prevChar) {
@@ -458,6 +532,20 @@ public class AppLockManager {
         if (exp11Input.length() >= 4 && exp11Target.length() >= 4) {
             if (exp11Input.equalsIgnoreCase(exp11Target) || exp11Input.equalsIgnoreCase(trimmedTarget) || trimmedInput.equalsIgnoreCase(exp11Target)) {
                 return true;
+            }
+        }
+        if (trimmedTarget.contains("0") || trimmedInput.contains("0")) {
+            String exp11AltTarget = expand11NodePatternWithAltWings(trimmedTarget);
+            if (exp11AltTarget.length() >= 4) {
+                if (exp11Input.equalsIgnoreCase(exp11AltTarget) || trimmedInput.equalsIgnoreCase(exp11AltTarget)) {
+                    return true;
+                }
+            }
+            String exp11AltInput = expand11NodePatternWithAltWings(trimmedInput);
+            if (exp11AltInput.length() >= 4) {
+                if (exp11AltInput.equalsIgnoreCase(exp11Target) || exp11AltInput.equalsIgnoreCase(trimmedTarget) || exp11AltInput.equalsIgnoreCase(exp11AltTarget)) {
+                    return true;
+                }
             }
         }
 
@@ -621,6 +709,12 @@ public class AppLockManager {
             String pat = computeTimePatternFromPin(pin);
             if (!pat.isEmpty() && !patterns.contains(pat)) {
                 patterns.add(pat);
+            }
+            if (pin != null && pin.contains("0")) {
+                String altPat = expand11NodePatternWithAltWings(pin);
+                if (!altPat.isEmpty() && !patterns.contains(altPat)) {
+                    patterns.add(altPat);
+                }
             }
         }
         return patterns;

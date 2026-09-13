@@ -765,6 +765,18 @@ public class AppLockTests {
         assertEquals("5606", AppLockManager.expand11NodePattern("5606"));
         assertTrue(AppLockManager.matchesPattern("5606", pin0656));
 
+        // Time 07:04 -> PIN 0704 tests:
+        String pin0704 = AppLockManager.computeTimePin(7, 4);
+        assertEquals("0704", pin0704);
+        assertEquals("0704", AppLockManager.expand11NodePattern("0704"));
+        assertEquals("070654", AppLockManager.expand11NodePatternWithAltWings("0704"));
+        // Method 1: Bounce-back on Left 0 (Left 0 -> 7 -> Left 0 -> 4)
+        assertTrue(AppLockManager.matchesPattern("0704", pin0704));
+        // Method 2: Dual wings (Left 0 -> 7 -> Right 0 -> 6 -> 5 -> 4)
+        assertTrue(AppLockManager.matchesPattern("070654", pin0704));
+        // Under-length 3-point swipe "074" MUST be rejected
+        assertFalse(AppLockManager.matchesPattern("074", pin0704));
+
         // Matrix coordinates check
         assertEquals(0, AppLockManager.getDotRow('1'));
         assertEquals(0, AppLockManager.getDotRow('2'));

@@ -376,8 +376,8 @@ public class PatternLockView extends View {
             if (mid != null && mid != last) {
                 addDot(mid);
             }
-        } else if (dRow == 0 && Math.abs(dCol) == 4) {
-            int stepC = dCol / 4;
+        } else if (dRow == 0 && Math.abs(dCol) > 1) {
+            int stepC = dCol > 0 ? 1 : -1;
             for (int c = last.col + stepC; c != target.col; c += stepC) {
                 Dot mid = getDotAt(last.row, c);
                 if (mid != null && mid != last) {
