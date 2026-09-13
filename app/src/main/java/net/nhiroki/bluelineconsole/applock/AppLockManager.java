@@ -561,43 +561,14 @@ public class AppLockManager {
     }
 
     /**
-     * Converts a 4-digit PIN to a valid 9-dot pattern swipe (Option A: Smart Remap).
-     * 1. Replaces '0' with 5 (or 9 if 5 is already visited).
-     * 2. If a dot is already visited, picks the next available unused dot (1 to 9).
-     * 3. Expands intermediate dots so physical swipes match properly.
+     * Converts a 4-digit PIN to a valid pattern swipe on the 11-node Wing-Zero grid.
+     * '0' is directly swiped using the Left or Right '0' wing nodes.
+     * '0' is strictly '0' and is NEVER mapped to 5 or 9.
+     * Expands intermediate dots so physical swipes match properly.
      */
     public static String computeTimePatternFromPin(String pin) {
         if (pin == null || pin.isEmpty()) return "";
-        StringBuilder pattern = new StringBuilder();
-        Set<Integer> visited = new HashSet<>();
-
-        for (int i = 0; i < pin.length(); i++) {
-            char c = pin.charAt(i);
-            if (c < '0' || c > '9') continue;
-            int digit = c - '0';
-
-            // Map 0 to 5 (or 9 if 5 is already in path)
-            if (digit == 0) {
-                digit = (!visited.contains(5)) ? 5 : 9;
-            }
-
-            // If already visited, pick next available dot (1 to 9)
-            if (visited.contains(digit)) {
-                for (int d = 1; d <= 9; d++) {
-                    if (!visited.contains(d)) {
-                        digit = d;
-                        break;
-                    }
-                }
-            }
-
-            if (!visited.contains(digit)) {
-                visited.add(digit);
-                pattern.append(digit);
-            }
-        }
-
-        return expandPatternWithIntermediateDots(pattern.toString());
+        return expand11NodePattern(pin);
     }
 
     /**

@@ -376,11 +376,11 @@ public class AppLockTests {
         // 3214 has distinct digits 1-9 -> 3214 directly
         assertEquals("3214", AppLockManager.computeTimePatternFromPin("3214"));
 
-        // 5707 has 0 and duplicate 7 -> maps 0 to 9, duplicate 7 to 1 -> 5791, 7 to 9 passes 8 -> 57891
-        String pat5707 = AppLockManager.computeTimePatternFromPin("5707");
-        assertNotNull(pat5707);
-        assertTrue(pat5707.length() >= 4);
-        assertFalse(pat5707.contains("0")); // No '0' in pattern!
+        // With 11-node Wing-Zero layout, '0' is supported natively (Left 0 / Right 0) and NEVER remapped to 5 or 9!
+        String pat3502 = AppLockManager.computeTimePatternFromPin("3502");
+        assertNotNull(pat3502);
+        assertTrue(pat3502.contains("0"));
+        assertFalse(pat3502.contains("9")); // 0 is NOT replaced with 9 or 5!
 
         // Time lock toggle
         AppLockManager mgr = AppLockManager.getInstance();
