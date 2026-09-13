@@ -47,7 +47,7 @@ public class NotesManagerActivity extends BaseWindowActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        this.setHeaderFooterTexts("📓 CYBER NOTES", null);
+        this.setHeaderFooterTexts("Notes", null);
         this.setWindowBoundarySize(ROOT_WINDOW_FULL_WIDTH_IN_MOBILE, 3);
 
         this.changeBaseWindowElementSizeForAnimation(false);

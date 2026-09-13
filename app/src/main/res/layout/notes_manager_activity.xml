@@ -32,7 +32,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="[ ➕ NEW NOTE ]"
+                android:text="[ + New Note ]"
                 android:textColor="#00f0ff"
                 android:textSize="12sp"
                 android:textStyle="bold"
@@ -45,7 +45,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Notes: 0"
+            android:text="0 notes"
             android:textColor="#99d6ea"
             android:textSize="11sp"
             android:fontFamily="monospace"
@@ -68,7 +68,7 @@
             android:layout_width="match_parent"
             android:layout_height="38dp"
             android:background="@drawable/cyber_glass_input_box"
-            android:hint="🔍 Search notes by title or content..."
+            android:hint="Search notes..."
             android:textColor="#00f0ff"
             android:textColorHint="#4d7a94"
             android:textSize="13sp"
@@ -109,14 +109,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📓"
-                android:textSize="36sp"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="NO NOTES SAVED"
+                android:text="No notes saved"
                 android:textColor="#00f0ff"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -126,7 +119,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Tap [ ➕ NEW NOTE ] above or type\n'note &lt;text&gt;' in the console to create one."
+                android:text="Tap [ + New Note ] or type\n'note &lt;text&gt;' to create one."
                 android:textColor="#5a8094"
                 android:textSize="12sp"
                 android:fontFamily="monospace"

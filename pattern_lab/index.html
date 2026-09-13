@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BlueLine Cyber Pattern Lab</title>
+<style>
+  :root {
+    --bg-dark: #050c14;
+    --card-bg: rgba(7, 21, 34, 0.85);
+    --border-color: rgba(0, 240, 255, 0.35);
+    --cyan: #00f0ff;
+    --green: #00ff99;
+    --magenta: #ff0055;
+    --yellow: #ffcc00;
+    --text-dim: #648a9e;
+    --text-bright: #e0f8ff;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--bg-dark);
+    color: var(--text-bright);
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    background-image: 
+      radial-gradient(ellipse at 50% 10%, rgba(0, 240, 255, 0.12), transparent 60%),
+      linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 30px 30px, 30px 30px;
+    padding: 12px 10px 40px;
+  }
+
+  .header {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 4px 14px;
+    margin-bottom: 12px;
+  }
+
+  .title-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--cyan);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px var(--cyan);
+  }
+
+  .logo-icon::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--cyan);
+    border-radius: 50%;
+  }
+
+  .title {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--cyan);
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+  }
+
+  .time-badge {
+    font-size: 12px;
+    color: var(--green);
+    background: rgba(0, 255, 153, 0.1);
+    border: 1px solid rgba(0, 255, 153, 0.4);
+    padding: 4px 8px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* Layout Selector Tabs */
+  .layout-nav {
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .tab-btn {
+    background: var(--card-bg);
+    border: 1px solid rgba(0, 240, 255, 0.25);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 8px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .tab-btn.active {
+    background: rgba(0, 240, 255, 0.18);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.35);
+  }
+
+  /* Canvas Card */
+  .canvas-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 20px rgba(0, 240, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    backdrop-filter: blur(8px);
+  }
+
+  .canvas-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 360px;
+    touch-action: none;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 8px;
+  }
+
+  /* Pattern Output Display */
+  .output-bar {
+    width: 100%;
+    margin-top: 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+  }
+
+  .output-val {
+    color: var(--cyan);
+    font-weight: bold;
+    letter-spacing: 2px;
+    min-height: 18px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .output-status {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-dim);
+  }
+
+  .output-status.match {
+    background: rgba(0, 255, 153, 0.2);
+    color: var(--green);
+    border: 1px solid var(--green);
+  }
+
+  .output-status.error {
+    background: rgba(255, 0, 85, 0.2);
+    color: var(--magenta);
+    border: 1px solid var(--magenta);
+  }
+
+  /* Controls and Settings Panel */
+  .control-card {
+    width: 100%;
+    max-width: 480px;
+    margin-top: 12px;
+    background: var(--card-bg);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 12px;
+  }
+
+  .control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .control-label {
+    color: var(--text-dim);
+  }
+
+  .input-box {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    color: var(--cyan);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    width: 120px;
+    text-align: center;
+  }
+
+  .btn {
+    background: rgba(0, 240, 255, 0.15);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+
+  .btn:active {
+    background: rgba(0, 240, 255, 0.4);
+  }
+
+  .tips {
+    margin-top: 14px;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.6;
+    border-left: 2px solid var(--cyan);
+    padding-left: 8px;
+  }
+
+  .key-token {
+    color: var(--cyan);
+    font-weight: bold;
+  }
+
+  .core-token {
+    color: var(--magenta);
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="logo-icon"></div>
+    <div class="title">PATTERN LAB</div>
+  </div>
+  <div id="liveClock" class="time-badge">--:--</div>
+</div>
+
+<div class="layout-nav">
+  <button class="tab-btn active" onclick="switchLayout('353')">3-5-3 MATRIX</button>
+  <button class="tab-btn" onclick="switchLayout('radial')">RADIAL DIAL</button>
+  <button class="tab-btn" onclick="switchLayout('keypad')">3x4 KEYPAD</button>
+</div>
+
+<div class="canvas-card">
+  <div class="canvas-container">
+    <canvas id="patternCanvas"></canvas>
+  </div>
+
+  <div class="output-bar">
+    <div>
+      <span style="color:var(--text-dim); font-size:10px;">PATTERN:</span>
+      <div id="patternOutput" class="output-val">SWIPE NODES</div>
+    </div>
+    <div id="matchBadge" class="output-status">READY</div>
+  </div>
+</div>
+
+<div class="control-card">
+  <div class="control-row">
+    <span class="control-label">TARGET PIN / TEST:</span>
+    <input type="text" id="targetPinInput" class="input-box" value="1843" placeholder="Target">
+  </div>
+  <div class="control-row">
+    <span class="control-label">TIME PIN TODAY:</span>
+    <span id="targetTimeBadge" style="color:var(--green); font-weight:bold;">--</span>
+  </div>
+  <div class="control-row">
+    <button class="btn" onclick="clearPattern()">RESET SWIPE</button>
+    <button class="btn" style="border-color:var(--green); color:var(--green);" onclick="setTargetFromTime()">USE TIME PIN</button>
+  </div>
+
+  <div class="tips">
+    • <span class="core-token">◎ Core Bridge</span>: Swiping through Center Core allows repeating identical digits (e.g. <span class="key-token">2 → ◎ → 2 → ◎ → 2 → ◎ → 2</span> = <b>2222</b>).<br>
+    • <span class="key-token">Node '0'</span>: Fully addressable node for time PINs starting or ending with 0 (e.g. <b>05:32</b>).<br>
+    • <span class="key-token">Min Guard</span>: Minimum 4 nodes required to unlock.
+  </div>
+</div>
+
+<script>
+// Web Audio Synthesizer for Sci-Fi Feedback
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playBeep(freq = 440, type = 'sine', duration = 0.05) {
+  try {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch(e) {}
+}
+
+function playSuccess() {
+  playBeep(523.25, 'triangle', 0.08);
+  setTimeout(() => playBeep(659.25, 'triangle', 0.08), 80);
+  setTimeout(() => playBeep(783.99, 'triangle', 0.15), 160);
+}
+
+function playError() {
+  playBeep(220, 'sawtooth', 0.1);
+  setTimeout(() => playBeep(180, 'sawtooth', 0.15), 90);
+}
+
+// Canvas & Pattern Logic
+const canvas = document.getElementById('patternCanvas');
+const ctx = canvas.getContext('2d');
+let width = 0;
+let height = 0;
+
+let currentLayout = '353'; // '353', 'radial', 'keypad'
+let dots = [];
+let selectedDots = [];
+let isDragging = false;
+let touchPos = { x: -1, y: -1 };
+let animState = 'normal'; // 'normal', 'success', 'error'
+let targetPin = '1843';
+
+// Layout Configurations
+function buildLayout(type) {
+  dots = [];
+  const cx = width / 2;
+  const cy = height / 2;
+
+  if (type === '353') {
+    // Row 0: 3 dots (1, 2, 3)
+    // Row 1: 5 dots (4, 5, CORE, 6, 7)
+    // Row 2: 3 dots (8, 9, 0)
+    const paddingX = width * 0.10;
+    const paddingY = height * 0.14;
+    const usableW = width - 2 * paddingX;
+    const usableH = height - 2 * paddingY;
+    const colStep = usableW / 4.0;
+    const rowStep = usableH / 2.0;
+
+    const defs = [
+      { id: '1', label: '1', r: 0, c: 1, isCore: false },
+      { id: '2', label: '2', r: 0, c: 2, isCore: false },
+      { id: '3', label: '3', r: 0, c: 3, isCore: false },
+
+      { id: '4', label: '4', r: 1, c: 0, isCore: false },
+      { id: '5', label: '5', r: 1, c: 1, isCore: false },
+      { id: 'C', label: '◎', r: 1, c: 2, isCore: true },
+      { id: '6', label: '6', r: 1, c: 3, isCore: false },
+      { id: '7', label: '7', r: 1, c: 4, isCore: false },
+
+      { id: '8', label: '8', r: 2, c: 1, isCore: false },
+      { id: '9', label: '9', r: 2, c: 2, isCore: false },
+      { id: '0', label: '0', r: 2, c: 3, isCore: false },
+    ];
+
+    defs.forEach(d => {
+      dots.push({
+        id: d.id,
+        label: d.label,
+        x: paddingX + d.c * colStep,
+        y: paddingY + d.r * rowStep,
+        row: d.r,
+        col: d.c,
+        isCore: d.isCore
+      });
+    });
+
+  } else if (type === 'radial') {
+    // 10 dots around a circle (1 to 9 + 0) + CORE in center!
+    const radius = width * 0.38;
+    const labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    const total = labels.length;
+
+    for (let i = 0; i < total; i++) {
+      // Start 1 at ~11 o'clock
+      const angle = (-Math.PI / 2) + (i * (2 * Math.PI / total));
+      dots.push({
+        id: labels[i],
+        label: labels[i],
+        x: cx + radius * Math.cos(angle),
+        y: cy + radius * Math.sin(angle),
+        row: -1,
+        col: -1,
+        isCore: false
+      });
+    }
+
+    // Center Core Anchor
+    dots.push({
+      id: 'C',
+      label: '◎',
+      x: cx,
+      y: cy,
+      row: -1,
+      col: -1,
+      isCore: true
+    });
+
+  } else if (type === 'keypad') {
+    // 3x4 Keypad Layout:
+    // 1 2 3
+    // 4 5 6
+    // 7 8 9
+    // C 0 ⚡
+    const paddingX = width * 0.16;
+    const paddingY = height * 0.12;
+    const usableW = width - 2 * paddingX;
+    const usableH = height - 2 * paddingY;
+    const colStep = usableW / 2.0;
+    const rowStep = usableH / 3.0;
+
+    const grid = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      ['C', '0', '7']
+    ];
+
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 3; c++) {
+        const id = grid[r][c];
+        const isCore = id === 'C';
+        dots.push({
+          id: id,
+          label: isCore ? '◎' : id,
+          x: paddingX + c * colStep,
+          y: paddingY + r * rowStep,
+          row: r,
+          col: c,
+          isCore: isCore
+        });
+      }
+    }
+  }
+}
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  width = rect.width;
+  height = rect.height;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  ctx.scale(dpr, dpr);
+  buildLayout(currentLayout);
+  draw();
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+function switchLayout(layout) {
+  currentLayout = layout;
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  selectedDots = [];
+  buildLayout(layout);
+  updateOutput();
+  draw();
+}
+
+// Drawing Logic
+function draw() {
+  ctx.clearRect(0, 0, width, height);
+
+  // Background Cyber Grid lines
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 20; i < width; i += 30) {
+    ctx.moveTo(i, 0); ctx.lineTo(i, height);
+  }
+  for (let i = 20; i < height; i += 30) {
+    ctx.moveTo(0, i); ctx.lineTo(width, i);
+  }
+  ctx.stroke();
+
+  let activeColor = '#00f0ff';
+  let glowColor = 'rgba(0, 240, 255, 0.6)';
+  if (animState === 'success') {
+    activeColor = '#00ff99';
+    glowColor = 'rgba(0, 255, 153, 0.7)';
+  } else if (animState === 'error') {
+    activeColor = '#ff0055';
+    glowColor = 'rgba(255, 0, 85, 0.7)';
+  }
+
+  // Draw Connecting Lines
+  if (selectedDots.length > 0) {
+    ctx.save();
+    ctx.strokeStyle = activeColor;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = glowColor;
+
+    ctx.beginPath();
+    ctx.moveTo(selectedDots[0].x, selectedDots[0].y);
+    for (let i = 1; i < selectedDots.length; i++) {
+      ctx.lineTo(selectedDots[i].x, selectedDots[i].y);
+    }
+    if (isDragging && touchPos.x >= 0 && touchPos.y >= 0) {
+      ctx.lineTo(touchPos.x, touchPos.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw Nodes
+  const dotRadius = width * 0.055;
+  const ringRadius = width * 0.095;
+
+  dots.forEach(dot => {
+    const isSelected = selectedDots.includes(dot);
+
+    // Outer Orbit Ring
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, ringRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.2)';
+    ctx.lineWidth = isSelected ? 2 : 1;
+    if (isSelected) {
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = glowColor;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Node Body
+    ctx.beginPath();
+    ctx.arc(dot.x, dot.y, dotRadius, 0, Math.PI * 2);
+    if (dot.isCore) {
+      ctx.fillStyle = isSelected ? (animState === 'error' ? '#ff0055' : '#ff0077') : 'rgba(255, 0, 119, 0.25)';
+      ctx.strokeStyle = '#ff0077';
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+
+      // Additional Inner concentric core ring
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, dotRadius * 0.55, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.15)';
+      ctx.fill();
+    }
+
+    // Node Label
+    ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(224, 248, 255, 0.85)';
+    ctx.font = `bold ${Math.round(dotRadius * 1.1)}px 'SF Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dot.label, dot.x, dot.y);
+  });
+}
+
+// Touch / Mouse Collision
+function findClosestDot(x, y) {
+  const hitDist = width * 0.12;
+  for (const d of dots) {
+    const dist = Math.hypot(x - d.x, y - d.y);
+    if (dist <= hitDist) return d;
+  }
+  return null;
+}
+
+function handleStart(x, y) {
+  animState = 'normal';
+  selectedDots = [];
+  isDragging = true;
+  touchPos = { x, y };
+
+  const hit = findClosestDot(x, y);
+  if (hit) {
+    selectedDots.push(hit);
+    playBeep(hit.isCore ? 600 : 440 + hit.id.charCodeAt(0) * 15);
+    if (navigator.vibrate) navigator.vibrate(15);
+  }
+  updateOutput();
+  draw();
+}
+
+function handleMove(x, y) {
+  if (!isDragging) return;
+  touchPos = { x, y };
+
+  const hit = findClosestDot(x, y);
+  if (hit) {
+    const last = selectedDots[selectedDots.length - 1];
+    if (hit !== last) {
+      // Core Repeat Bridge Rule: Allow re-visiting if this is Core OR if coming directly out of Core!
+      const canSelect = !selectedDots.includes(hit) || hit.isCore || (last && last.isCore);
+      if (canSelect) {
+        // Intermediate node check for 3-5-3 layout
+        if (currentLayout === '353' && last && last.row !== undefined) {
+          addIntermediate(last, hit);
+        }
+        selectedDots.push(hit);
+        playBeep(hit.isCore ? 600 : 440 + hit.id.charCodeAt(0) * 15);
+        if (navigator.vibrate) navigator.vibrate(15);
+        updateOutput();
+      }
+    }
+  }
+  draw();
+}
+
+function addIntermediate(last, target) {
+  const dRow = target.row - last.row;
+  const dCol = target.col - last.col;
+
+  if (Math.abs(dRow) % 2 === 0 && Math.abs(dCol) % 2 === 0 && (Math.abs(dRow) === 2 || Math.abs(dCol) === 2)) {
+    const midRow = last.row + dRow / 2;
+    const midCol = last.col + dCol / 2;
+    const mid = dots.find(d => d.row === midRow && d.col === midCol);
+    if (mid && !selectedDots.includes(mid)) {
+      selectedDots.push(mid);
+    }
+  }
+}
+
+function handleEnd() {
+  if (!isDragging) return;
+  isDragging = false;
+  touchPos = { x: -1, y: -1 };
+
+  if (selectedDots.length > 0) {
+    evaluatePattern();
+  }
+  draw();
+}
+
+// Evaluation & Normalization
+function evaluatePattern() {
+  const raw = selectedDots.map(d => d.id).join('');
+  const normalized = raw.replace(/C/gi, '');
+  const badge = document.getElementById('matchBadge');
+  const target = document.getElementById('targetPinInput').value.trim();
+
+  if (raw.length < 4) {
+    animState = 'error';
+    badge.className = 'output-status error';
+    badge.innerText = 'MIN 4 DOTS';
+    playError();
+    setTimeout(() => {
+      clearPattern();
+    }, 900);
+    return;
+  }
+
+  // Match test against Target PIN
+  const directMatch = (raw === target || normalized === target);
+  const normMatch = (normalized.length >= 4 && normalized === target);
+
+  if (directMatch || normMatch) {
+    animState = 'success';
+    badge.className = 'output-status match';
+    badge.innerText = 'UNLOCKED!';
+    playSuccess();
+  } else {
+    animState = 'error';
+    badge.className = 'output-status error';
+    badge.innerText = 'MISMATCH';
+    playError();
+    setTimeout(() => {
+      clearPattern();
+    }, 900);
+  }
+}
+
+function clearPattern() {
+  selectedDots = [];
+  animState = 'normal';
+  updateOutput();
+  draw();
+}
+
+function updateOutput() {
+  const out = document.getElementById('patternOutput');
+  const badge = document.getElementById('matchBadge');
+  if (selectedDots.length === 0) {
+    out.innerText = 'SWIPE NODES';
+    badge.className = 'output-status';
+    badge.innerText = 'READY';
+    return;
+  }
+  const raw = selectedDots.map(d => d.id).join('');
+  const normalized = raw.replace(/C/gi, '');
+  out.innerHTML = `${raw} <span style="color:var(--text-dim);font-size:11px;">(Norm: ${normalized || 'empty'})</span>`;
+}
+
+// Event Listeners for Canvas Touch and Mouse
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  handleStart(touch.clientX - rect.left, touch.clientY - rect.top);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  handleMove(touch.clientX - rect.left, touch.clientY - rect.top);
+}, { passive: false });
+
+window.addEventListener('touchend', e => {
+  handleEnd();
+});
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  handleStart(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+window.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  handleMove(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+window.addEventListener('mouseup', e => {
+  handleEnd();
+});
+
+// Time & Target PIN Automation
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const timeStr = `${h}:${m}`;
+  document.getElementById('liveClock').innerText = timeStr;
+
+  const pin24 = `${h}${m}`;
+  const h12 = now.getHours() % 12 || 12;
+  const pin12 = `${String(h12).padStart(2, '0')}${m}`;
+  document.getElementById('targetTimeBadge').innerText = `${pin24} (or 12h: ${pin12})`;
+}
+
+function setTargetFromTime() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('targetPinInput').value = `${h}${m}`;
+  clearPattern();
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+resizeCanvas();
+</script>
+
+</body>
+</html>

@@ -80,7 +80,7 @@ public class NotesCommandSearcher implements CommandSearcher {
         @NonNull
         @Override
         public String getTitle() {
-            return "📓 Open Cyber Notes Hub";
+            return "Notes";
         }
 
         @Override
@@ -91,7 +91,7 @@ public class NotesCommandSearcher implements CommandSearcher {
 
             TextView countTv = new TextView(mainActivity);
             int count = NotesManager.getInstance().getAllNotes(mainActivity).size();
-            countTv.setText(count + " notes saved. Tap to view, write, and manage notes.");
+            countTv.setText(count + (count == 1 ? " note" : " notes"));
             countTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             countTv.setTextColor(mainActivity.getAccentColor());
             countTv.setTypeface(Typeface.MONOSPACE);
@@ -129,7 +129,7 @@ public class NotesCommandSearcher implements CommandSearcher {
         @NonNull
         @Override
         public String getTitle() {
-            return "➕ Save Quick Note: \"" + (mContent.length() > 30 ? mContent.substring(0, 30) + "..." : mContent) + "\"";
+            return "Save: \"" + (mContent.length() > 30 ? mContent.substring(0, 30) + "..." : mContent) + "\"";
         }
 
         @Override
@@ -139,7 +139,7 @@ public class NotesCommandSearcher implements CommandSearcher {
             layout.setPadding(0, 4, 0, 8);
 
             TextView subTv = new TextView(mainActivity);
-            subTv.setText("Tap or press Enter to save to Notes Hub");
+            subTv.setText("Press Enter to save");
             subTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             subTv.setTextColor(Color.parseColor("#00ff99"));
             subTv.setTypeface(Typeface.MONOSPACE);
@@ -159,7 +159,7 @@ public class NotesCommandSearcher implements CommandSearcher {
                 String title = mContent.length() > 30 ? mContent.substring(0, 30) + "..." : mContent;
                 Note note = new Note(title, mContent);
                 NotesManager.getInstance().saveNote(activity, note);
-                Toast.makeText(activity, "Note saved!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(activity, "Note saved", Toast.LENGTH_SHORT).show();
                 activity.finish();
             };
         }
@@ -180,7 +180,7 @@ public class NotesCommandSearcher implements CommandSearcher {
         @NonNull
         @Override
         public String getTitle() {
-            return "📝 " + (mNote.title.isEmpty() ? "Untitled Note" : mNote.title);
+            return (mNote.title.isEmpty() ? "Untitled Note" : mNote.title);
         }
 
         @Override
