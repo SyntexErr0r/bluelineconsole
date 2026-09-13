@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="10dp"
+    android:layout_marginBottom="6dp"
+    android:background="@drawable/cyber_glass_card_bg"
+    android:descendantFocusability="blocksDescendants">
+
+    <!-- Top Row: Title + Date -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/noteItemTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Note Title"
+            android:textColor="#00f0ff"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/noteItemDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="12/09 18:45"
+            android:textColor="#5a8094"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Content Snippet -->
+    <TextView
+        android:id="@+id/noteItemSnippet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Note preview content text goes here..."
+        android:textColor="#cceeff"
+        android:textSize="12sp"
+        android:maxLines="3"
+        android:ellipsize="end"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Actions Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <TextView
+            android:id="@+id/noteBtnCopy"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ 📋 COPY ]"
+            android:textColor="#00f0ff"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="false"
+            android:layout_marginEnd="6dp" />
+
+        <TextView
+            android:id="@+id/noteBtnEdit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ ✏️ EDIT ]"
+            android:textColor="#00ff99"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="false"
+            android:layout_marginEnd="6dp" />
+
+        <TextView
+            android:id="@+id/noteBtnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ 🗑️ DELETE ]"
+            android:textColor="#ff0055"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="4dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="false" />
+    </LinearLayout>
+</LinearLayout>

@@ -14,6 +14,7 @@ import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.FactorCommandSe
 import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.HelpCommandSearcher;
 import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.LogCommandSearcher;
 import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.NetUtilCommandSearcher;
+import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.NotesCommandSearcher;
 import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.PreferencesCommandSearcher;
 import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.SearchEngineCommandSearcher;
 import net.nhiroki.bluelineconsole.commandSearchers.eachSearcher.SearchEngineDefaultCommandSearcher;
@@ -54,6 +55,7 @@ public class CommandSearchAggregator {
         commandSearcherList.add(new AICommandSearcher());
         commandSearcherList.add(new LogCommandSearcher());
         commandSearcherList.add(new AppLockCommandSearcher());
+        commandSearcherList.add(new NotesCommandSearcher());
 
         // Fully user-defined
         commandSearcherList.add(new WidgetCommandSearcher());

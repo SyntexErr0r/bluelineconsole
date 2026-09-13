@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/transparent">
+
+    <TextView
+        android:id="@+id/dialogNoteTitleLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="TITLE"
+        android:textColor="#00f0ff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/dialogNoteTitleEdit"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:background="@drawable/cyber_glass_input_box"
+        android:hint="Enter note title..."
+        android:textColor="#00f0ff"
+        android:textColorHint="#4d7a94"
+        android:textSize="14sp"
+        android:fontFamily="monospace"
+        android:paddingHorizontal="10dp"
+        android:singleLine="true"
+        android:layout_marginBottom="12dp" />
+
+    <TextView
+        android:id="@+id/dialogNoteContentLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CONTENT"
+        android:textColor="#00f0ff"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:fontFamily="monospace"
+        android:layout_marginBottom="4dp" />
+
+    <EditText
+        android:id="@+id/dialogNoteContentEdit"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:background="@drawable/cyber_glass_input_box"
+        android:hint="Write your note here..."
+        android:textColor="#00f0ff"
+        android:textColorHint="#4d7a94"
+        android:textSize="13sp"
+        android:fontFamily="monospace"
+        android:padding="10dp"
+        android:gravity="top|start"
+        android:inputType="textMultiLine|textCapSentences"
+        android:scrollbars="vertical"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <TextView
+            android:id="@+id/dialogNoteBtnCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ CANCEL ]"
+            android:textColor="#7a94a6"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/dialogNoteBtnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[ SAVE NOTE ]"
+            android:textColor="#00f0ff"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:background="#1a00f0ff"
+            android:clickable="true"
+            android:focusable="true" />
+    </LinearLayout>
+</LinearLayout>

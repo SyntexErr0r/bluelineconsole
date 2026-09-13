@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@android:color/transparent">
+
+    <!-- Top Action Bar -->
+    <LinearLayout
+        android:id="@+id/notesTopBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="8dp"
+        android:background="#1a00f0ff">
+
+        <!-- Add New Note Button -->
+        <LinearLayout
+            android:id="@+id/notesBtnAdd"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="5dp"
+            android:background="#2600f0ff"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="[ ➕ NEW NOTE ]"
+                android:textColor="#00f0ff"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace" />
+        </LinearLayout>
+
+        <!-- Status Summary -->
+        <TextView
+            android:id="@+id/notesTopStatusSummary"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Notes: 0"
+            android:textColor="#99d6ea"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:gravity="end"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <!-- Search Box -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="6dp">
+
+        <EditText
+            android:id="@+id/notesSearchEdit"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:background="@drawable/cyber_glass_input_box"
+            android:hint="🔍 Search notes by title or content..."
+            android:textColor="#00f0ff"
+            android:textColorHint="#4d7a94"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:singleLine="true" />
+    </LinearLayout>
+
+    <!-- Content Frame -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:paddingHorizontal="10dp">
+
+        <!-- ListView of Notes -->
+        <ListView
+            android:id="@+id/notesListView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="6dp"
+            android:cacheColorHint="@android:color/transparent"
+            android:fadingEdge="none"
+            android:scrollbars="vertical" />
+
+        <!-- Empty State View -->
+        <LinearLayout
+            android:id="@+id/notesEmptyState"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📓"
+                android:textSize="36sp"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="NO NOTES SAVED"
+                android:textColor="#00f0ff"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:layout_marginBottom="6dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap [ ➕ NEW NOTE ] above or type\n'note &lt;text&gt;' in the console to create one."
+                android:textColor="#5a8094"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:gravity="center" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

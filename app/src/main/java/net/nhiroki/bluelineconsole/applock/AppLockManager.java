@@ -231,8 +231,49 @@ public class AppLockManager {
     }
 
     /**
-     * Algorithmic 3x3 pattern expansion:
-     * Traverses the digit path on a 3x3 grid (dots 1-9) and automatically inserts
+     * Algorithmic 11-node Cyber Matrix coordinate mapping.
+     */
+    public static int getDotRow(char c) {
+        switch (c) {
+            case '1': case '2': case '3': return 0;
+            case '4': case '5': case 'C': case 'c': case '6': case '7': return 1;
+            case '8': case '9': case '0': return 2;
+            default: return -1;
+        }
+    }
+
+    public static int getDotCol(char c) {
+        switch (c) {
+            case '4': return 0;
+            case '1': case '5': case '8': return 1;
+            case '2': case 'C': case 'c': case '9': return 2;
+            case '3': case '6': case '0': return 3;
+            case '7': return 4;
+            default: return -1;
+        }
+    }
+
+    public static char getDotChar(int row, int col) {
+        if (row == 0) {
+            if (col == 1) return '1';
+            if (col == 2) return '2';
+            if (col == 3) return '3';
+        } else if (row == 1) {
+            if (col == 0) return '4';
+            if (col == 1) return '5';
+            if (col == 2) return 'C';
+            if (col == 3) return '6';
+            if (col == 4) return '7';
+        } else if (row == 2) {
+            if (col == 1) return '8';
+            if (col == 2) return '9';
+            if (col == 3) return '0';
+        }
+        return '\0';
+    }
+
+    /**
+     * Traverses the digit path on a standard 3x3 grid (dots 1-9) and automatically inserts
      * intermediate dots crossed along straight or diagonal lines that haven't yet been visited.
      * E.g. "9428" -> "94258" (because moving from 2 to 8 crosses 5).
      * "13" -> "123", "19" -> "159", "37" -> "357", "79" -> "789", etc.
@@ -242,7 +283,6 @@ public class AppLockManager {
             return rawPattern == null ? "" : rawPattern;
         }
 
-        // Validate that all characters are 1-9
         for (int i = 0; i < rawPattern.length(); i++) {
             char c = rawPattern.charAt(i);
             if (c < '1' || c > '9') {
@@ -271,8 +311,6 @@ public class AppLockManager {
             int dRow = currRow - prevRow;
             int dCol = currCol - prevCol;
 
-            // Intermediate dot exists if both row and col difference are even
-            // and at least one difference spans 2 units
             if (Math.abs(dRow) % 2 == 0 && Math.abs(dCol) % 2 == 0 &&
                     (Math.abs(dRow) == 2 || Math.abs(dCol) == 2)) {
                 int midRow = prevRow + dRow / 2;
@@ -297,6 +335,66 @@ public class AppLockManager {
     }
 
     /**
+     * Traverses the digit path on the 11-node Cyber Matrix (3-5-3 layout)
+     * and automatically inserts intermediate dots crossed along straight or diagonal lines.
+     * E.g. "13" -> "123", "18" -> "158", "30" -> "360", "29" -> "2C9", "80" -> "890", "10" -> "1C0", "38" -> "3C8".
+     */
+    public static String expand11NodePattern(String rawPattern) {
+        if (rawPattern == null || rawPattern.length() <= 1) {
+            return rawPattern == null ? "" : rawPattern;
+        }
+
+        StringBuilder expanded = new StringBuilder();
+        Set<Character> visited = new HashSet<>();
+
+        char prevChar = rawPattern.charAt(0);
+        expanded.append(prevChar);
+        if (prevChar != 'C' && prevChar != 'c') {
+            visited.add(prevChar);
+        }
+
+        for (int i = 1; i < rawPattern.length(); i++) {
+            char currChar = rawPattern.charAt(i);
+            if (currChar == prevChar && (currChar != 'C' && currChar != 'c')) {
+                continue;
+            }
+
+            int prevRow = getDotRow(prevChar);
+            int prevCol = getDotCol(prevChar);
+            int currRow = getDotRow(currChar);
+            int currCol = getDotCol(currChar);
+
+            if (prevRow != -1 && prevCol != -1 && currRow != -1 && currCol != -1) {
+                int dRow = currRow - prevRow;
+                int dCol = currCol - prevCol;
+
+                if (Math.abs(dRow) % 2 == 0 && Math.abs(dCol) % 2 == 0 &&
+                        (Math.abs(dRow) == 2 || Math.abs(dCol) == 2 || Math.abs(dCol) == 4)) {
+                    int midRow = prevRow + dRow / 2;
+                    int midCol = prevCol + dCol / 2;
+
+                    char midChar = getDotChar(midRow, midCol);
+                    if (midChar != '\0' && !visited.contains(midChar)) {
+                        visited.add(midChar);
+                        expanded.append(midChar);
+                    }
+                }
+            }
+
+            if (!visited.contains(currChar) || currChar == 'C' || currChar == 'c' || prevChar == 'C' || prevChar == 'c') {
+                if (currChar != 'C' && currChar != 'c') {
+                    visited.add(currChar);
+                }
+                expanded.append(currChar);
+            }
+
+            prevChar = currChar;
+        }
+
+        return expanded.toString();
+    }
+
+    /**
      * Deduplicates previously visited digits in order (for pattern gesture compatibility with PINs).
      */
     public static String deduplicatePatternDigits(String s) {
@@ -315,6 +413,12 @@ public class AppLockManager {
 
     /**
      * Dynamically verifies if an input matches a target pattern without any hardcoding.
+     * Supports:
+     * 1. Direct equality (e.g. "3502" == "3502")
+     * 2. Core-bridge repeat swipes (e.g. "2C2C2C2" matches "2222")
+     * 3. 11-node Cyber Matrix geometric expansion
+     * 4. 3x3 geometric expansion (e.g. "9428" matching "94258")
+     * 5. Target deduplication
      */
     public static boolean matchesPattern(String input, String target) {
         if (input == null || target == null) return false;
@@ -323,19 +427,46 @@ public class AppLockManager {
         // A pattern lock gesture requires at least 4 connected dots
         if (trimmedInput.length() < 4 || trimmedTarget.length() < 4) return false;
 
-        // Expanded geometric match
+        // 1. Direct equality
+        if (trimmedInput.equalsIgnoreCase(trimmedTarget)) return true;
+
+        // 2. Core-bridge normalized equality (e.g. "2C2C2C2" matches "2222")
+        String normInput = trimmedInput.replace("C", "").replace("c", "");
+        String normTarget = trimmedTarget.replace("C", "").replace("c", "");
+        if (normInput.length() >= 4 && (normInput.equals(trimmedTarget) || normInput.equals(normTarget))) {
+            return true;
+        }
+
+        // 3. 11-Node Cyber Matrix geometric match
+        String exp11Input = expand11NodePattern(trimmedInput);
+        String exp11Target = expand11NodePattern(trimmedTarget);
+        if (exp11Input.length() >= 4 && exp11Target.length() >= 4) {
+            if (exp11Input.equalsIgnoreCase(exp11Target) || exp11Input.equalsIgnoreCase(trimmedTarget) || trimmedInput.equalsIgnoreCase(exp11Target)) {
+                return true;
+            }
+        }
+
+        // 4. 11-Node geometric match on Core-normalized strings
+        if (normInput.length() >= 4 && normTarget.length() >= 4) {
+            String exp11NormInput = expand11NodePattern(normInput);
+            String exp11NormTarget = expand11NodePattern(normTarget);
+            if (exp11NormInput.equalsIgnoreCase(exp11NormTarget) || exp11NormInput.equalsIgnoreCase(normTarget) || normInput.equalsIgnoreCase(exp11NormTarget)) {
+                return true;
+            }
+        }
+
+        // 5. 3x3 geometric expansion (backward compatibility for standard 3x3 patterns like "9428" -> "94258")
         String expInput = expandPatternWithIntermediateDots(trimmedInput);
         String expTarget = expandPatternWithIntermediateDots(trimmedTarget);
-        if (expInput.length() < 4 || expTarget.length() < 4) return false;
+        if (expInput.length() >= 4 && expTarget.length() >= 4) {
+            if (expInput.equalsIgnoreCase(expTarget) || expInput.equalsIgnoreCase(trimmedTarget) || trimmedInput.equalsIgnoreCase(expTarget)) {
+                return true;
+            }
+        }
 
-        // Direct equality
-        if (trimmedInput.equals(trimmedTarget)) return true;
-
-        if (expInput.equals(expTarget)) return true;
-
-        // Match against deduplicated target ONLY if it retains at least 4 distinct dots
+        // 6. Match against deduplicated target ONLY if it retains at least 4 distinct dots
         String dedupTarget = deduplicatePatternDigits(trimmedTarget);
-        if (dedupTarget.length() >= 4 && expInput.equals(expandPatternWithIntermediateDots(dedupTarget))) {
+        if (dedupTarget.length() >= 4 && (trimmedInput.equals(dedupTarget) || expInput.equals(expandPatternWithIntermediateDots(dedupTarget)) || exp11Input.equals(expand11NodePattern(dedupTarget)))) {
             return true;
         }
 
@@ -492,10 +623,15 @@ public class AppLockManager {
 
     /**
      * Returns all valid time-based patterns (Option A) within +/- 1 minute window.
+     * Includes both raw 4-digit PIN sequence (directly swipeable on 11-node cyber matrix)
+     * and smart-remapped patterns.
      */
     public static List<String> getAllValidTimeBasedPatterns() {
         List<String> patterns = new ArrayList<>();
         for (String pin : getAllValidTimeBasedPins()) {
+            if (pin != null && pin.length() >= 4 && !patterns.contains(pin)) {
+                patterns.add(pin);
+            }
             String pat = computeTimePatternFromPin(pin);
             if (!pat.isEmpty() && !patterns.contains(pat)) {
                 patterns.add(pat);

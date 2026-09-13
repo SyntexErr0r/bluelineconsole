@@ -716,5 +716,70 @@ public class AppLockTests {
         assertTrue("cyber_globe.html must exist in assets", assetFile.exists());
         assertTrue("cyber_globe.html size must be greater than 1KB", assetFile.length() > 1024);
     }
+
+    @Test
+    public void test11NodeCyberMatrixPatternMatching() {
+        // Direct match with '0'
+        assertTrue(AppLockManager.matchesPattern("3502", "3502"));
+        assertTrue(AppLockManager.matchesPattern("0532", "0532"));
+
+        // Core-bridge repeat swipe matching (e.g. 2 -> Core -> 2 -> Core -> 2 -> Core -> 2 matches 2222)
+        assertTrue(AppLockManager.matchesPattern("2C2C2C2", "2222"));
+        assertTrue(AppLockManager.matchesPattern("2c2c2c2", "2222"));
+        assertTrue(AppLockManager.matchesPattern("05C5C5", "0555"));
+        assertTrue(AppLockManager.matchesPattern("1C1C1C1", "1111"));
+
+        // Under-length gestures (< 4 effective digits) MUST be rejected
+        assertFalse(AppLockManager.matchesPattern("2C2", "2222"));
+        assertFalse(AppLockManager.matchesPattern("2C2C2", "2222")); // Only 3 digits
+        assertFalse(AppLockManager.matchesPattern("1C1", "1111"));
+        assertFalse(AppLockManager.matchesPattern("350", "3502"));
+
+        // 11-Node geometric matrix jump expansion:
+        // Moving 1 to 8 crosses 5 (col 1), so "1843" expands to "15843"
+        assertEquals("15843", AppLockManager.expand11NodePattern("1843"));
+        assertTrue(AppLockManager.matchesPattern("15843", "1843"));
+
+        // Moving 1 to 3 crosses 2 (row 0)
+        assertEquals("123", AppLockManager.expand11NodePattern("13"));
+        // Moving 8 to 0 crosses 9 (row 2)
+        assertEquals("890", AppLockManager.expand11NodePattern("80"));
+        // Moving 2 to 9 crosses C (col 2)
+        assertEquals("2C9", AppLockManager.expand11NodePattern("29"));
+        // Moving 3 to 0 crosses 6 (col 3)
+        assertEquals("360", AppLockManager.expand11NodePattern("30"));
+
+        // Matrix coordinates check
+        assertEquals(0, AppLockManager.getDotRow('1'));
+        assertEquals(0, AppLockManager.getDotRow('2'));
+        assertEquals(0, AppLockManager.getDotRow('3'));
+        assertEquals(1, AppLockManager.getDotRow('4'));
+        assertEquals(1, AppLockManager.getDotRow('5'));
+        assertEquals(1, AppLockManager.getDotRow('C'));
+        assertEquals(1, AppLockManager.getDotRow('6'));
+        assertEquals(1, AppLockManager.getDotRow('7'));
+        assertEquals(2, AppLockManager.getDotRow('8'));
+        assertEquals(2, AppLockManager.getDotRow('9'));
+        assertEquals(2, AppLockManager.getDotRow('0'));
+
+        assertEquals('C', AppLockManager.getDotChar(1, 2));
+        assertEquals('0', AppLockManager.getDotChar(2, 3));
+    }
+
+    @Test
+    public void testNotesModel() throws Exception {
+        net.nhiroki.bluelineconsole.notes.Note note = new net.nhiroki.bluelineconsole.notes.Note("Matrix Plan", "Deploy cyber grid 3-5-3");
+        assertNotNull(note.id);
+        assertEquals("Matrix Plan", note.title);
+        assertEquals("Deploy cyber grid 3-5-3", note.content);
+        assertTrue(note.createdAt > 0);
+        assertTrue(note.updatedAt > 0);
+
+        JSONObject json = note.toJson();
+        assertNotNull(json);
+
+        // Null safe
+        assertNull(net.nhiroki.bluelineconsole.notes.Note.fromJson(null));
+    }
 }
 
