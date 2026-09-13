@@ -39,20 +39,18 @@ public class PatternLockView extends View {
     }
 
     public static class Dot {
-        public final char id; // '1'..'9', '0', 'C'
-        public final String label;
+        public final char id; // '1'..'9', '0'
         public final int row; // 0..2
         public final int col; // 0..4
-        public final boolean isCore;
+        public final boolean isZero;
         public float x;
         public float y;
 
-        public Dot(char id, String label, int row, int col, boolean isCore) {
+        public Dot(char id, int row, int col, boolean isZero) {
             this.id = id;
-            this.label = label;
             this.row = row;
             this.col = col;
-            this.isCore = isCore;
+            this.isZero = isZero;
         }
     }
 
@@ -72,7 +70,6 @@ public class PatternLockView extends View {
     private final Paint mDotRingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mDotSelectedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mCoreRingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path mLinePath = new Path();
 
@@ -95,22 +92,22 @@ public class PatternLockView extends View {
     }
 
     private void init() {
-        // Row 0: 3 dots ('1', '2', '3') at columns 1, 2, 3
-        mDots[0] = new Dot('1', "1", 0, 1, false);
-        mDots[1] = new Dot('2', "2", 0, 2, false);
-        mDots[2] = new Dot('3', "3", 0, 3, false);
+        // Top line: 3 dots (1, 2, 3) at columns 1, 2, 3
+        mDots[0] = new Dot('1', 0, 1, false);
+        mDots[1] = new Dot('2', 0, 2, false);
+        mDots[2] = new Dot('3', 0, 3, false);
 
-        // Row 1: 5 dots ('4', '5', 'C' (Core), '6', '7') at columns 0, 1, 2, 3, 4
-        mDots[3] = new Dot('4', "4", 1, 0, false);
-        mDots[4] = new Dot('5', "5", 1, 1, false);
-        mDots[5] = new Dot('C', "◎", 1, 2, true); // Center Cyber Core
-        mDots[6] = new Dot('6', "6", 1, 3, false);
-        mDots[7] = new Dot('7', "7", 1, 4, false);
+        // Middle line: 5 dots (Left 0, 4, 5, 6, Right 0) at columns 0, 1, 2, 3, 4
+        mDots[3] = new Dot('0', 1, 0, true); // Left '0' wing
+        mDots[4] = new Dot('4', 1, 1, false);
+        mDots[5] = new Dot('5', 1, 2, false);
+        mDots[6] = new Dot('6', 1, 3, false);
+        mDots[7] = new Dot('0', 1, 4, true); // Right '0' wing
 
-        // Row 2: 3 dots ('8', '9', '0') at columns 1, 2, 3
-        mDots[8] = new Dot('8', "8", 2, 1, false);
-        mDots[9] = new Dot('9', "9", 2, 2, false);
-        mDots[10] = new Dot('0', "0", 2, 3, false);
+        // Bottom line: 3 dots (7, 8, 9) at columns 1, 2, 3
+        mDots[8] = new Dot('7', 2, 1, false);
+        mDots[9] = new Dot('8', 2, 2, false);
+        mDots[10] = new Dot('9', 2, 3, false);
 
         mDotNormalPaint.setStyle(Paint.Style.FILL);
         mDotRingPaint.setStyle(Paint.Style.STROKE);
@@ -119,10 +116,6 @@ public class PatternLockView extends View {
 
         mCoreRingPaint.setStyle(Paint.Style.STROKE);
         mCoreRingPaint.setStrokeWidth(2.5f);
-
-        mTextPaint.setColor(Color.WHITE);
-        mTextPaint.setTypeface(Typeface.MONOSPACE);
-        mTextPaint.setTextAlign(Paint.Align.CENTER);
 
         mLinePaint.setStyle(Paint.Style.STROKE);
         mLinePaint.setStrokeWidth(9f);
@@ -235,8 +228,6 @@ public class PatternLockView extends View {
             d.x = startX + d.col * colStep;
             d.y = startY + d.row * rowStep;
         }
-
-        mTextPaint.setTextSize(getWidth() * 0.045f);
     }
 
     @Override
@@ -263,50 +254,40 @@ public class PatternLockView extends View {
             canvas.drawPath(mLinePath, mLinePaint);
         }
 
-        // 2. Draw all 11 cyber nodes
+        // 2. Draw all 11 cyber nodes (clean, perfectly centered, no text clutter)
         for (Dot d : mDots) {
             boolean isSelected = mSelectedDots.contains(d);
 
-            if (d.isCore) {
-                // Central Cyber Core: concentric glowing rings
-                canvas.drawCircle(d.x, d.y, ringRadius * 1.15f, mCoreRingPaint);
-                canvas.drawCircle(d.x, d.y, ringRadius * 0.65f, mCoreRingPaint);
+            if (d.isZero) {
+                // '0' Wing Nodes: elegant double concentric cyber ring
+                canvas.drawCircle(d.x, d.y, ringRadius * 1.05f, mCoreRingPaint);
+                canvas.drawCircle(d.x, d.y, ringRadius * 0.70f, mDotRingPaint);
 
                 if (isSelected) {
                     Paint glowRing = new Paint(Paint.ANTI_ALIAS_FLAG);
                     glowRing.setStyle(Paint.Style.STROKE);
                     glowRing.setStrokeWidth(5f);
                     glowRing.setColor(mStateColor);
-                    canvas.drawCircle(d.x, d.y, ringRadius * 1.15f, glowRing);
+                    canvas.drawCircle(d.x, d.y, ringRadius * 1.05f, glowRing);
                     canvas.drawCircle(d.x, d.y, dotRadius * 1.5f, mDotSelectedPaint);
                 } else {
-                    canvas.drawCircle(d.x, d.y, dotRadius * 1.2f, mDotNormalPaint);
+                    canvas.drawCircle(d.x, d.y, dotRadius * 1.1f, mDotNormalPaint);
                 }
             } else {
-                // Outer subtle ring
+                // Standard 1-9 nodes
                 canvas.drawCircle(d.x, d.y, ringRadius, mDotRingPaint);
 
                 if (isSelected) {
-                    // Outer glow ring
                     Paint glowRing = new Paint(Paint.ANTI_ALIAS_FLAG);
                     glowRing.setStyle(Paint.Style.STROKE);
                     glowRing.setStrokeWidth(5f);
                     glowRing.setColor(mStateColor);
                     canvas.drawCircle(d.x, d.y, ringRadius * 0.9f, glowRing);
-
-                    // Filled center dot
                     canvas.drawCircle(d.x, d.y, dotRadius * 1.4f, mDotSelectedPaint);
                 } else {
-                    // Normal unselected center dot
                     canvas.drawCircle(d.x, d.y, dotRadius, mDotNormalPaint);
                 }
             }
-
-            // Draw Node Text Label slightly offset below/center
-            float textOffset = isSelected ? (ringRadius * 0.45f) : (ringRadius * 0.45f);
-            mTextPaint.setColor(isSelected ? mStateColor : ((mNormalColor & 0x00ffffff) | 0x88000000));
-            mTextPaint.setTextSize(getWidth() * (d.isCore ? 0.040f : 0.038f));
-            canvas.drawText(d.label, d.x, d.y + textOffset, mTextPaint);
         }
     }
 
@@ -341,8 +322,7 @@ public class PatternLockView extends View {
                 if (hitMove != null) {
                     Dot last = mSelectedDots.isEmpty() ? null : mSelectedDots.get(mSelectedDots.size() - 1);
                     if (hitMove != last) {
-                        // Allow node if unvisited, OR if it's the Core, OR if coming directly out of Core (repeat bridge!)
-                        if (!mSelectedDots.contains(hitMove) || hitMove.isCore || (last != null && last.isCore)) {
+                        if (!mSelectedDots.contains(hitMove)) {
                             addIntermediateDotsIfNeeded(hitMove);
                             addDot(hitMove);
                         }
@@ -397,6 +377,14 @@ public class PatternLockView extends View {
             Dot mid = getDotAt(midRow, midCol);
             if (mid != null && !mSelectedDots.contains(mid)) {
                 addDot(mid);
+            }
+        } else if (dRow == 0 && Math.abs(dCol) == 4) {
+            int stepC = dCol / 4;
+            for (int c = last.col + stepC; c != target.col; c += stepC) {
+                Dot mid = getDotAt(last.row, c);
+                if (mid != null && !mSelectedDots.contains(mid)) {
+                    addDot(mid);
+                }
             }
         }
     }

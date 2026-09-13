@@ -102,7 +102,7 @@
     width: 100%;
     max-width: 480px;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     margin-bottom: 12px;
   }
@@ -254,6 +254,13 @@
     background: rgba(0, 240, 255, 0.4);
   }
 
+  .btn.active-toggle {
+    background: rgba(0, 240, 255, 0.3);
+    border-color: var(--cyan);
+    color: #fff;
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+  }
+
   .tips {
     margin-top: 14px;
     color: var(--text-dim);
@@ -268,8 +275,8 @@
     font-weight: bold;
   }
 
-  .core-token {
-    color: var(--magenta);
+  .wing-token {
+    color: var(--green);
     font-weight: bold;
   }
 </style>
@@ -285,9 +292,8 @@
 </div>
 
 <div class="layout-nav">
-  <button class="tab-btn active" onclick="switchLayout('353')">3-5-3 MATRIX</button>
-  <button class="tab-btn" onclick="switchLayout('radial')">RADIAL DIAL</button>
-  <button class="tab-btn" onclick="switchLayout('keypad')">3x4 KEYPAD</button>
+  <button class="tab-btn active" onclick="switchLayout('wing_zero', event)">WING-ZERO (3-5-3)</button>
+  <button class="tab-btn" onclick="switchLayout('standard_3x3', event)">CLASSIC 3x3</button>
 </div>
 
 <div class="canvas-card">
@@ -315,18 +321,20 @@
   </div>
   <div class="control-row">
     <button class="btn" onclick="clearPattern()">RESET SWIPE</button>
+    <button id="toggleLabelsBtn" class="btn" onclick="toggleLabels()">SHOW NUMBERS: OFF</button>
     <button class="btn" style="border-color:var(--green); color:var(--green);" onclick="setTargetFromTime()">USE TIME PIN</button>
   </div>
 
   <div class="tips">
-    • <span class="core-token">◎ Core Bridge</span>: Swiping through Center Core allows repeating identical digits (e.g. <span class="key-token">2 → ◎ → 2 → ◎ → 2 → ◎ → 2</span> = <b>2222</b>).<br>
-    • <span class="key-token">Node '0'</span>: Fully addressable node for time PINs starting or ending with 0 (e.g. <b>05:32</b>).<br>
+    • <span class="wing-token">Dual '0' Wings</span>: Left '0' and Right '0' on middle line allow starting or ending with 0 (e.g. <b>08:43</b> or <b>12:00</b>).<br>
+    • <span class="key-token">Layout Structure</span>: Row 0 = <span class="key-token">1 2 3</span>, Row 1 = <span class="wing-token">0</span> <span class="key-token">4 5 6</span> <span class="wing-token">0</span>, Row 2 = <span class="key-token">7 8 9</span>.<br>
+    • <span class="key-token">No Misaligned Text</span>: Clean futuristic glowing concentric rings & center dots.<br>
     • <span class="key-token">Min Guard</span>: Minimum 4 nodes required to unlock.
   </div>
 </div>
 
 <script>
-// Web Audio Synthesizer for Sci-Fi Feedback
+// Web Audio Synthesizer for Feedback
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playBeep(freq = 440, type = 'sine', duration = 0.05) {
   try {
@@ -361,25 +369,35 @@ const ctx = canvas.getContext('2d');
 let width = 0;
 let height = 0;
 
-let currentLayout = '353'; // '353', 'radial', 'keypad'
+let currentLayout = 'wing_zero'; // 'wing_zero', 'standard_3x3'
+let showLabels = false;
 let dots = [];
 let selectedDots = [];
 let isDragging = false;
 let touchPos = { x: -1, y: -1 };
 let animState = 'normal'; // 'normal', 'success', 'error'
-let targetPin = '1843';
+
+function toggleLabels() {
+  showLabels = !showLabels;
+  const btn = document.getElementById('toggleLabelsBtn');
+  btn.innerText = `SHOW NUMBERS: ${showLabels ? 'ON' : 'OFF'}`;
+  if (showLabels) {
+    btn.classList.add('active-toggle');
+  } else {
+    btn.classList.remove('active-toggle');
+  }
+  draw();
+}
 
 // Layout Configurations
 function buildLayout(type) {
   dots = [];
-  const cx = width / 2;
-  const cy = height / 2;
 
-  if (type === '353') {
-    // Row 0: 3 dots (1, 2, 3)
-    // Row 1: 5 dots (4, 5, CORE, 6, 7)
-    // Row 2: 3 dots (8, 9, 0)
-    const paddingX = width * 0.10;
+  if (type === 'wing_zero') {
+    // Top line: 3 dots (1, 2, 3) at col 1, 2, 3
+    // Middle line: 5 dots (Left 0, 4, 5, 6, Right 0) at col 0, 1, 2, 3, 4
+    // Bottom line: 3 dots (7, 8, 9) at col 1, 2, 3
+    const paddingX = width * 0.08;
     const paddingY = height * 0.14;
     const usableW = width - 2 * paddingX;
     const usableH = height - 2 * paddingY;
@@ -387,19 +405,19 @@ function buildLayout(type) {
     const rowStep = usableH / 2.0;
 
     const defs = [
-      { id: '1', label: '1', r: 0, c: 1, isCore: false },
-      { id: '2', label: '2', r: 0, c: 2, isCore: false },
-      { id: '3', label: '3', r: 0, c: 3, isCore: false },
+      { id: '1', label: '1', r: 0, c: 1, isZero: false },
+      { id: '2', label: '2', r: 0, c: 2, isZero: false },
+      { id: '3', label: '3', r: 0, c: 3, isZero: false },
 
-      { id: '4', label: '4', r: 1, c: 0, isCore: false },
-      { id: '5', label: '5', r: 1, c: 1, isCore: false },
-      { id: 'C', label: '◎', r: 1, c: 2, isCore: true },
-      { id: '6', label: '6', r: 1, c: 3, isCore: false },
-      { id: '7', label: '7', r: 1, c: 4, isCore: false },
+      { id: '0', label: '0', r: 1, c: 0, isZero: true },
+      { id: '4', label: '4', r: 1, c: 1, isZero: false },
+      { id: '5', label: '5', r: 1, c: 2, isZero: false },
+      { id: '6', label: '6', r: 1, c: 3, isZero: false },
+      { id: '0', label: '0', r: 1, c: 4, isZero: true },
 
-      { id: '8', label: '8', r: 2, c: 1, isCore: false },
-      { id: '9', label: '9', r: 2, c: 2, isCore: false },
-      { id: '0', label: '0', r: 2, c: 3, isCore: false },
+      { id: '7', label: '7', r: 2, c: 1, isZero: false },
+      { id: '8', label: '8', r: 2, c: 2, isZero: false },
+      { id: '9', label: '9', r: 2, c: 3, isZero: false },
     ];
 
     defs.forEach(d => {
@@ -410,73 +428,35 @@ function buildLayout(type) {
         y: paddingY + d.r * rowStep,
         row: d.r,
         col: d.c,
-        isCore: d.isCore
+        isZero: d.isZero
       });
     });
 
-  } else if (type === 'radial') {
-    // 10 dots around a circle (1 to 9 + 0) + CORE in center!
-    const radius = width * 0.38;
-    const labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-    const total = labels.length;
-
-    for (let i = 0; i < total; i++) {
-      // Start 1 at ~11 o'clock
-      const angle = (-Math.PI / 2) + (i * (2 * Math.PI / total));
-      dots.push({
-        id: labels[i],
-        label: labels[i],
-        x: cx + radius * Math.cos(angle),
-        y: cy + radius * Math.sin(angle),
-        row: -1,
-        col: -1,
-        isCore: false
-      });
-    }
-
-    // Center Core Anchor
-    dots.push({
-      id: 'C',
-      label: '◎',
-      x: cx,
-      y: cy,
-      row: -1,
-      col: -1,
-      isCore: true
-    });
-
-  } else if (type === 'keypad') {
-    // 3x4 Keypad Layout:
-    // 1 2 3
-    // 4 5 6
-    // 7 8 9
-    // C 0 ⚡
+  } else if (type === 'standard_3x3') {
     const paddingX = width * 0.16;
-    const paddingY = height * 0.12;
+    const paddingY = height * 0.16;
     const usableW = width - 2 * paddingX;
     const usableH = height - 2 * paddingY;
     const colStep = usableW / 2.0;
-    const rowStep = usableH / 3.0;
+    const rowStep = usableH / 2.0;
 
     const grid = [
       ['1', '2', '3'],
       ['4', '5', '6'],
-      ['7', '8', '9'],
-      ['C', '0', '7']
+      ['7', '8', '9']
     ];
 
-    for (let r = 0; r < 4; r++) {
+    for (let r = 0; r < 3; r++) {
       for (let c = 0; c < 3; c++) {
         const id = grid[r][c];
-        const isCore = id === 'C';
         dots.push({
           id: id,
-          label: isCore ? '◎' : id,
+          label: id,
           x: paddingX + c * colStep,
           y: paddingY + r * rowStep,
           row: r,
           col: c,
-          isCore: isCore
+          isZero: false
         });
       }
     }
@@ -497,10 +477,10 @@ function resizeCanvas() {
 
 window.addEventListener('resize', resizeCanvas);
 
-function switchLayout(layout) {
+function switchLayout(layout, evt) {
   currentLayout = layout;
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  event.target.classList.add('active');
+  if (evt && evt.target) evt.target.classList.add('active');
   selectedDots = [];
   buildLayout(layout);
   updateOutput();
@@ -511,7 +491,7 @@ function switchLayout(layout) {
 function draw() {
   ctx.clearRect(0, 0, width, height);
 
-  // Background Cyber Grid lines
+  // Subtle Cyber Grid lines
   ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -537,10 +517,10 @@ function draw() {
   if (selectedDots.length > 0) {
     ctx.save();
     ctx.strokeStyle = activeColor;
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = 12;
     ctx.shadowColor = glowColor;
 
     ctx.beginPath();
@@ -556,57 +536,73 @@ function draw() {
   }
 
   // Draw Nodes
-  const dotRadius = width * 0.055;
-  const ringRadius = width * 0.095;
+  const dotRadius = width * 0.035;
+  const ringRadius = width * 0.08;
 
   dots.forEach(dot => {
     const isSelected = selectedDots.includes(dot);
 
-    // Outer Orbit Ring
-    ctx.beginPath();
-    ctx.arc(dot.x, dot.y, ringRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.2)';
-    ctx.lineWidth = isSelected ? 2 : 1;
-    if (isSelected) {
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = glowColor;
-    }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Node Body
-    ctx.beginPath();
-    ctx.arc(dot.x, dot.y, dotRadius, 0, Math.PI * 2);
-    if (dot.isCore) {
-      ctx.fillStyle = isSelected ? (animState === 'error' ? '#ff0055' : '#ff0077') : 'rgba(255, 0, 119, 0.25)';
-      ctx.strokeStyle = '#ff0077';
-      ctx.lineWidth = 2;
-      ctx.fill();
-      ctx.stroke();
-
-      // Additional Inner concentric core ring
+    if (dot.isZero) {
+      // Dual Concentric Cyber Rings for Wing '0'
       ctx.beginPath();
-      ctx.arc(dot.x, dot.y, dotRadius * 0.55, 0, Math.PI * 2);
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      ctx.arc(dot.x, dot.y, ringRadius * 1.05, 0, Math.PI * 2);
+      ctx.strokeStyle = isSelected ? activeColor : 'rgba(0, 255, 153, 0.35)';
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      if (isSelected) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = glowColor;
+      }
       ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, ringRadius * 0.70, 0, Math.PI * 2);
+      ctx.strokeStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Center Node Core
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, isSelected ? dotRadius * 1.5 : dotRadius * 1.1, 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? activeColor : 'rgba(0, 255, 153, 0.3)';
+      ctx.fill();
+
     } else {
-      ctx.fillStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.15)';
+      // Standard Nodes 1-9
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, ringRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.22)';
+      ctx.lineWidth = isSelected ? 2.5 : 1;
+      if (isSelected) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = glowColor;
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Center Core
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, isSelected ? dotRadius * 1.4 : dotRadius, 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? activeColor : 'rgba(0, 240, 255, 0.3)';
       ctx.fill();
     }
 
-    // Node Label
-    ctx.fillStyle = isSelected ? '#ffffff' : 'rgba(224, 248, 255, 0.85)';
-    ctx.font = `bold ${Math.round(dotRadius * 1.1)}px 'SF Mono', monospace`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(dot.label, dot.x, dot.y);
+    // Optional Clean Centered Number Label
+    if (showLabels) {
+      ctx.save();
+      ctx.fillStyle = isSelected ? '#000000' : (dot.isZero ? '#00ff99' : '#e0f8ff');
+      ctx.font = `bold ${Math.round(dotRadius * 1.2)}px 'SF Mono', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(dot.label, dot.x, dot.y);
+      ctx.restore();
+    }
   });
 }
 
-// Touch / Mouse Collision
+// Touch / Collision Detection
 function findClosestDot(x, y) {
-  const hitDist = width * 0.12;
+  const hitDist = width * 0.10;
   for (const d of dots) {
     const dist = Math.hypot(x - d.x, y - d.y);
     if (dist <= hitDist) return d;
@@ -623,7 +619,7 @@ function handleStart(x, y) {
   const hit = findClosestDot(x, y);
   if (hit) {
     selectedDots.push(hit);
-    playBeep(hit.isCore ? 600 : 440 + hit.id.charCodeAt(0) * 15);
+    playBeep(hit.isZero ? 520 : 440 + parseInt(hit.id) * 25);
     if (navigator.vibrate) navigator.vibrate(15);
   }
   updateOutput();
@@ -637,19 +633,14 @@ function handleMove(x, y) {
   const hit = findClosestDot(x, y);
   if (hit) {
     const last = selectedDots[selectedDots.length - 1];
-    if (hit !== last) {
-      // Core Repeat Bridge Rule: Allow re-visiting if this is Core OR if coming directly out of Core!
-      const canSelect = !selectedDots.includes(hit) || hit.isCore || (last && last.isCore);
-      if (canSelect) {
-        // Intermediate node check for 3-5-3 layout
-        if (currentLayout === '353' && last && last.row !== undefined) {
-          addIntermediate(last, hit);
-        }
-        selectedDots.push(hit);
-        playBeep(hit.isCore ? 600 : 440 + hit.id.charCodeAt(0) * 15);
-        if (navigator.vibrate) navigator.vibrate(15);
-        updateOutput();
+    if (hit !== last && !selectedDots.includes(hit)) {
+      if (last && last.row !== undefined) {
+        addIntermediate(last, hit);
       }
+      selectedDots.push(hit);
+      playBeep(hit.isZero ? 520 : 440 + parseInt(hit.id) * 25);
+      if (navigator.vibrate) navigator.vibrate(15);
+      updateOutput();
     }
   }
   draw();
@@ -659,12 +650,23 @@ function addIntermediate(last, target) {
   const dRow = target.row - last.row;
   const dCol = target.col - last.col;
 
+  // 1. Straight or diagonal 2-step jump
   if (Math.abs(dRow) % 2 === 0 && Math.abs(dCol) % 2 === 0 && (Math.abs(dRow) === 2 || Math.abs(dCol) === 2)) {
     const midRow = last.row + dRow / 2;
     const midCol = last.col + dCol / 2;
     const mid = dots.find(d => d.row === midRow && d.col === midCol);
     if (mid && !selectedDots.includes(mid)) {
       selectedDots.push(mid);
+    }
+  } 
+  // 2. Full row 1 sweep (Left 0 across to Right 0: 4 steps)
+  else if (dRow === 0 && Math.abs(dCol) === 4) {
+    const step = dCol / 4;
+    for (let c = last.col + step; c !== target.col; c += step) {
+      const mid = dots.find(d => d.row === 1 && d.col === c);
+      if (mid && !selectedDots.includes(mid)) {
+        selectedDots.push(mid);
+      }
     }
   }
 }
@@ -683,7 +685,6 @@ function handleEnd() {
 // Evaluation & Normalization
 function evaluatePattern() {
   const raw = selectedDots.map(d => d.id).join('');
-  const normalized = raw.replace(/C/gi, '');
   const badge = document.getElementById('matchBadge');
   const target = document.getElementById('targetPinInput').value.trim();
 
@@ -698,11 +699,8 @@ function evaluatePattern() {
     return;
   }
 
-  // Match test against Target PIN
-  const directMatch = (raw === target || normalized === target);
-  const normMatch = (normalized.length >= 4 && normalized === target);
-
-  if (directMatch || normMatch) {
+  // Exact match against Target PIN
+  if (raw === target) {
     animState = 'success';
     badge.className = 'output-status match';
     badge.innerText = 'UNLOCKED!';
@@ -735,8 +733,7 @@ function updateOutput() {
     return;
   }
   const raw = selectedDots.map(d => d.id).join('');
-  const normalized = raw.replace(/C/gi, '');
-  out.innerHTML = `${raw} <span style="color:var(--text-dim);font-size:11px;">(Norm: ${normalized || 'empty'})</span>`;
+  out.innerText = raw;
 }
 
 // Event Listeners for Canvas Touch and Mouse

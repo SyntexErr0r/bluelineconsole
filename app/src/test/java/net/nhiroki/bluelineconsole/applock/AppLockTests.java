@@ -718,52 +718,62 @@ public class AppLockTests {
     }
 
     @Test
-    public void test11NodeCyberMatrixPatternMatching() {
+    public void test11NodeWingZeroPatternMatching() {
         // Direct match with '0'
         assertTrue(AppLockManager.matchesPattern("3502", "3502"));
         assertTrue(AppLockManager.matchesPattern("0532", "0532"));
+        assertTrue(AppLockManager.matchesPattern("1843", "1843"));
+        assertTrue(AppLockManager.matchesPattern("0643", "0643"));
 
-        // Core-bridge repeat swipe matching (e.g. 2 -> Core -> 2 -> Core -> 2 -> Core -> 2 matches 2222)
-        assertTrue(AppLockManager.matchesPattern("2C2C2C2", "2222"));
-        assertTrue(AppLockManager.matchesPattern("2c2c2c2", "2222"));
-        assertTrue(AppLockManager.matchesPattern("05C5C5", "0555"));
-        assertTrue(AppLockManager.matchesPattern("1C1C1C1", "1111"));
+        // Double '0' supported via Left 0 and Right 0 wings (e.g. 0058)
+        assertTrue(AppLockManager.matchesPattern("0058", "0058"));
 
         // Under-length gestures (< 4 effective digits) MUST be rejected
-        assertFalse(AppLockManager.matchesPattern("2C2", "2222"));
-        assertFalse(AppLockManager.matchesPattern("2C2C2", "2222")); // Only 3 digits
-        assertFalse(AppLockManager.matchesPattern("1C1", "1111"));
         assertFalse(AppLockManager.matchesPattern("350", "3502"));
+        assertFalse(AppLockManager.matchesPattern("005", "0058"));
+        assertFalse(AppLockManager.matchesPattern("123", "1234"));
 
         // 11-Node geometric matrix jump expansion:
-        // Moving 1 to 8 crosses 5 (col 1), so "1843" expands to "15843"
-        assertEquals("15843", AppLockManager.expand11NodePattern("1843"));
-        assertTrue(AppLockManager.matchesPattern("15843", "1843"));
-
         // Moving 1 to 3 crosses 2 (row 0)
         assertEquals("123", AppLockManager.expand11NodePattern("13"));
-        // Moving 8 to 0 crosses 9 (row 2)
-        assertEquals("890", AppLockManager.expand11NodePattern("80"));
-        // Moving 2 to 9 crosses C (col 2)
-        assertEquals("2C9", AppLockManager.expand11NodePattern("29"));
-        // Moving 3 to 0 crosses 6 (col 3)
-        assertEquals("360", AppLockManager.expand11NodePattern("30"));
+        // Moving 4 to 6 crosses 5 (row 1)
+        assertEquals("456", AppLockManager.expand11NodePattern("46"));
+        // Moving 7 to 9 crosses 8 (row 2)
+        assertEquals("789", AppLockManager.expand11NodePattern("79"));
+
+        // Vertical jumps:
+        // Moving 1 to 7 crosses 4 (col 1)
+        assertEquals("147", AppLockManager.expand11NodePattern("17"));
+        // Moving 2 to 8 crosses 5 (col 2)
+        assertEquals("258", AppLockManager.expand11NodePattern("28"));
+        // Moving 3 to 9 crosses 6 (col 3)
+        assertEquals("369", AppLockManager.expand11NodePattern("39"));
+
+        // Diagonal jumps:
+        // Moving 1 to 9 crosses 5
+        assertEquals("159", AppLockManager.expand11NodePattern("19"));
+        // Moving 3 to 7 crosses 5
+        assertEquals("357", AppLockManager.expand11NodePattern("37"));
+
+        // Wing 0 jumps:
+        // Left 0 to 5 crosses 4
+        assertEquals("045", AppLockManager.expand11NodePattern("05"));
 
         // Matrix coordinates check
         assertEquals(0, AppLockManager.getDotRow('1'));
         assertEquals(0, AppLockManager.getDotRow('2'));
         assertEquals(0, AppLockManager.getDotRow('3'));
+        assertEquals(1, AppLockManager.getDotRow('0'));
         assertEquals(1, AppLockManager.getDotRow('4'));
         assertEquals(1, AppLockManager.getDotRow('5'));
-        assertEquals(1, AppLockManager.getDotRow('C'));
         assertEquals(1, AppLockManager.getDotRow('6'));
-        assertEquals(1, AppLockManager.getDotRow('7'));
+        assertEquals(2, AppLockManager.getDotRow('7'));
         assertEquals(2, AppLockManager.getDotRow('8'));
         assertEquals(2, AppLockManager.getDotRow('9'));
-        assertEquals(2, AppLockManager.getDotRow('0'));
 
-        assertEquals('C', AppLockManager.getDotChar(1, 2));
-        assertEquals('0', AppLockManager.getDotChar(2, 3));
+        assertEquals('0', AppLockManager.getDotChar(1, 0));
+        assertEquals('0', AppLockManager.getDotChar(1, 4));
+        assertEquals('5', AppLockManager.getDotChar(1, 2));
     }
 
     @Test

@@ -231,24 +231,26 @@ public class AppLockManager {
     }
 
     /**
-     * Algorithmic 11-node Cyber Matrix coordinate mapping.
+     * Algorithmic 11-node Wing-Zero Pattern Lock coordinate mapping:
+     * Row 0: 1 (col 1), 2 (col 2), 3 (col 3)
+     * Row 1: 0 (col 0), 4 (col 1), 5 (col 2), 6 (col 3), 0 (col 4)
+     * Row 2: 7 (col 1), 8 (col 2), 9 (col 3)
      */
     public static int getDotRow(char c) {
         switch (c) {
             case '1': case '2': case '3': return 0;
-            case '4': case '5': case 'C': case 'c': case '6': case '7': return 1;
-            case '8': case '9': case '0': return 2;
+            case '0': case '4': case '5': case '6': return 1;
+            case '7': case '8': case '9': return 2;
             default: return -1;
         }
     }
 
     public static int getDotCol(char c) {
         switch (c) {
-            case '4': return 0;
-            case '1': case '5': case '8': return 1;
-            case '2': case 'C': case 'c': case '9': return 2;
-            case '3': case '6': case '0': return 3;
-            case '7': return 4;
+            case '1': case '4': case '7': return 1;
+            case '2': case '5': case '8': return 2;
+            case '3': case '6': case '9': return 3;
+            case '0': return 0; // Default Left 0 (or 4 for Right 0)
             default: return -1;
         }
     }
@@ -259,15 +261,14 @@ public class AppLockManager {
             if (col == 2) return '2';
             if (col == 3) return '3';
         } else if (row == 1) {
-            if (col == 0) return '4';
-            if (col == 1) return '5';
-            if (col == 2) return 'C';
+            if (col == 0 || col == 4) return '0';
+            if (col == 1) return '4';
+            if (col == 2) return '5';
             if (col == 3) return '6';
-            if (col == 4) return '7';
         } else if (row == 2) {
-            if (col == 1) return '8';
-            if (col == 2) return '9';
-            if (col == 3) return '0';
+            if (col == 1) return '7';
+            if (col == 2) return '8';
+            if (col == 3) return '9';
         }
         return '\0';
     }
@@ -335,9 +336,10 @@ public class AppLockManager {
     }
 
     /**
-     * Traverses the digit path on the 11-node Cyber Matrix (3-5-3 layout)
+     * Traverses the digit path on the 11-node Wing-Zero Pattern Lock (Row 0: 1-2-3, Row 1: 0-4-5-6-0, Row 2: 7-8-9)
      * and automatically inserts intermediate dots crossed along straight or diagonal lines.
-     * E.g. "13" -> "123", "18" -> "158", "30" -> "360", "29" -> "2C9", "80" -> "890", "10" -> "1C0", "38" -> "3C8".
+     * E.g. "13" -> "123", "46" -> "456", "79" -> "789", "17" -> "147", "28" -> "258", "39" -> "369", "19" -> "159", "37" -> "357".
+     * Also handles Left 0 and Right 0 wing connections.
      */
     public static String expand11NodePattern(String rawPattern) {
         if (rawPattern == null || rawPattern.length() <= 1) {
@@ -349,13 +351,12 @@ public class AppLockManager {
 
         char prevChar = rawPattern.charAt(0);
         expanded.append(prevChar);
-        if (prevChar != 'C' && prevChar != 'c') {
-            visited.add(prevChar);
-        }
+        visited.add(prevChar);
 
         for (int i = 1; i < rawPattern.length(); i++) {
             char currChar = rawPattern.charAt(i);
-            if (currChar == prevChar && (currChar != 'C' && currChar != 'c')) {
+            // Allow double 0 since there are two distinct '0' nodes (Left 0 and Right 0)
+            if (currChar == prevChar && currChar != '0') {
                 continue;
             }
 
@@ -364,12 +365,22 @@ public class AppLockManager {
             int currRow = getDotRow(currChar);
             int currCol = getDotCol(currChar);
 
+            // Dynamic wing selection: if connecting to/from right side of grid (col > 2), use right 0 (col 4)
+            if (prevChar == '0' && currChar == '0') {
+                prevCol = 0;
+                currCol = 4;
+            } else if (currChar == '0' && prevCol > 2) {
+                currCol = 4;
+            } else if (prevChar == '0' && currCol > 2) {
+                prevCol = 4;
+            }
+
             if (prevRow != -1 && prevCol != -1 && currRow != -1 && currCol != -1) {
                 int dRow = currRow - prevRow;
                 int dCol = currCol - prevCol;
 
                 if (Math.abs(dRow) % 2 == 0 && Math.abs(dCol) % 2 == 0 &&
-                        (Math.abs(dRow) == 2 || Math.abs(dCol) == 2 || Math.abs(dCol) == 4)) {
+                        (Math.abs(dRow) == 2 || Math.abs(dCol) == 2)) {
                     int midRow = prevRow + dRow / 2;
                     int midCol = prevCol + dCol / 2;
 
@@ -378,13 +389,20 @@ public class AppLockManager {
                         visited.add(midChar);
                         expanded.append(midChar);
                     }
+                } else if (dRow == 0 && Math.abs(dCol) == 4) {
+                    int stepC = dCol / 4;
+                    for (int c = prevCol + stepC; c != currCol; c += stepC) {
+                        char midChar = getDotChar(1, c);
+                        if (midChar != '\0' && !visited.contains(midChar)) {
+                            visited.add(midChar);
+                            expanded.append(midChar);
+                        }
+                    }
                 }
             }
 
-            if (!visited.contains(currChar) || currChar == 'C' || currChar == 'c' || prevChar == 'C' || prevChar == 'c') {
-                if (currChar != 'C' && currChar != 'c') {
-                    visited.add(currChar);
-                }
+            if (!visited.contains(currChar) || currChar == '0') {
+                visited.add(currChar);
                 expanded.append(currChar);
             }
 
