@@ -69,7 +69,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Dynamic Time Lock (Aa:Bb -> Ba:Ab)"
+            android:text="Dynamic Time Lock"
             android:textColor="#e6f9ff"
             android:textSize="13sp"
             android:fontFamily="monospace" />

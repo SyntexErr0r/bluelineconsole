@@ -310,7 +310,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
             body.setTypeface(Typeface.MONOSPACE);
             body.setText("• Master System: " + (mEnabled ? "ACTIVE" : "DISABLED") + "\n" +
                     "• Lock All Mode: " + (mLockAllApps ? "ACTIVE (All Apps Protected)" : "OFF (Only Configured Apps)") + "\n" +
-                    "• Dynamic Time Lock: " + (timeLock ? "ON (Rolling Aa:Bb -> Ba:Ab)" : "OFF") + "\n" +
+                    "• Dynamic Time Lock: " + (timeLock ? "ON (Rolling Time Lock)" : "OFF") + "\n" +
                     "• Master PIN: " + currentMasterPin + " | Pattern: " + currentMasterPattern + "\n" +
                     "• Configured Apps: " + mLockedCount + " (Each app has 4-letter T9 lock by default)\n" +
                     "▶ Tap this card or use buttons below:");
@@ -800,7 +800,7 @@ public class AppLockCommandSearcher implements CommandSearcher {
 
         @Override
         public String getTitle() {
-            return mEnable ? "⏰ Dynamic Time Lock: ON (Aa:Bb -> Ba:Ab)" : "⏰ Dynamic Time Lock: OFF";
+            return mEnable ? "⏰ Dynamic Time Lock: ON" : "⏰ Dynamic Time Lock: OFF";
         }
 
         @Override
@@ -820,8 +820,8 @@ public class AppLockCommandSearcher implements CommandSearcher {
             body.setTextColor(mainActivity.getAccentColor());
             body.setTypeface(Typeface.MONOSPACE);
             body.setText(mEnable ?
-                    "▶ Press Enter or tap to enable rolling Time PIN & Pattern (Aa:Bb -> Ba:Ab, e.g. 07:57 -> 5707)" :
-                    "▶ Press Enter or tap to disable rolling Time PIN & Pattern");
+                    "▶ Press Enter or tap to enable rolling Time Lock (PIN & Pattern)" :
+                    "▶ Press Enter or tap to disable rolling Time Lock");
 
             layout.addView(header);
             layout.addView(body);

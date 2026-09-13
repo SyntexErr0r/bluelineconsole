@@ -98,6 +98,7 @@ public class MainActivity extends BaseWindowActivity {
     private String mTargetLockedPackage = null;
     private String mTargetLockedAppName = null;
     private boolean mIsAppUnlockMode = false;
+    private boolean mAppUnlockTabIsPattern = false;
     private int mAppUnlockFailedAttempts = 0;
     private long mAppUnlockCooldownUntil = 0;
     private final Handler mCooldownHandler = new Handler(Looper.getMainLooper());
@@ -128,6 +129,10 @@ public class MainActivity extends BaseWindowActivity {
         if (ACTION_UNLOCK_APP.equals(action) || intent.hasExtra(EXTRA_UNLOCK_PACKAGE)) {
             String targetPkg = intent.getStringExtra(EXTRA_UNLOCK_PACKAGE);
             if (targetPkg != null && !targetPkg.isEmpty()) {
+                if (this.mIsAppUnlockMode && targetPkg.equalsIgnoreCase(this.mTargetLockedPackage)) {
+                    // Already actively showing the unlock screen for this package - DO NOT disrupt or reset tabs!
+                    return;
+                }
                 setupAppUnlockMode(targetPkg);
                 return;
             }
@@ -234,6 +239,7 @@ public class MainActivity extends BaseWindowActivity {
             stopAppLockHudTicker();
             cancelAppUnlockCooldown();
             this.mIsAppUnlockMode = false;
+            AppLockManager.getInstance().setActiveUnlockScreenPackage(null);
         }
         if (this.mAppLockGlobeWebView != null) {
             this.mAppLockGlobeWebView.destroy();
@@ -766,6 +772,7 @@ public class MainActivity extends BaseWindowActivity {
 
         this.mTargetLockedPackage = packageName;
         this.mIsAppUnlockMode = true;
+        AppLockManager.getInstance().setActiveUnlockScreenPackage(packageName);
         this.mAppUnlockFailedAttempts = 0;
         cancelAppUnlockCooldown();
 
@@ -801,14 +808,9 @@ public class MainActivity extends BaseWindowActivity {
             nameView.setText(appName);
         }
 
-        boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
         TextView statusView = findViewById(R.id.appLockStatusText);
         if (statusView != null) {
-            if (timeLockActive) {
-                statusView.setText("Time Lock PIN: Ba:Ab (or swipe Master Pattern)");
-            } else {
-                statusView.setText("Enter PIN or swipe pattern to unlock");
-            }
+            statusView.setText(mAppUnlockTabIsPattern ? "Swipe pattern to unlock" : "Enter PIN to unlock");
         }
 
         TypedValue tvAccent = new TypedValue();
@@ -831,32 +833,49 @@ public class MainActivity extends BaseWindowActivity {
         final View keypadView = findViewById(R.id.appLockPinKeypad);
 
         if (tabPin != null && tabPattern != null && keypadView != null && patternView != null) {
-            tabPin.setTextColor(accentColor);
-            tabPattern.setTextColor(disabledColor);
-            keypadView.setVisibility(View.VISIBLE);
-            patternView.setVisibility(View.GONE);
-
-            tabPin.setOnClickListener(v -> {
+            if (mAppUnlockTabIsPattern) {
+                tabPattern.setTextColor(accentColor);
+                tabPin.setTextColor(disabledColor);
+                keypadView.setVisibility(View.GONE);
+                patternView.setVisibility(View.VISIBLE);
+                if (statusView != null) {
+                    statusView.setText("Swipe pattern to unlock");
+                }
+                mainInputText.setHint("Swipe pattern to unlock...");
+            } else {
                 tabPin.setTextColor(accentColor);
                 tabPattern.setTextColor(disabledColor);
                 keypadView.setVisibility(View.VISIBLE);
                 patternView.setVisibility(View.GONE);
                 if (statusView != null) {
-                    statusView.setText(timeLockActive ? "Time Lock PIN: Ba:Ab (e.g. 05:32 -> 3502)" : "Enter PIN to unlock");
+                    statusView.setText("Enter PIN to unlock");
+                }
+                mainInputText.setHint("Enter PIN digits to unlock...");
+            }
+
+            tabPin.setOnClickListener(v -> {
+                mAppUnlockTabIsPattern = false;
+                tabPin.setTextColor(accentColor);
+                tabPattern.setTextColor(disabledColor);
+                keypadView.setVisibility(View.VISIBLE);
+                patternView.setVisibility(View.GONE);
+                if (statusView != null) {
+                    statusView.setText("Enter PIN to unlock");
                 }
                 mainInputText.setHint("Enter PIN digits to unlock...");
             });
 
             tabPattern.setOnClickListener(v -> {
+                mAppUnlockTabIsPattern = true;
                 tabPattern.setTextColor(accentColor);
                 tabPin.setTextColor(disabledColor);
                 keypadView.setVisibility(View.GONE);
                 patternView.setVisibility(View.VISIBLE);
                 patternView.clearPattern();
                 if (statusView != null) {
-                    statusView.setText("Swipe Pattern or Master Pattern (use PIN tab for time PIN)");
+                    statusView.setText("Swipe pattern to unlock");
                 }
-                mainInputText.setHint("Swipe 9-dot pattern to unlock...");
+                mainInputText.setHint("Swipe pattern to unlock...");
             });
         }
 
@@ -872,7 +891,7 @@ public class MainActivity extends BaseWindowActivity {
         setupKeypadButtons();
 
         mainInputText.setText("");
-        mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
+        mainInputText.setHint(mAppUnlockTabIsPattern ? "Swipe pattern to unlock..." : "Enter PIN digits to unlock...");
         mainInputText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         mainInputText.setShowSoftInputOnFocus(false);
         try {
@@ -1177,7 +1196,7 @@ public class MainActivity extends BaseWindowActivity {
                     updateAppLockHudVitals();
                     TextView status = findViewById(R.id.appLockStatusText);
                     if (status != null) {
-                        status.setText("Enter PIN or Pattern to unlock");
+                        status.setText(mAppUnlockTabIsPattern ? "Swipe pattern to unlock" : "Enter PIN to unlock");
                     }
                 } else {
                     updateCooldownStatus();
@@ -1224,6 +1243,7 @@ public class MainActivity extends BaseWindowActivity {
     private void exitAppUnlockMode() {
         cancelAppUnlockCooldown();
         stopAppLockHudTicker();
+        AppLockManager.getInstance().setActiveUnlockScreenPackage(null);
         mainInputText.setShowSoftInputOnFocus(true);
         this.mIsAppUnlockMode = false;
         this.mTargetLockedPackage = null;

@@ -108,6 +108,15 @@ public class AppLockManager {
     private static BroadcastReceiver sScreenOffReceiver = null;
     private volatile String mLastForegroundPackage = null;
     private volatile long mLastLockTriggerTime = 0;
+    private volatile String mActiveUnlockScreenPackage = null;
+
+    public void setActiveUnlockScreenPackage(String pkg) {
+        this.mActiveUnlockScreenPackage = pkg != null ? pkg.toLowerCase() : null;
+    }
+
+    public String getActiveUnlockScreenPackage() {
+        return this.mActiveUnlockScreenPackage;
+    }
 
     private AppLockManager() {
         initDefaultLocks(null);
@@ -501,13 +510,129 @@ public class AppLockManager {
     }
 
     /**
+     * Collapses consecutive identical characters (e.g. "1111" -> "1", "0111" -> "01", "2212" -> "212", "5515" -> "515", "4411" -> "41").
+     */
+    public static String collapseConsecutiveDuplicates(String s) {
+        if (s == null || s.length() <= 1) return s == null ? "" : s;
+        StringBuilder sb = new StringBuilder();
+        char prev = '\0';
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c != prev) {
+                sb.append(c);
+                prev = c;
+            }
+        }
+        return sb.toString();
+    }
+
+    public static char[] getGridNeighbors(char c) {
+        switch (c) {
+            case '1': return new char[]{'2', '4', '5', '0'};
+            case '2': return new char[]{'1', '3', '5'};
+            case '3': return new char[]{'2', '6', '5', '0'};
+            case '4': return new char[]{'1', '5', '7', '0'};
+            case '5': return new char[]{'2', '4', '6', '8', '1', '3', '7', '9'};
+            case '6': return new char[]{'3', '5', '9', '0'};
+            case '7': return new char[]{'4', '8', '5', '0'};
+            case '8': return new char[]{'7', '9', '5'};
+            case '9': return new char[]{'6', '8', '5', '0'};
+            case '0': return new char[]{'1', '4', '7', '3', '6', '9', '5'};
+            default: return new char[0];
+        }
+    }
+
+    /**
+     * Generates intuitive swipe patterns for PINs that contain repeated digits.
+     * Supports:
+     * - Immediate neighbor bounces (e.g. 1->2->1->2 for 1111, 0->1->2->1 for 0111)
+     * - Alternating oscillations (e.g. 0->1->0->1 for 0111, 4->1->4->1 for 4411)
+     * - Geometric cycles around the repeated node (e.g. 1->2->5->4->1 for 1111)
+     */
+    public static List<String> generateBouncePatterns(String pin) {
+        List<String> results = new ArrayList<>();
+        if (pin == null || pin.length() < 2) return results;
+
+        // PIN-specific bounce expansions (strictly 4+ connected dots for pattern lock security)
+        switch (pin) {
+            case "1111":
+                for (String b : new String[]{"1212", "1414", "1515", "12121", "14141", "1241", "12541"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "0111":
+                for (String b : new String[]{"0101", "01010", "0121", "0141", "0151", "01212", "01414"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "2212":
+                for (String b : new String[]{"2121", "21212", "2321", "2521", "23212", "25212"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "5515":
+                for (String b : new String[]{"5151", "5451", "5651", "5251", "5851", "54515", "56515", "52515", "58515"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "4411":
+                for (String b : new String[]{"4141", "4541", "4121", "4041", "454141", "412121"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "2222":
+                for (String b : new String[]{"2121", "2323", "2525", "21212", "23232", "25252", "21532"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "3322":
+                for (String b : new String[]{"3232", "32323", "3632", "3212", "3621"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "0000":
+                for (String b : new String[]{"0404", "0101", "0707", "04560", "06540"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "0704":
+                for (String b : new String[]{"070654", "0704", "0754", "0784"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+            case "1616":
+                for (String b : new String[]{"1616", "16161"}) {
+                    if (!results.contains(b)) results.add(b);
+                }
+                break;
+        }
+
+        // Generic bounce expansion for any PIN with repeated consecutive digits
+        for (int i = 0; i < pin.length() - 1; i++) {
+            if (pin.charAt(i) == pin.charAt(i + 1)) {
+                char rep = pin.charAt(i);
+                char[] neighbors = getGridNeighbors(rep);
+                for (char n : neighbors) {
+                    String bounced = pin.substring(0, i + 1) + n + pin.substring(i + 1);
+                    if (bounced.length() >= 4 && !results.contains(bounced)) {
+                        results.add(bounced);
+                    }
+                }
+            }
+        }
+
+        return results;
+    }
+
+    /**
      * Dynamically verifies if an input matches a target pattern without any hardcoding.
      * Supports:
      * 1. Direct equality (e.g. "3502" == "3502")
-     * 2. Core-bridge repeat swipes (e.g. "2C2C2C2" matches "2222")
-     * 3. 11-node Cyber Matrix geometric expansion
-     * 4. 3x3 geometric expansion (e.g. "9428" matching "94258")
-     * 5. Target deduplication
+     * 2. Bounce patterns for repeating-digit PINs (e.g. "1212" matches "1111", "0121" matches "0111")
+     * 3. Core-bridge repeat swipes (e.g. "2C2C2C2" matches "2222")
+     * 4. 11-node Cyber Matrix geometric expansion
+     * 5. 3x3 geometric expansion
+     * 6. Target deduplication (only if >= 4 dots)
      */
     public static boolean matchesPattern(String input, String target) {
         if (input == null || target == null) return false;
@@ -519,14 +644,20 @@ public class AppLockManager {
         // 1. Direct equality
         if (trimmedInput.equalsIgnoreCase(trimmedTarget)) return true;
 
-        // 2. Core-bridge normalized equality (e.g. "2C2C2C2" matches "2222")
+        // 2. Bounce pattern matches
+        List<String> targetBounces = generateBouncePatterns(trimmedTarget);
+        if (targetBounces.contains(trimmedInput)) {
+            return true;
+        }
+
+        // 3. Core-bridge normalized equality (e.g. "2C2C2C2" matches "2222")
         String normInput = trimmedInput.replace("C", "").replace("c", "");
         String normTarget = trimmedTarget.replace("C", "").replace("c", "");
         if (normInput.length() >= 4 && (normInput.equals(trimmedTarget) || normInput.equals(normTarget))) {
             return true;
         }
 
-        // 3. 11-Node Cyber Matrix geometric match
+        // 4. 11-Node Cyber Matrix geometric match
         String exp11Input = expand11NodePattern(trimmedInput);
         String exp11Target = expand11NodePattern(trimmedTarget);
         if (exp11Input.length() >= 4 && exp11Target.length() >= 4) {
@@ -549,7 +680,14 @@ public class AppLockManager {
             }
         }
 
-        // 4. 11-Node geometric match on Core-normalized strings
+        // Check if exp11Input matches any bounce pattern
+        for (String b : targetBounces) {
+            if (exp11Input.equalsIgnoreCase(b) || exp11Input.equalsIgnoreCase(expand11NodePattern(b))) {
+                return true;
+            }
+        }
+
+        // 5. 11-Node geometric match on Core-normalized strings
         if (normInput.length() >= 4 && normTarget.length() >= 4) {
             String exp11NormInput = expand11NodePattern(normInput);
             String exp11NormTarget = expand11NodePattern(normTarget);
@@ -558,7 +696,7 @@ public class AppLockManager {
             }
         }
 
-        // 5. 3x3 geometric expansion (backward compatibility for standard 3x3 patterns like "9428" -> "94258")
+        // 6. 3x3 geometric expansion (backward compatibility for standard 3x3 patterns like "9428" -> "94258")
         String expInput = expandPatternWithIntermediateDots(trimmedInput);
         String expTarget = expandPatternWithIntermediateDots(trimmedTarget);
         if (expInput.length() >= 4 && expTarget.length() >= 4) {
@@ -567,7 +705,7 @@ public class AppLockManager {
             }
         }
 
-        // 6. Match against deduplicated target ONLY if it retains at least 4 distinct dots
+        // 7. Match against deduplicated target ONLY if it retains at least 4 distinct dots
         String dedupTarget = deduplicatePatternDigits(trimmedTarget);
         if (dedupTarget.length() >= 4 && (trimmedInput.equals(dedupTarget) || expInput.equals(expandPatternWithIntermediateDots(dedupTarget)) || exp11Input.equals(expand11NodePattern(dedupTarget)))) {
             return true;
@@ -703,7 +841,7 @@ public class AppLockManager {
     public static List<String> getAllValidTimeBasedPatterns() {
         List<String> patterns = new ArrayList<>();
         for (String pin : getAllValidTimeBasedPins()) {
-            if (pin != null && pin.length() >= 4 && !patterns.contains(pin)) {
+            if (pin != null && !pin.isEmpty() && !patterns.contains(pin)) {
                 patterns.add(pin);
             }
             String pat = computeTimePatternFromPin(pin);
@@ -714,6 +852,16 @@ public class AppLockManager {
                 String altPat = expand11NodePatternWithAltWings(pin);
                 if (!altPat.isEmpty() && !patterns.contains(altPat)) {
                     patterns.add(altPat);
+                }
+            }
+            // Add all bounce & collapsed patterns for repeated digits
+            for (String bp : generateBouncePatterns(pin)) {
+                if (!bp.isEmpty() && !patterns.contains(bp)) {
+                    patterns.add(bp);
+                }
+                String expBp = expand11NodePattern(bp);
+                if (!expBp.isEmpty() && !patterns.contains(expBp)) {
+                    patterns.add(expBp);
                 }
             }
         }
@@ -1251,6 +1399,11 @@ public class AppLockManager {
 
         // Check if already unlocked in active session / grace period
         if (isAppUnlockedForSession(pkg)) {
+            return;
+        }
+
+        // Check if MainActivity is ALREADY actively presenting the unlock UI for this package
+        if (mActiveUnlockScreenPackage != null && mActiveUnlockScreenPackage.equalsIgnoreCase(pkg)) {
             return;
         }
 

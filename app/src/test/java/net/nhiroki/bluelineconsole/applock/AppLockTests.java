@@ -462,6 +462,83 @@ public class AppLockTests {
     }
 
     @Test
+    public void testRepeatedDigitTimePatternsAndActiveUnlockScreen() {
+        // 1. Active unlock screen package tracking
+        AppLockManager mgr = AppLockManager.getInstance();
+        mgr.setActiveUnlockScreenPackage("com.whatsapp");
+        assertEquals("com.whatsapp", mgr.getActiveUnlockScreenPackage());
+        mgr.setActiveUnlockScreenPackage(null);
+        assertNull(mgr.getActiveUnlockScreenPackage());
+
+        // 2. 11:01 -> PIN 0111
+        assertEquals("0111", AppLockManager.computeTimePin(11, 1));
+        assertFalse(AppLockManager.matchesPattern("01", "0111"));
+        assertTrue(AppLockManager.matchesPattern("0101", "0111"));
+        assertTrue(AppLockManager.matchesPattern("0121", "0111"));
+        assertTrue(AppLockManager.matchesPattern("0141", "0111"));
+        assertTrue(AppLockManager.matchesPattern("0151", "0111"));
+
+        // 3. 11:11 -> PIN 1111
+        assertEquals("1111", AppLockManager.computeTimePin(11, 11));
+        assertFalse(AppLockManager.matchesPattern("1", "1111"));
+        assertTrue(AppLockManager.matchesPattern("1212", "1111"));
+        assertTrue(AppLockManager.matchesPattern("1414", "1111"));
+        assertTrue(AppLockManager.matchesPattern("1515", "1111"));
+        assertTrue(AppLockManager.matchesPattern("12541", "1111"));
+
+        // 4. 12:22 -> PIN 2212
+        assertEquals("2212", AppLockManager.computeTimePin(12, 22));
+        assertFalse(AppLockManager.matchesPattern("212", "2212"));
+        assertFalse(AppLockManager.matchesPattern("21", "2212"));
+        assertTrue(AppLockManager.matchesPattern("2121", "2212"));
+        assertTrue(AppLockManager.matchesPattern("2321", "2212"));
+
+        // 5. 15:55 -> PIN 5515 (24h) & 5305 (12h)
+        assertEquals("5515", AppLockManager.computeTimePin(15, 55));
+        assertEquals("5305", AppLockManager.computeTimePin(3, 55));
+        assertFalse(AppLockManager.matchesPattern("515", "5515"));
+        assertFalse(AppLockManager.matchesPattern("51", "5515"));
+        assertTrue(AppLockManager.matchesPattern("5451", "5515"));
+        assertTrue(AppLockManager.matchesPattern("5651", "5515"));
+        assertTrue(AppLockManager.matchesPattern("5151", "5515"));
+        assertTrue(AppLockManager.matchesPattern("5305", "5305"));
+
+        // 6. 14:41 -> PIN 4411 (24h) & 4201 (12h)
+        assertEquals("4411", AppLockManager.computeTimePin(14, 41));
+        assertEquals("4201", AppLockManager.computeTimePin(2, 41));
+        assertFalse(AppLockManager.matchesPattern("41", "4411"));
+        assertTrue(AppLockManager.matchesPattern("4541", "4411"));
+        assertTrue(AppLockManager.matchesPattern("4121", "4411"));
+        assertTrue(AppLockManager.matchesPattern("4141", "4411"));
+        assertTrue(AppLockManager.matchesPattern("4201", "4201"));
+
+        // 7. 07:04 -> PIN 0704
+        assertEquals("0704", AppLockManager.computeTimePin(7, 4));
+        assertFalse(AppLockManager.matchesPattern("074", "0704"));
+        assertTrue(AppLockManager.matchesPattern("0704", "0704"));
+        assertTrue(AppLockManager.matchesPattern("070654", "0704"));
+
+        // 8. 16:16 -> PIN 1616
+        assertEquals("1616", AppLockManager.computeTimePin(16, 16));
+        assertFalse(AppLockManager.matchesPattern("16", "1616"));
+        assertTrue(AppLockManager.matchesPattern("1616", "1616"));
+
+        // 9. 22:22 -> PIN 2222 (24h) & 2012 (12h)
+        assertEquals("2222", AppLockManager.computeTimePin(22, 22));
+        assertEquals("2012", AppLockManager.computeTimePin(10, 22));
+        assertFalse(AppLockManager.matchesPattern("2", "2222"));
+        assertTrue(AppLockManager.matchesPattern("2121", "2222"));
+        assertTrue(AppLockManager.matchesPattern("2012", "2012"));
+
+        // 10. 23:32 -> PIN 3322 (24h) & 3112 (12h)
+        assertEquals("3322", AppLockManager.computeTimePin(23, 32));
+        assertEquals("3112", AppLockManager.computeTimePin(11, 32));
+        assertFalse(AppLockManager.matchesPattern("32", "3322"));
+        assertTrue(AppLockManager.matchesPattern("3232", "3322"));
+        assertTrue(AppLockManager.matchesPattern("3112", "3112"));
+    }
+
+    @Test
     public void testAppLockInteractiveUXCandidates() {
         AppLockCommandSearcher searcher = new AppLockCommandSearcher();
 
