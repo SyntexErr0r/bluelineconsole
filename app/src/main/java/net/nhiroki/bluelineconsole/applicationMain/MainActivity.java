@@ -801,9 +801,14 @@ public class MainActivity extends BaseWindowActivity {
             nameView.setText(appName);
         }
 
+        boolean timeLockActive = AppLockManager.getInstance().isTimeLockEnabled(this);
         TextView statusView = findViewById(R.id.appLockStatusText);
         if (statusView != null) {
-            statusView.setText("Enter PIN or swipe pattern to unlock");
+            if (timeLockActive) {
+                statusView.setText("Time Lock PIN: Ba:Ab (or swipe Master Pattern)");
+            } else {
+                statusView.setText("Enter PIN or swipe pattern to unlock");
+            }
         }
 
         TypedValue tvAccent = new TypedValue();
@@ -836,7 +841,10 @@ public class MainActivity extends BaseWindowActivity {
                 tabPattern.setTextColor(disabledColor);
                 keypadView.setVisibility(View.VISIBLE);
                 patternView.setVisibility(View.GONE);
-                mainInputText.setHint("Enter PIN or Pattern digits to unlock...");
+                if (statusView != null) {
+                    statusView.setText(timeLockActive ? "Time Lock PIN: Ba:Ab (e.g. 05:32 -> 3502)" : "Enter PIN to unlock");
+                }
+                mainInputText.setHint("Enter PIN digits to unlock...");
             });
 
             tabPattern.setOnClickListener(v -> {
@@ -845,6 +853,9 @@ public class MainActivity extends BaseWindowActivity {
                 keypadView.setVisibility(View.GONE);
                 patternView.setVisibility(View.VISIBLE);
                 patternView.clearPattern();
+                if (statusView != null) {
+                    statusView.setText("Swipe Pattern or Master Pattern (use PIN tab for time PIN)");
+                }
                 mainInputText.setHint("Swipe 9-dot pattern to unlock...");
             });
         }

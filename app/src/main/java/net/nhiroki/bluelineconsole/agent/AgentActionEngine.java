@@ -970,7 +970,25 @@ public class AgentActionEngine {
 
         String mimeType = isVideo ? "vnd.android.cursor.item/vnd.com.whatsapp.video.call"
                                   : "vnd.android.cursor.item/vnd.com.whatsapp.voip.call";
-        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Querying ContactsContract.Data for MIME='" + mimeType + "', target contact='" + contactName + "'");
+
+        // Pre-resolve phone number for contact to allow direct matching against DATA1 (JID: <phone>@s.whatsapp.net)
+        String resolvedPhone = null;
+        String cleanNum = contactName.replaceAll("[^0-9+]", "");
+        if (cleanNum.length() >= 7) {
+            resolvedPhone = cleanNum.replaceAll("[^0-9]", "");
+        } else {
+            resolvedPhone = findPhoneNumberForContact(context, contactName);
+        }
+        String cleanPhone = (resolvedPhone != null && !resolvedPhone.isEmpty()) ? resolvedPhone.replaceAll("[^0-9]", "") : null;
+        String last10Phone = (cleanPhone != null && cleanPhone.length() >= 10)
+                ? cleanPhone.substring(cleanPhone.length() - 10)
+                : cleanPhone;
+        String last7Phone = (cleanPhone != null && cleanPhone.length() >= 7)
+                ? cleanPhone.substring(cleanPhone.length() - 7)
+                : null;
+
+        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Querying ContactsContract.Data for MIME='" + mimeType +
+                "', target contact='" + contactName + "', resolvedPhone='" + cleanPhone + "'");
 
         Cursor cursor = null;
         try {
@@ -1004,50 +1022,73 @@ public class AgentActionEngine {
             String matchedName = null;
             int inspected = 0;
 
-            // Pass 1: exact match
+            // Pass 1: exact name match OR phone number match in DATA1 (e.g. 919876543210@s.whatsapp.net)
             while (cursor.moveToNext()) {
                 int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
-                if (nameCol != -1) {
-                    String name = cursor.getString(nameCol);
-                    if (inspected < 5) {
-                        int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
-                        String d1 = (dataCol != -1) ? cursor.getString(dataCol) : "";
-                        AppLogger.d("ACTION", "  VoIP row sample [" + inspected + "]: name='" + name + "', data1='" + d1 + "'");
-                        inspected++;
-                    }
-                    if (name != null && name.trim().equalsIgnoreCase(q)) {
+                int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
+                String name = (nameCol != -1) ? cursor.getString(nameCol) : null;
+                String d1 = (dataCol != -1) ? cursor.getString(dataCol) : null;
+
+                if (inspected < 5) {
+                    AppLogger.d("ACTION", "  VoIP row sample [" + inspected + "]: name='" + name + "', data1='" + d1 + "'");
+                    inspected++;
+                }
+
+                // Match 1a: DATA1 contains normalized phone number
+                if (d1 != null && cleanPhone != null) {
+                    String cleanD1 = d1.replaceAll("[^0-9]", "");
+                    if (cleanD1.equals(cleanPhone) || (last10Phone != null && cleanD1.endsWith(last10Phone))) {
                         matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                        matchedName = name;
-                        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Exact match found! name='" + name + "', dataId=" + matchedDataId);
+                        matchedName = (name != null && !name.isEmpty()) ? name : d1;
+                        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Direct phone match found in DATA1! d1='" + d1 + "', dataId=" + matchedDataId);
                         break;
                     }
                 }
+
+                // Match 1b: Exact display name match
+                if (name != null && name.trim().equalsIgnoreCase(q)) {
+                    matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                    matchedName = name;
+                    AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Exact name match found! name='" + name + "', dataId=" + matchedDataId);
+                    break;
+                }
             }
 
-            // Pass 2: contains / substring match
+            // Pass 2: contains / substring name match OR last 7 digits phone match
             if (matchedDataId == -1) {
                 AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: No exact match for '" + q + "', trying substring/number match across " + count + " rows...");
                 cursor.moveToPosition(-1);
                 while (cursor.moveToNext()) {
                     int nameCol = cursor.getColumnIndex(ContactsContract.Data.DISPLAY_NAME);
                     int dataCol = cursor.getColumnIndex(ContactsContract.Data.DATA1);
-                    if (nameCol != -1) {
-                        String name = cursor.getString(nameCol);
-                        if (name != null && name.toLowerCase().contains(q)) {
+                    String name = (nameCol != -1) ? cursor.getString(nameCol) : null;
+                    String d1 = (dataCol != -1) ? cursor.getString(dataCol) : null;
+
+                    // Match 2a: Last 7 digits match in DATA1
+                    if (d1 != null && last7Phone != null) {
+                        String cleanD1 = d1.replaceAll("[^0-9]", "");
+                        if (cleanD1.endsWith(last7Phone)) {
                             matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                            matchedName = name;
-                            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Substring name match found! name='" + name + "', dataId=" + matchedDataId);
+                            matchedName = (name != null && !name.isEmpty()) ? name : d1;
+                            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Phone substring match found in DATA1! d1='" + d1 + "', dataId=" + matchedDataId);
                             break;
                         }
                     }
-                    if (dataCol != -1) {
-                        String d1 = cursor.getString(dataCol);
-                        if (d1 != null && d1.contains(q)) {
-                            matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
-                            matchedName = (nameCol != -1) ? cursor.getString(nameCol) : d1;
-                            AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Substring data1 match found! data1='" + d1 + "', dataId=" + matchedDataId);
-                            break;
-                        }
+
+                    // Match 2b: Name contains query
+                    if (name != null && name.toLowerCase().contains(q)) {
+                        matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                        matchedName = name;
+                        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Substring name match found! name='" + name + "', dataId=" + matchedDataId);
+                        break;
+                    }
+
+                    // Match 2c: DATA1 contains query
+                    if (d1 != null && d1.contains(q)) {
+                        matchedDataId = cursor.getLong(cursor.getColumnIndex(ContactsContract.Data._ID));
+                        matchedName = (name != null) ? name : d1;
+                        AppLogger.i("ACTION", "launchWhatsAppDirectCallIntent: Substring data1 match found! data1='" + d1 + "', dataId=" + matchedDataId);
+                        break;
                     }
                 }
             }

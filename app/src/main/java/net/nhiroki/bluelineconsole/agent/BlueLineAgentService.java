@@ -531,6 +531,27 @@ public class BlueLineAgentService extends AccessibilityService {
 
     private AccessibilityNodeInfo findDialogCallButton(AccessibilityNodeInfo root, boolean isVideo) {
         if (root == null) return null;
+
+        // 1. Check standard dialog positive buttons first (android:id/button1, com.whatsapp:id/button1)
+        List<AccessibilityNodeInfo> pButtons = root.findAccessibilityNodeInfosByViewId("android:id/button1");
+        if (pButtons != null) {
+            for (AccessibilityNodeInfo btn : pButtons) {
+                if (btn != null && btn.isVisibleToUser()) return btn;
+            }
+        }
+        List<AccessibilityNodeInfo> waButtons = root.findAccessibilityNodeInfosByViewId("com.whatsapp:id/button1");
+        if (waButtons != null) {
+            for (AccessibilityNodeInfo btn : waButtons) {
+                if (btn != null && btn.isVisibleToUser()) return btn;
+            }
+        }
+
+        // 2. Only check text-based candidate buttons if an AlertDialog title or message exists
+        boolean hasDialogTitle = (root.findAccessibilityNodeInfosByViewId("android:id/alertTitle") != null &&
+                                  !root.findAccessibilityNodeInfosByViewId("android:id/alertTitle").isEmpty()) ||
+                                 (root.findAccessibilityNodeInfosByViewId("android:id/message") != null &&
+                                  !root.findAccessibilityNodeInfosByViewId("android:id/message").isEmpty());
+
         List<AccessibilityNodeInfo> candidates = new ArrayList<>();
         List<AccessibilityNodeInfo> callNodes = root.findAccessibilityNodeInfosByText("CALL");
         if (callNodes != null) candidates.addAll(callNodes);
@@ -546,6 +567,10 @@ public class BlueLineAgentService extends AccessibilityService {
             }
             if (cls != null && (cls.toString().contains("ImageView") || cls.toString().contains("ImageButton"))) {
                 continue; // Skip image buttons
+            }
+            // Require dialog context if not button1
+            if (!hasDialogTitle && (id == null || !id.contains("button"))) {
+                continue;
             }
             CharSequence txt = btn.getText();
             if (txt != null) {
@@ -580,23 +605,25 @@ public class BlueLineAgentService extends AccessibilityService {
 
         boolean isVideo = mPendingWhatsAppCallIsVideo;
 
-        // 1. Check if a confirmation dialog button is already showing
+        // 1. Look for call icon in action bar (voice or video) FIRST
+        AccessibilityNodeInfo callNode = findWhatsAppCallButton(root, isVideo);
+        if (callNode != null && callNode.isVisibleToUser()) {
+            if (performClickOnNode(callNode)) {
+                AppLogger.i("A11Y", "WhatsApp call: clicked " + (isVideo ? "video" : "voice") + " call button in toolbar");
+                mMainHandler.postDelayed(() -> dismissCallConfirmationDialogIfAny(isVideo), 250);
+                mMainHandler.postDelayed(() -> dismissCallConfirmationDialogIfAny(isVideo), 600);
+                mMainHandler.postDelayed(() -> dismissCallConfirmationDialogIfAny(isVideo), 1200);
+                mPendingWhatsAppCall = false;
+                return true;
+            }
+        }
+
+        // 2. Only if toolbar call button is not visible, check if a confirmation dialog is already showing
         AccessibilityNodeInfo dialogBtn = findDialogCallButton(root, isVideo);
         if (dialogBtn != null && performClickOnNode(dialogBtn)) {
             AppLogger.i("A11Y", "WhatsApp call: confirmed dialog button");
             mPendingWhatsAppCall = false;
             return true;
-        }
-
-        // 2. Look for call icon in action bar (voice or video)
-        AccessibilityNodeInfo callNode = findWhatsAppCallButton(root, isVideo);
-        if (callNode != null && callNode.isVisibleToUser()) {
-            if (performClickOnNode(callNode)) {
-                AppLogger.i("A11Y", "WhatsApp call: clicked " + (isVideo ? "video" : "voice") + " call button");
-                mMainHandler.postDelayed(() -> dismissCallConfirmationDialogIfAny(isVideo), 350);
-                mPendingWhatsAppCall = false;
-                return true;
-            }
         }
 
         return false;
